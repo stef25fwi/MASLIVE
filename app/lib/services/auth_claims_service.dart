@@ -1,8 +1,10 @@
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import '../models/app_user.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 
-/// Service pour gérer les custom claims d'authentification
+import '../models/app_user.dart';
+import '../security/role_normalizer.dart';
+
+/// Service pour gérer les custom claims d'authentification.
 class AuthClaimsService {
   static final AuthClaimsService _instance = AuthClaimsService._internal();
   static AuthClaimsService get instance => _instance;
@@ -13,75 +15,46 @@ class AuthClaimsService {
   final FirebaseAuth _auth = FirebaseAuth.instance;
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
 
-  /// Obtenir l'utilisateur actuel
   User? get currentUser => _auth.currentUser;
 
-  /// Obtenir les claims de l'utilisateur actuel
   Future<Map<String, dynamic>?> getCurrentUserClaims() async {
     final user = currentUser;
     if (user == null) return null;
-
     final idTokenResult = await user.getIdTokenResult();
     return idTokenResult.claims;
   }
 
-  /// Vérifier si l'utilisateur actuel est admin
-  Future<bool> isCurrentUserAdmin() async {
-    final user = currentUser;
-    if (user == null) return false;
-
-    // Vérifier d'abord dans Firestore (source de vérité)
-    final userDoc = await _firestore.collection('users').doc(user.uid).get();
-    if (!userDoc.exists) return false;
-
-    final userData = userDoc.data()!;
-    final role = userData['role'] as String? ?? 'user';
-    final isAdmin = userData['isAdmin'] as bool? ?? false;
-
-    return isAdmin || role == 'admin' || role == 'superAdmin';
-  }
-
-  /// Vérifier si l'utilisateur actuel est super admin
-  Future<bool> isCurrentUserSuperAdmin() async {
-    final user = currentUser;
-    if (user == null) return false;
-
-    final userDoc = await _firestore.collection('users').doc(user.uid).get();
-    if (!userDoc.exists) return false;
-
-    final userData = userDoc.data()!;
-    final role = userData['role'] as String? ?? 'user';
-
-    return role == 'superAdmin';
-  }
-
-  /// Vérifier si l'utilisateur actuel a un rôle spécifique
-  Future<bool> hasRole(String roleToCheck) async {
-    final user = currentUser;
-    if (user == null) return false;
-
-    final userDoc = await _firestore.collection('users').doc(user.uid).get();
-    if (!userDoc.exists) return false;
-
-    final userData = userDoc.data()!;
-    final role = userData['role'] as String? ?? 'user';
-
-    return role == roleToCheck;
-  }
-
-  /// Obtenir le rôle de l'utilisateur actuel
-  Future<String?> getCurrentUserRole() async {
+  Future<Map<String, dynamic>?> _currentUserData() async {
     final user = currentUser;
     if (user == null) return null;
-
     final userDoc = await _firestore.collection('users').doc(user.uid).get();
-    if (!userDoc.exists) return null;
-
-    final userData = userDoc.data()!;
-    return userData['role'] as String? ?? 'user';
+    return userDoc.data();
   }
 
-  /// Obtenir l'utilisateur complet actuel
+  Future<String?> getCurrentUserRole() async {
+    final data = await _currentUserData();
+    if (data == null) return null;
+    return RoleNormalizer.normalize(
+      data['role'] as String?,
+      isAdminFlag: data['isAdmin'] as bool? ?? false,
+    );
+  }
+
+  Future<bool> isCurrentUserAdmin() async {
+    final role = await getCurrentUserRole();
+    return role == RoleNormalizer.admin || role == RoleNormalizer.superAdmin;
+  }
+
+  Future<bool> isCurrentUserSuperAdmin() async {
+    final role = await getCurrentUserRole();
+    return role == RoleNormalizer.superAdmin;
+  }
+
+  Future<bool> hasRole(String roleToCheck) async {
+    final role = await getCurrentUserRole();
+    return role == RoleNormalizer.normalize(roleToCheck);
+  }
+
   Future<AppUser?> getCurrentAppUser() async {
     final user = currentUser;
     if (user == null) return null;
@@ -92,7 +65,6 @@ class AuthClaimsService {
     return AppUser.fromFirestore(userDoc);
   }
 
-  /// Stream de l'utilisateur complet actuel
   Stream<AppUser?> getCurrentAppUserStream() {
     final user = currentUser;
     if (user == null) return Stream.value(null);
@@ -104,7 +76,6 @@ class AuthClaimsService {
         .map((doc) => doc.exists ? AppUser.fromFirestore(doc) : null);
   }
 
-  /// Forcer le rafraîchissement du token ID
   Future<void> refreshIdToken() async {
     final user = currentUser;
     if (user != null) {
@@ -112,19 +83,12 @@ class AuthClaimsService {
     }
   }
 
-  /// Vérifier si le compte est actif
   Future<bool> isAccountActive() async {
-    final user = currentUser;
-    if (user == null) return false;
-
-    final userDoc = await _firestore.collection('users').doc(user.uid).get();
-    if (!userDoc.exists) return false;
-
-    final userData = userDoc.data()!;
-    return userData['isActive'] as bool? ?? true;
+    final data = await _currentUserData();
+    if (data == null) return false;
+    return data['isActive'] as bool? ?? true;
   }
 
-  /// Désactiver un compte (admin uniquement)
   Future<void> deactivateAccount(String userId) async {
     await _firestore.collection('users').doc(userId).update({
       'isActive': false,
@@ -132,7 +96,6 @@ class AuthClaimsService {
     });
   }
 
-  /// Activer un compte (admin uniquement)
   Future<void> activateAccount(String userId) async {
     await _firestore.collection('users').doc(userId).update({
       'isActive': true,
@@ -140,20 +103,11 @@ class AuthClaimsService {
     });
   }
 
-  /// Vérifier les permissions multiples
-  Future<bool> canAccessAdminPanel() async {
-    return await isCurrentUserAdmin();
-  }
+  Future<bool> canAccessAdminPanel() => isCurrentUserAdmin();
 
-  Future<bool> canManageUsers() async {
-    return await isCurrentUserAdmin();
-  }
+  Future<bool> canManageUsers() => isCurrentUserAdmin();
 
-  Future<bool> canManageRoles() async {
-    return await isCurrentUserSuperAdmin();
-  }
+  Future<bool> canManageRoles() => isCurrentUserSuperAdmin();
 
-  Future<bool> canManageSystem() async {
-    return await isCurrentUserSuperAdmin();
-  }
+  Future<bool> canManageSystem() => isCurrentUserSuperAdmin();
 }

@@ -3,13 +3,21 @@ import 'package:flutter/foundation.dart'
     show TargetPlatform, defaultTargetPlatform, kIsWeb;
 import 'package:flutter/material.dart';
 
-import '../models/app_user.dart';
-import '../services/auth_claims_service.dart';
+import '../security/profile_capability_policy.dart';
 
 class AdminRouteGuard extends StatelessWidget {
-  const AdminRouteGuard({super.key, required this.child});
+  const AdminRouteGuard({
+    super.key,
+    required this.child,
+    this.requiredCapability = Capability.accessAdminPanel,
+    this.requireSuperAdmin = false,
+    this.allowMobile = false,
+  });
 
   final Widget child;
+  final Capability requiredCapability;
+  final bool requireSuperAdmin;
+  final bool allowMobile;
 
   @override
   Widget build(BuildContext context) {
@@ -18,7 +26,7 @@ class AdminRouteGuard extends StatelessWidget {
         (defaultTargetPlatform == TargetPlatform.android ||
             defaultTargetPlatform == TargetPlatform.iOS);
 
-    if (isMobile) {
+    if (isMobile && !allowMobile) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         Navigator.of(context).pushReplacementNamed('/');
       });
@@ -40,17 +48,21 @@ class AdminRouteGuard extends StatelessWidget {
           return const _AdminGuardLoading();
         }
 
-        return StreamBuilder<AppUser?>(
-          stream: AuthClaimsService.instance.getCurrentAppUserStream(),
-          builder: (context, userSnap) {
-            if (userSnap.connectionState == ConnectionState.waiting) {
+        return FutureBuilder<ProfileCapabilities?>(
+          future: ProfileCapabilityPolicy.instance.resolveCurrent(),
+          builder: (context, profileSnap) {
+            if (profileSnap.connectionState == ConnectionState.waiting) {
               return const _AdminGuardLoading();
             }
 
-            final appUser = userSnap.data;
-            final isAdmin = appUser?.isAdminRole ?? false;
+            final profile = profileSnap.data;
+            final hasAccess = profile != null &&
+                profile.isActive &&
+                (requireSuperAdmin
+                    ? profile.can(Capability.manageRoles)
+                    : profile.can(requiredCapability));
 
-            if (!isAdmin) {
+            if (!hasAccess) {
               WidgetsBinding.instance.addPostFrameCallback((_) {
                 Navigator.of(context).pushReplacementNamed('/');
               });
@@ -86,7 +98,7 @@ class _AdminGuardLoading extends StatelessWidget {
                 ),
                 SizedBox(height: 12),
                 Text(
-                  'Verification de l\'acces admin...',
+                  'Vérification de l’accès admin...',
                   textAlign: TextAlign.center,
                   style: TextStyle(
                     fontSize: 16,

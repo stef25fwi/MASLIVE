@@ -1,6 +1,8 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 
-enum UserRole { user, group, admin }
+import '../security/role_normalizer.dart';
+
+enum UserRole { user, tracker, group, admin, superAdmin }
 
 class UserProfile {
   final String id;
@@ -27,25 +29,24 @@ class UserProfile {
     this.isAdmin = false,
   });
 
-  // Convertir depuis Firestore document
   factory UserProfile.fromFirestore(DocumentSnapshot doc) {
     final data = doc.data() as Map<String, dynamic>;
     final created = data['createdAt'] as Timestamp?;
+    final isAdmin = data['isAdmin'] as bool? ?? false;
     return UserProfile(
       id: doc.id,
-      email: data['email'] as String,
+      email: data['email'] as String? ?? '',
       displayName: data['displayName'] as String?,
       photoUrl: data['photoUrl'] as String?,
       phone: data['phone'] as String?,
       region: data['region'] as String?,
       groupId: data['groupId'] as String?,
-      role: parseRole(data['role'] as String?),
+      role: parseRole(data['role'] as String?, isAdminFlag: isAdmin),
       createdAt: created != null ? created.toDate() : DateTime.now(),
-      isAdmin: data['isAdmin'] as bool? ?? false,
+      isAdmin: isAdmin,
     );
   }
 
-  // Convertir en Map pour Firestore
   Map<String, dynamic> toFirestore() {
     return {
       'email': email,
@@ -55,21 +56,25 @@ class UserProfile {
       'region': region,
       'groupId': groupId,
       'role': roleToString(role),
-      'createdAt': createdAt,
+      'createdAt': Timestamp.fromDate(createdAt),
       'isAdmin': isAdmin,
     };
   }
 
   @override
-  String toString() => 'UserProfile($id, $email, $displayName)';
+  String toString() => 'UserProfile($id, $email, $displayName, ${roleToString(role)})';
 
-  static UserRole parseRole(String? value) {
-    switch (value) {
-      case 'admin':
+  static UserRole parseRole(String? value, {bool isAdminFlag = false}) {
+    switch (RoleNormalizer.normalize(value, isAdminFlag: isAdminFlag)) {
+      case RoleNormalizer.superAdmin:
+        return UserRole.superAdmin;
+      case RoleNormalizer.admin:
         return UserRole.admin;
-      case 'group':
+      case RoleNormalizer.group:
         return UserRole.group;
-      case 'user':
+      case RoleNormalizer.tracker:
+        return UserRole.tracker;
+      case RoleNormalizer.user:
       default:
         return UserRole.user;
     }
@@ -77,12 +82,16 @@ class UserProfile {
 
   static String roleToString(UserRole role) {
     switch (role) {
+      case UserRole.superAdmin:
+        return RoleNormalizer.superAdmin;
       case UserRole.admin:
-        return 'admin';
+        return RoleNormalizer.admin;
       case UserRole.group:
-        return 'group';
+        return RoleNormalizer.group;
+      case UserRole.tracker:
+        return RoleNormalizer.tracker;
       case UserRole.user:
-        return 'user';
+        return RoleNormalizer.user;
     }
   }
 }

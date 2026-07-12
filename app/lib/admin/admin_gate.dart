@@ -1,36 +1,37 @@
 import 'package:flutter/material.dart';
-import '../services/auth_claims_service.dart';
-import '../models/app_user.dart';
 
-/// Gate pour protéger l'accès aux pages d'administration
+import '../security/profile_capability_policy.dart';
+
+/// Gate pour protéger l'accès aux pages d'administration.
+///
+/// Utilise la politique de capacités centralisée au lieu du simple booléen
+/// historique `isAdmin`.
 class AdminGate extends StatelessWidget {
   final Widget child;
   final Widget? fallback;
   final bool requireSuperAdmin;
+  final Capability requiredCapability;
 
   const AdminGate({
     super.key,
     required this.child,
     this.fallback,
     this.requireSuperAdmin = false,
+    this.requiredCapability = Capability.accessAdminPanel,
   });
 
   @override
   Widget build(BuildContext context) {
-    return FutureBuilder<AppUser?>(
-      future: AuthClaimsService.instance.getCurrentAppUser(),
+    return FutureBuilder<ProfileCapabilities?>(
+      future: ProfileCapabilityPolicy.instance.resolveCurrent(),
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
-          return const Scaffold(
-            body: Center(
-              child: CircularProgressIndicator(),
-            ),
-          );
+          return const Scaffold(body: Center(child: CircularProgressIndicator()));
         }
 
-        final user = snapshot.data;
+        final profile = snapshot.data;
 
-        if (user == null) {
+        if (profile == null) {
           return _buildAccessDenied(
             context,
             'Non authentifié',
@@ -38,7 +39,7 @@ class AdminGate extends StatelessWidget {
           );
         }
 
-        if (!user.isActive) {
+        if (!profile.isActive) {
           return _buildAccessDenied(
             context,
             'Compte désactivé',
@@ -46,10 +47,9 @@ class AdminGate extends StatelessWidget {
           );
         }
 
-        // Vérifier les permissions
-        final hasAccess = requireSuperAdmin 
-            ? user.isSuperAdmin 
-            : user.isAdminRole;
+        final hasAccess = requireSuperAdmin
+            ? profile.can(Capability.manageRoles)
+            : profile.can(requiredCapability);
 
         if (!hasAccess) {
           return _buildAccessDenied(
@@ -57,7 +57,7 @@ class AdminGate extends StatelessWidget {
             'Accès refusé',
             requireSuperAdmin
                 ? 'Cette page est réservée aux super administrateurs.'
-                : 'Cette page est réservée aux administrateurs.',
+                : 'Cette page est réservée aux profils autorisés.',
           );
         }
 
@@ -66,30 +66,18 @@ class AdminGate extends StatelessWidget {
     );
   }
 
-  Widget _buildAccessDenied(
-    BuildContext context,
-    String title,
-    String message,
-  ) {
-    if (fallback != null) {
-      return fallback!;
-    }
+  Widget _buildAccessDenied(BuildContext context, String title, String message) {
+    if (fallback != null) return fallback!;
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Accès refusé'),
-      ),
+      appBar: AppBar(title: const Text('Accès refusé')),
       body: Center(
         child: Padding(
           padding: const EdgeInsets.all(24),
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              const Icon(
-                Icons.lock,
-                size: 64,
-                color: Colors.red,
-              ),
+              const Icon(Icons.lock, size: 64, color: Colors.red),
               const SizedBox(height: 24),
               Text(
                 title,
@@ -116,36 +104,38 @@ class AdminGate extends StatelessWidget {
   }
 }
 
-/// Widget de protection pour les fonctionnalités admin inline
+/// Widget de protection pour les fonctionnalités admin inline.
 class AdminOnly extends StatelessWidget {
   final Widget child;
   final Widget? fallback;
   final bool requireSuperAdmin;
+  final Capability requiredCapability;
 
   const AdminOnly({
     super.key,
     required this.child,
     this.fallback,
     this.requireSuperAdmin = false,
+    this.requiredCapability = Capability.accessAdminPanel,
   });
 
   @override
   Widget build(BuildContext context) {
-    return FutureBuilder<AppUser?>(
-      future: AuthClaimsService.instance.getCurrentAppUser(),
+    return FutureBuilder<ProfileCapabilities?>(
+      future: ProfileCapabilityPolicy.instance.resolveCurrent(),
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
           return fallback ?? const SizedBox.shrink();
         }
 
-        final user = snapshot.data;
-        if (user == null || !user.isActive) {
+        final profile = snapshot.data;
+        if (profile == null || !profile.isActive) {
           return fallback ?? const SizedBox.shrink();
         }
 
-        final hasAccess = requireSuperAdmin 
-            ? user.isSuperAdmin 
-            : user.isAdminRole;
+        final hasAccess = requireSuperAdmin
+            ? profile.can(Capability.manageRoles)
+            : profile.can(requiredCapability);
 
         if (!hasAccess) {
           return fallback ?? const SizedBox.shrink();
@@ -157,30 +147,27 @@ class AdminOnly extends StatelessWidget {
   }
 }
 
-/// Extension pour faciliter les vérifications d'accès admin
 extension AdminAccessContext on BuildContext {
   Future<bool> isAdmin() async {
-    return await AuthClaimsService.instance.isCurrentUserAdmin();
+    final profile = await ProfileCapabilityPolicy.instance.resolveCurrent();
+    return profile?.can(Capability.accessAdminPanel) ?? false;
   }
 
   Future<bool> isSuperAdmin() async {
-    return await AuthClaimsService.instance.isCurrentUserSuperAdmin();
+    final profile = await ProfileCapabilityPolicy.instance.resolveCurrent();
+    return profile?.can(Capability.manageRoles) ?? false;
   }
 
-  Future<bool> canAccessAdminPanel() async {
-    return await AuthClaimsService.instance.canAccessAdminPanel();
-  }
+  Future<bool> canAccessAdminPanel() async => isAdmin();
 
   Future<void> requireAdmin({String? message}) async {
-    final hasAccess = await isAdmin();
-    if (!hasAccess) {
+    if (!await isAdmin()) {
       throw Exception(message ?? 'Accès administrateur requis');
     }
   }
 
   Future<void> requireSuperAdmin({String? message}) async {
-    final hasAccess = await isSuperAdmin();
-    if (!hasAccess) {
+    if (!await isSuperAdmin()) {
       throw Exception(message ?? 'Accès super administrateur requis');
     }
   }

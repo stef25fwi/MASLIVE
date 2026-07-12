@@ -1,14 +1,17 @@
 import 'dart:io';
 import 'dart:typed_data';
+
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_storage/firebase_storage.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_functions/cloud_functions.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:firebase_storage/firebase_storage.dart';
 import 'package:image_picker/image_picker.dart';
+
 import '../../models/commerce_submission.dart';
+import '../../security/role_normalizer.dart';
 import '../storage_service.dart';
 
-/// Service de gestion des soumissions commerce (produits et médias)
+/// Service de gestion des soumissions commerce (produits et médias).
 class CommerceService {
   static final CommerceService instance = CommerceService._internal();
   CommerceService._internal();
@@ -19,14 +22,11 @@ class CommerceService {
   final FirebaseFunctions _functions = FirebaseFunctions.instance;
   final StorageService _storageService = StorageService.instance;
 
-  /// Collection des soumissions
   CollectionReference<Map<String, dynamic>> get _submissions =>
       _firestore.collection('commerce_submissions');
 
-  /// Utilisateur actuel
   User? get _currentUser => _auth.currentUser;
 
-  /// Créer une soumission brouillon
   Future<String> createDraftSubmission({
     required SubmissionType type,
     required OwnerRole ownerRole,
@@ -36,12 +36,10 @@ class CommerceService {
     String description = '',
     List<String> mediaUrls = const [],
     String? thumbUrl,
-    // Champs produit
     double? price,
     String? currency,
     int? stock,
     bool? isActive,
-    // Champs media
     MediaType? mediaType,
     DateTime? takenAt,
     GeoPoint? location,
@@ -98,19 +96,13 @@ class CommerceService {
     return doc.id;
   }
 
-  /// Mettre à jour une soumission
-  Future<void> updateSubmission(
-    String submissionId,
-    Map<String, dynamic> updates,
-  ) async {
+  Future<void> updateSubmission(String submissionId, Map<String, dynamic> updates) async {
     final user = _currentUser;
     if (user == null) throw Exception('User not authenticated');
-
     updates['updatedAt'] = FieldValue.serverTimestamp();
     await _submissions.doc(submissionId).update(updates);
   }
 
-  /// Soumettre pour validation
   Future<void> submitForReview(String submissionId) async {
     final user = _currentUser;
     if (user == null) throw Exception('User not authenticated');
@@ -125,11 +117,8 @@ class CommerceService {
           (submission.eventId?.trim().isNotEmpty ?? false) &&
           (submission.circuitId?.trim().isNotEmpty ?? false);
       if (!hasSelection) {
-        throw Exception(
-          'Pays, evenement et circuit sont obligatoires pour un media',
-        );
+        throw Exception('Pays, evenement et circuit sont obligatoires pour un media');
       }
-
       if ((submission.price ?? 0) <= 0) {
         throw Exception('Le prix photo doit etre superieur a 0');
       }
@@ -142,83 +131,58 @@ class CommerceService {
     });
   }
 
-  /// Supprimer une soumission (uniquement draft ou rejected)
   Future<void> deleteSubmission(String submissionId) async {
     final user = _currentUser;
     if (user == null) throw Exception('User not authenticated');
 
-    // Récupérer la soumission pour vérifier le statut
     final doc = await _submissions.doc(submissionId).get();
     if (!doc.exists) throw Exception('Submission not found');
 
     final submission = CommerceSubmission.fromFirestore(doc);
     if (!submission.canEdit) {
-      throw Exception(
-        'Cannot delete submission in status: ${submission.status}',
-      );
+      throw Exception('Cannot delete submission in status: ${submission.status}');
     }
-
     if (submission.ownerUid != user.uid) {
       throw Exception('Not authorized to delete this submission');
     }
 
-    // Supprimer les fichiers Storage
     await _deleteStorageFolder(submission.scopeId, user.uid, submissionId);
-
-    // Supprimer le document
     await _submissions.doc(submissionId).delete();
   }
 
-  /// Supprimer le dossier Storage d'une soumission
-  Future<void> _deleteStorageFolder(
-    String scopeId,
-    String ownerUid,
-    String submissionId,
-  ) async {
+  Future<void> _deleteStorageFolder(String scopeId, String ownerUid, String submissionId) async {
     try {
-      final folderRef = _storage.ref(
-        'commerce/$scopeId/$ownerUid/$submissionId',
-      );
+      final folderRef = _storage.ref('commerce/$scopeId/$ownerUid/$submissionId');
       final result = await folderRef.listAll();
-
-      // Supprimer tous les fichiers
       for (final item in result.items) {
         await item.delete();
       }
-
-      // Supprimer les sous-dossiers récursivement
       for (final prefix in result.prefixes) {
         await _deleteStorageFolderRecursive(prefix);
       }
-    } catch (e) {
-      // Ignorer si le dossier n'existe pas
+    } catch (_) {
+      // Ignorer si le dossier n'existe pas.
     }
   }
 
   Future<void> _deleteStorageFolderRecursive(Reference folderRef) async {
     final result = await folderRef.listAll();
-
     for (final item in result.items) {
       await item.delete();
     }
-
     for (final prefix in result.prefixes) {
       await _deleteStorageFolderRecursive(prefix);
     }
   }
 
-  /// Uploader des fichiers média
-  /// ✅ Utilise maintenant StorageService avec structure organisée
   Future<List<String>> uploadMediaFiles({
     required String scopeId,
     required String submissionId,
     required List<File> files,
     void Function(double progress)? onProgress,
   }) async {
-    // Convertit File en XFile pour utiliser StorageService
-    final xfiles = files.map((f) => XFile(f.path)).toList();
-
-    return await _storageService.uploadMediaFiles(
+    final xfiles = files.map((file) => XFile(file.path)).toList();
+    return _storageService.uploadMediaFiles(
       mediaId: submissionId,
       files: xfiles,
       scopeId: scopeId,
@@ -226,8 +190,6 @@ class CommerceService {
     );
   }
 
-  /// Uploader depuis bytes (web)
-  /// ✅ Utilise maintenant StorageService avec structure organisée
   Future<String> uploadMediaBytes({
     required String scopeId,
     required String submissionId,
@@ -235,14 +197,13 @@ class CommerceService {
     required String filename,
     void Function(double progress)? onProgress,
   }) async {
-    // Crée XFile depuis bytes pour web
     final xfile = XFile.fromData(
       Uint8List.fromList(bytes),
       name: filename,
       mimeType: 'image/jpeg',
     );
 
-    return await _storageService.uploadMediaFile(
+    return _storageService.uploadMediaFile(
       mediaId: submissionId,
       file: xfile,
       scopeId: scopeId,
@@ -250,10 +211,7 @@ class CommerceService {
     );
   }
 
-  /// Regarder mes soumissions
-  Stream<List<CommerceSubmission>> watchMySubmissions({
-    SubmissionStatus? status,
-  }) {
+  Stream<List<CommerceSubmission>> watchMySubmissions({SubmissionStatus? status}) {
     final user = _currentUser;
     if (user == null) return Stream.value([]);
 
@@ -269,13 +227,10 @@ class CommerceService {
     }
 
     return query.snapshots().map((snapshot) {
-      return snapshot.docs
-          .map((doc) => CommerceSubmission.fromFirestore(doc))
-          .toList();
+      return snapshot.docs.map((doc) => CommerceSubmission.fromFirestore(doc)).toList();
     });
   }
 
-  /// Regarder les soumissions en attente (modération)
   Stream<List<CommerceSubmission>> watchPendingSubmissions({
     SubmissionType? type,
     ScopeType? scopeType,
@@ -307,17 +262,13 @@ class CommerceService {
     }
 
     return query.snapshots().map((snapshot) {
-      return snapshot.docs
-          .map((doc) => CommerceSubmission.fromFirestore(doc))
-          .toList();
+      return snapshot.docs.map((doc) => CommerceSubmission.fromFirestore(doc)).toList();
     });
   }
 
-  /// Approuver une soumission (via Cloud Function)
   Future<void> approve(String submissionId) async {
     final user = _currentUser;
     if (user == null) throw Exception('User not authenticated');
-
     try {
       final callable = _functions.httpsCallable('approveCommerceSubmission');
       await callable.call({'submissionId': submissionId});
@@ -326,11 +277,9 @@ class CommerceService {
     }
   }
 
-  /// Refuser une soumission (via Cloud Function)
   Future<void> reject(String submissionId, String note) async {
     final user = _currentUser;
     if (user == null) throw Exception('User not authenticated');
-
     try {
       final callable = _functions.httpsCallable('rejectCommerceSubmission');
       await callable.call({'submissionId': submissionId, 'note': note});
@@ -339,14 +288,12 @@ class CommerceService {
     }
   }
 
-  /// Récupérer une soumission par ID
   Future<CommerceSubmission?> getSubmission(String submissionId) async {
     final doc = await _submissions.doc(submissionId).get();
     if (!doc.exists) return null;
     return CommerceSubmission.fromFirestore(doc);
   }
 
-  /// Stream d'une soumission
   Stream<CommerceSubmission?> watchSubmission(String submissionId) {
     return _submissions.doc(submissionId).snapshots().map((doc) {
       if (!doc.exists) return null;
@@ -354,35 +301,32 @@ class CommerceService {
     });
   }
 
-  /// Vérifier si l'utilisateur peut modérer
   Future<bool> canModerate({String? scopeId}) async {
     final user = _currentUser;
     if (user == null) return false;
 
-    // Récupérer le profil utilisateur
     final userDoc = await _firestore.collection('users').doc(user.uid).get();
     if (!userDoc.exists) return false;
 
     final data = userDoc.data()!;
-    final role = data['role'] as String?;
-    final isAdmin = data['isAdmin'] as bool? ?? false;
+    final role = RoleNormalizer.normalize(
+      data['role'] as String?,
+      isAdminFlag: data['isAdmin'] as bool? ?? false,
+    );
 
-    // SuperAdmin peut tout modérer
-    if (isAdmin || role == 'admin' || role == 'superadmin') {
+    if (role == RoleNormalizer.admin || role == RoleNormalizer.superAdmin) {
       return true;
     }
 
-    // Admin groupe peut modérer uniquement son scope
-    if (role == 'admin_groupe' && scopeId != null) {
-      final managedScopeIds = (data['managedScopeIds'] as List<dynamic>?)
-          ?.cast<String>();
-      return managedScopeIds?.contains(scopeId) ?? false;
+    if (role == RoleNormalizer.group && scopeId != null) {
+      final managedScopeIds = (data['managedScopeIds'] as List<dynamic>?)?.cast<String>();
+      final userGroupId = data['groupId'] as String?;
+      return managedScopeIds?.contains(scopeId) == true || userGroupId == scopeId;
     }
 
     return false;
   }
 
-  /// Récupérer le rôle de l'utilisateur actuel
   Future<OwnerRole?> getCurrentUserRole() async {
     final user = _currentUser;
     if (user == null) return null;
@@ -391,30 +335,28 @@ class CommerceService {
     if (!userDoc.exists) return null;
 
     final data = userDoc.data()!;
-    final role = data['role'] as String?;
-    final accountType = data['accountType'] as String?;
+    final role = RoleNormalizer.normalize(
+      data['role'] as String?,
+      isAdminFlag: data['isAdmin'] as bool? ?? false,
+    );
+    final accountType = (data['accountType'] as String?)?.trim().toLowerCase();
     final activities = (data['activities'] as List<dynamic>?)?.cast<String>();
 
-    // Déterminer le rôle owner
-    if (role == 'superadmin' || (data['isAdmin'] as bool? ?? false)) {
-      return OwnerRole.superadmin;
-    }
-
-    if (role == 'admin_groupe') {
-      return OwnerRole.adminGroupe;
-    }
+    if (role == RoleNormalizer.superAdmin) return OwnerRole.superadmin;
+    if (role == RoleNormalizer.admin) return OwnerRole.superadmin;
+    if (role == RoleNormalizer.group) return OwnerRole.adminGroupe;
 
     if (accountType == 'pro') {
-      if (activities?.contains('createur_digital') == true) {
+      if (activities?.contains('createur_digital') == true ||
+          activities?.contains('creator_digital') == true) {
         return OwnerRole.createurDigital;
       }
       return OwnerRole.comptePro;
     }
 
-    return null; // L'utilisateur ne peut pas soumettre
+    return null;
   }
 
-  /// Vérifier si l'utilisateur peut soumettre du commerce
   Future<bool> canSubmitCommerce() async {
     final role = await getCurrentUserRole();
     return role != null;

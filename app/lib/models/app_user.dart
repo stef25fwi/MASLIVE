@@ -1,6 +1,8 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 
-/// Modèle utilisateur complet de l'application
+import '../security/role_normalizer.dart';
+
+/// Modèle utilisateur complet de l'application.
 class AppUser {
   final String uid;
   final String email;
@@ -36,24 +38,23 @@ class AppUser {
     this.metadata,
   });
 
-  /// Créer depuis Firestore
   factory AppUser.fromFirestore(DocumentSnapshot doc) {
     final data = doc.data() as Map<String, dynamic>;
     return AppUser.fromMap(doc.id, data);
   }
 
-  /// Créer depuis Map
   factory AppUser.fromMap(String uid, Map<String, dynamic> data) {
+    final isAdmin = data['isAdmin'] as bool? ?? false;
     return AppUser(
       uid: uid,
-      email: data['email'] as String,
+      email: data['email'] as String? ?? '',
       displayName: data['displayName'] as String?,
       photoUrl: data['photoUrl'] as String?,
       phone: data['phone'] as String?,
       region: data['region'] as String?,
-      role: data['role'] as String? ?? 'user',
+      role: RoleNormalizer.normalize(data['role'] as String?, isAdminFlag: isAdmin),
       groupId: data['groupId'] as String?,
-      isAdmin: data['isAdmin'] as bool? ?? false,
+      isAdmin: isAdmin,
       isActive: data['isActive'] as bool? ?? true,
       isEmailVerified: data['isEmailVerified'] as bool? ?? false,
       createdAt: (data['createdAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
@@ -63,7 +64,6 @@ class AppUser {
     );
   }
 
-  /// Convertir en Map pour Firestore
   Map<String, dynamic> toFirestore() {
     return {
       'email': email,
@@ -83,7 +83,6 @@ class AppUser {
     };
   }
 
-  /// Copie avec modifications
   AppUser copyWith({
     String? displayName,
     String? photoUrl,
@@ -98,6 +97,7 @@ class AppUser {
     List<String>? fcmTokens,
     Map<String, dynamic>? metadata,
   }) {
+    final nextIsAdmin = isAdmin ?? this.isAdmin;
     return AppUser(
       uid: uid,
       email: email,
@@ -105,9 +105,9 @@ class AppUser {
       photoUrl: photoUrl ?? this.photoUrl,
       phone: phone ?? this.phone,
       region: region ?? this.region,
-      role: role ?? this.role,
+      role: RoleNormalizer.normalize(role ?? this.role, isAdminFlag: nextIsAdmin),
       groupId: groupId ?? this.groupId,
-      isAdmin: isAdmin ?? this.isAdmin,
+      isAdmin: nextIsAdmin,
       isActive: isActive ?? this.isActive,
       isEmailVerified: isEmailVerified ?? this.isEmailVerified,
       createdAt: createdAt,
@@ -117,22 +117,19 @@ class AppUser {
     );
   }
 
-  /// Vérifier si l'utilisateur est super admin
-  bool get isSuperAdmin => role == 'superAdmin';
+  String get canonicalRole => RoleNormalizer.normalize(role, isAdminFlag: isAdmin);
 
-  /// Vérifier si l'utilisateur est admin (incluant super admin)
-  bool get isAdminRole => isAdmin || role == 'admin' || role == 'superAdmin';
+  bool get isSuperAdmin => canonicalRole == RoleNormalizer.superAdmin;
 
-  /// Vérifier si l'utilisateur est admin de groupe
-  bool get isGroupAdmin => role == 'group' && groupId != null;
+  bool get isAdminRole =>
+      canonicalRole == RoleNormalizer.admin || canonicalRole == RoleNormalizer.superAdmin;
 
-  /// Vérifier si l'utilisateur est traceur
-  bool get isTracker => role == 'tracker' || isGroupAdmin;
+  bool get isGroupAdmin => canonicalRole == RoleNormalizer.group && groupId != null;
 
-  /// Obtenir le nom affiché
+  bool get isTracker => canonicalRole == RoleNormalizer.tracker || isGroupAdmin;
+
   String get displayNameOrEmail => displayName ?? email.split('@').first;
 
-  /// Obtenir les initiales
   String get initials {
     if (displayName != null && displayName!.isNotEmpty) {
       final parts = displayName!.split(' ');
@@ -141,33 +138,17 @@ class AppUser {
       }
       return displayName![0].toUpperCase();
     }
-    return email[0].toUpperCase();
+    return email.isNotEmpty ? email[0].toUpperCase() : '?';
   }
 
-  /// Obtenir le label du rôle
-  String get roleLabel {
-    switch (role) {
-      case 'superAdmin':
-        return 'Super Administrateur';
-      case 'admin':
-        return 'Administrateur';
-      case 'group':
-        return 'Admin Groupe';
-      case 'tracker':
-        return 'Traceur';
-      case 'user':
-      default:
-        return 'Utilisateur';
-    }
-  }
+  String get roleLabel => RoleNormalizer.label(canonicalRole);
 
   @override
-  String toString() => 'AppUser($uid, $email, $role)';
+  String toString() => 'AppUser($uid, $email, $canonicalRole)';
 
   @override
   bool operator ==(Object other) =>
-      identical(this, other) ||
-      other is AppUser && runtimeType == other.runtimeType && uid == other.uid;
+      identical(this, other) || other is AppUser && runtimeType == other.runtimeType && uid == other.uid;
 
   @override
   int get hashCode => uid.hashCode;

@@ -31,6 +31,7 @@ class _BloomArtArtistCreatorFormPageState
   bool _saving = false;
   bool _stripeAccountLinked = false;
   String _payoutStatus = 'ready';
+  String _creationType = BloomArtCreationType.artisanatArt;
   DateTime? _createdAt;
 
   @override
@@ -79,6 +80,7 @@ class _BloomArtArtistCreatorFormPageState
       _addressController.text = profile.address;
       _cityController.text = profile.city;
       _countryController.text = profile.country;
+      _creationType = BloomArtCreationType.normalize(profile.creationType);
       _stripeAccountLinked = profile.stripeAccountLinked;
       _payoutStatus = profile.payoutStatus.trim().isEmpty
           ? 'ready'
@@ -109,7 +111,8 @@ class _BloomArtArtistCreatorFormPageState
       final profile = BloomArtSellerProfile(
         id: user.uid,
         userId: user.uid,
-        profileType: 'artist_creator',
+        profileType: 'artisan_art',
+        creationType: _creationType,
         fullName: _fullNameController.text.trim(),
         artistName: _artistNameController.text.trim(),
         email: _emailController.text.trim(),
@@ -128,7 +131,7 @@ class _BloomArtArtistCreatorFormPageState
       if (!mounted) return;
       Navigator.of(context).pushReplacementNamed(
         '/bloom-art/create',
-        arguments: <String, dynamic>{'profileType': 'artist_creator'},
+        arguments: <String, dynamic>{'profileType': 'artisan_art'},
       );
     } catch (error) {
       if (!mounted) return;
@@ -152,7 +155,7 @@ class _BloomArtArtistCreatorFormPageState
         backgroundColor: const Color(0xFFFFFBF7),
         elevation: 0,
         title: const Text(
-          'Profil artiste createur',
+          'Profil Artisan d’art',
           style: TextStyle(fontWeight: FontWeight.w900),
         ),
       ),
@@ -164,9 +167,9 @@ class _BloomArtArtistCreatorFormPageState
                 padding: const EdgeInsets.fromLTRB(10, 16, 10, 28),
                 children: <Widget>[
                   const _BloomArtFormHero(
-                    title: 'Confirmez votre statut vendeur',
+                    title: 'Exposez vos œuvres',
                     subtitle:
-                        'Ce profil est reserve aux artistes createurs deja prets a encaisser leurs ventes via votre architecture de paiement existante.',
+                        'Exposez vos œuvres, gérez votre galerie, recevez des demandes et vendez vos créations dans Bloom Art.',
                   ),
                   const SizedBox(height: 18),
                   _BloomArtTextField(
@@ -177,7 +180,30 @@ class _BloomArtArtistCreatorFormPageState
                   const SizedBox(height: 12),
                   _BloomArtTextField(
                     controller: _artistNameController,
-                    label: 'Nom d\'artiste',
+                    label: 'Nom d’artiste / atelier',
+                  ),
+                  const SizedBox(height: 12),
+                  DropdownButtonFormField<String>(
+                    initialValue: _creationType,
+                    decoration: const InputDecoration(
+                      labelText: 'Type de création',
+                      border: OutlineInputBorder(),
+                      filled: true,
+                      fillColor: Colors.white,
+                    ),
+                    items: BloomArtCreationType.values
+                        .map(
+                          (value) => DropdownMenuItem<String>(
+                            value: value,
+                            child: Text(BloomArtCreationType.labelOf(value)),
+                          ),
+                        )
+                        .toList(growable: false),
+                    onChanged: (value) {
+                      setState(() {
+                        _creationType = BloomArtCreationType.normalize(value);
+                      });
+                    },
                   ),
                   const SizedBox(height: 12),
                   _BloomArtTextField(
@@ -189,7 +215,7 @@ class _BloomArtArtistCreatorFormPageState
                   const SizedBox(height: 12),
                   _BloomArtTextField(
                     controller: _phoneController,
-                    label: 'Telephone',
+                    label: 'Téléphone',
                   ),
                   const SizedBox(height: 12),
                   _BloomArtTextField(
@@ -212,16 +238,16 @@ class _BloomArtArtistCreatorFormPageState
                   const SizedBox(height: 12),
                   _BloomArtTextField(
                     controller: _bioController,
-                    label: 'Bio / demarche artistique',
+                    label: 'Bio / démarche artistique',
                     maxLines: 5,
                   ),
                   const SizedBox(height: 14),
                   SwitchListTile.adaptive(
                     value: _stripeAccountLinked,
                     contentPadding: EdgeInsets.zero,
-                    title: const Text('Compte de paiement deja relie'),
+                    title: const Text('Compte de paiement déjà relié'),
                     subtitle: const Text(
-                      'Activez cette option si votre onboarding vendeur et vos encaissements sont deja prets.',
+                      'Activez cette option si votre onboarding vendeur et vos encaissements sont déjà prêts.',
                     ),
                     onChanged: (value) {
                       setState(() {
@@ -255,7 +281,7 @@ class _BloomArtArtistCreatorFormPageState
                   BloomArtCtaButton(
                     label: _saving
                         ? 'Enregistrement en cours...'
-                        : 'Continuer vers le depot de l\'oeuvre',
+                        : 'Continuer vers le dépôt de l’œuvre',
                     icon: Icons.arrow_forward_rounded,
                     onPressed: _saving ? null : _submit,
                   ),
