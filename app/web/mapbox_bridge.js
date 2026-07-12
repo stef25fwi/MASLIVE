@@ -2266,6 +2266,7 @@
         const roadLike = _parseBool(opts.roadLike, true);
         const shadow3d = _parseBool(opts.shadow3d, true);
         const elevated3d = _parseBool(opts.elevated3d, false);
+        const elevated3dCorner = _clampNumber(opts.elevated3dCorner, 0, 1, 0.5);
         const showDirection = _parseBool(opts.showDirection, true);
         const animateDirection = _parseBool(opts.animateDirection, false);
         const animationSpeed = _clampNumber(opts.animationSpeed, 0.1, 10.0, 1.0);
@@ -2619,21 +2620,46 @@
         const extrusionLayerId = 'maslive_polyline_extrusion3d';
         if (elevated3d && coords.length >= 2) {
           try {
-            const bufferLineToPolygon = (cs, halfWMeters) => {
+            const bufferLineToPolygon = (cs, halfWMeters, round) => {
               const R = 6378137, toRad = Math.PI / 180;
+              const arcN = Math.max(0, Math.round((round || 0) * 8));
               const left = [], right = [];
-              for (let i = 0; i < cs.length; i++) {
-                const prev = cs[Math.max(0, i - 1)];
-                const next = cs[Math.min(cs.length - 1, i + 1)];
-                const cosLat = Math.max(0.01, Math.cos(cs[i][1] * toRad));
-                const dx = (next[0] - prev[0]) * toRad * R * cosLat;
-                const dy = (next[1] - prev[1]) * toRad * R;
+              // normale unitaire (gauche) d'un segment a->b, espace mètres
+              const segN = (a, b) => {
+                const cosLat = Math.max(0.01, Math.cos((a[1] + b[1]) / 2 * toRad));
+                const dx = (b[0] - a[0]) * toRad * R * cosLat;
+                const dy = (b[1] - a[1]) * toRad * R;
                 const len = Math.hypot(dx, dy) || 1;
-                const nx = -dy / len, ny = dx / len;
-                const dLng = (nx * halfWMeters) / (R * cosLat) / toRad;
-                const dLat = (ny * halfWMeters) / R / toRad;
-                left.push([cs[i][0] + dLng, cs[i][1] + dLat]);
-                right.push([cs[i][0] - dLng, cs[i][1] - dLat]);
+                return [-dy / len, dx / len];
+              };
+              const off = (pt, n, side) => {
+                const cosLat = Math.max(0.01, Math.cos(pt[1] * toRad));
+                const dLng = (n[0] * halfWMeters * side) / (R * cosLat) / toRad;
+                const dLat = (n[1] * halfWMeters * side) / R / toRad;
+                return [pt[0] + dLng, pt[1] + dLat];
+              };
+              for (let i = 0; i < cs.length; i++) {
+                const pt = cs[i];
+                const nIn = (i > 0) ? segN(cs[i - 1], cs[i]) : segN(cs[i], cs[i + 1]);
+                const nOut = (i < cs.length - 1) ? segN(cs[i], cs[i + 1]) : nIn;
+                if (i === 0 || i === cs.length - 1 || arcN === 0) {
+                  let nx = nIn[0] + nOut[0], ny = nIn[1] + nOut[1];
+                  const l = Math.hypot(nx, ny) || 1; nx /= l; ny /= l;
+                  left.push(off(pt, [nx, ny], 1));
+                  right.push(off(pt, [nx, ny], -1));
+                } else {
+                  const a0 = Math.atan2(nIn[1], nIn[0]);
+                  const a1 = Math.atan2(nOut[1], nOut[0]);
+                  let da = a1 - a0;
+                  while (da > Math.PI) da -= 2 * Math.PI;
+                  while (da < -Math.PI) da += 2 * Math.PI;
+                  for (let k = 0; k <= arcN; k++) {
+                    const a = a0 + da * (k / arcN);
+                    const n = [Math.cos(a), Math.sin(a)];
+                    left.push(off(pt, n, 1));
+                    right.push(off(pt, n, -1));
+                  }
+                }
               }
               const ring = left.concat(right.reverse());
               ring.push(ring[0]);
@@ -2656,14 +2682,14 @@
               for (const f of segmentsFc.features) {
                 const g = f && f.geometry;
                 if (!g || g.type !== 'LineString' || !Array.isArray(g.coordinates) || g.coordinates.length < 2) continue;
-                const p = bufferLineToPolygon(g.coordinates, ribbonHalfW);
+                const p = bufferLineToPolygon(g.coordinates, ribbonHalfW, elevated3dCorner);
                 p.properties = { color: (f.properties && f.properties.color) || mainColor };
                 polys.push(p);
               }
               extrusionData = { type: 'FeatureCollection', features: polys };
               extrusionColor = ['coalesce', ['get', 'color'], mainColor];
             } else {
-              extrusionData = bufferLineToPolygon(coords, ribbonHalfW);
+              extrusionData = bufferLineToPolygon(coords, ribbonHalfW, elevated3dCorner);
               extrusionColor = mainColor;
             }
 

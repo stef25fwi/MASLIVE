@@ -170,6 +170,18 @@ class _RouteStyleControlsPanelState extends State<RouteStyleControlsPanel> {
                   onChanged: (v) =>
                       widget.onChanged(cfg.copyWith(elevated3d: v)),
                 ),
+                if (cfg.elevated3d)
+                  RouteStyleSlider(
+                    label: 'Arrondi des angles (3D)',
+                    value: cfg.elevated3dCorner,
+                    min: 0,
+                    max: 1,
+                    divisions: 20,
+                    unit: '',
+                    decimals: 2,
+                    onChanged: (v) =>
+                        widget.onChanged(cfg.copyWith(elevated3dCorner: v)),
+                  ),
                 RouteStyleSlider(
                   label: 'Échelle largeur (×)',
                   value: cfg.widthScale3d,

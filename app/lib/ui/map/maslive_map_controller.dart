@@ -234,6 +234,7 @@ class MasLiveMapController {
     bool roadLike = false,
     bool shadow3d = false,
     bool elevated3d = false,
+    double elevated3dCorner = 0.5,
     bool showDirection = false,
     bool animateDirection = false,
     double animationSpeed = 1.0,
@@ -269,6 +270,7 @@ class MasLiveMapController {
         roadLike: roadLike,
         shadow3d: shadow3d,
         elevated3d: elevated3d,
+        elevated3dCorner: elevated3dCorner,
         showDirection: showDirection,
         animateDirection: animateDirection,
         animationSpeed: animationSpeed,
@@ -446,6 +448,7 @@ class PolylineRenderOptions {
   /// avec épaisseur + faces latérales ombrées), au lieu d'une ligne plate.
   /// (Web/Mapbox GL JS.)
   final bool elevated3d;
+  final double elevated3dCorner;
   final bool showDirection;
   final bool animateDirection;
   final double animationSpeed;
@@ -505,6 +508,7 @@ class PolylineRenderOptions {
     this.roadLike = true,
     this.shadow3d = true,
     this.elevated3d = false,
+    this.elevated3dCorner = 0.5,
     this.showDirection = true,
     this.animateDirection = false,
     this.animationSpeed = 1.0,
@@ -535,6 +539,7 @@ class PolylineRenderOptions {
         'roadLike': roadLike,
         'shadow3d': shadow3d,
         'elevated3d': elevated3d,
+        'elevated3dCorner': elevated3dCorner,
         'showDirection': showDirection,
         'animateDirection': animateDirection,
         'animationSpeed': animationSpeed,

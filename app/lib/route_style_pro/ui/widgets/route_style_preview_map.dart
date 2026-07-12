@@ -421,6 +421,7 @@ class _RouteStylePreviewMapState extends State<RouteStylePreviewMap> {
       roadLike: shouldRoadLike,
       shadow3d: cfg.effectiveShadowEnabled,
       elevated3d: cfg.elevated3d,
+      elevated3dCorner: cfg.elevated3dCorner,
       showDirection: false,
       animateDirection: cfg.pulseEnabled,
       animationSpeed: (cfg.pulseSpeed / 25.0).clamp(0.5, 5.0),

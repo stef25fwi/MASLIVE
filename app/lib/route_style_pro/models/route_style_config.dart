@@ -85,6 +85,10 @@ class RouteStyleConfig {
   /// et faces latérales ombrées, au lieu d'une ligne plate. (Web)
   final bool elevated3d;
 
+  /// Arrondi des angles du ruban 3D. 0 = anguleux (coins nets), 1 = très
+  /// arrondi. (Web, quand `elevated3d` actif.)
+  final double elevated3dCorner;
+
   /// 0..1
   final double shadowOpacity;
 
@@ -177,6 +181,7 @@ class RouteStyleConfig {
     // C
     this.shadowEnabled = true,
     this.elevated3d = false,
+    this.elevated3dCorner = 0.5,
     this.shadowOpacity = 0.40,
     this.shadowBlur = 2.0,
     this.glowEnabled = true,
@@ -284,6 +289,7 @@ class RouteStyleConfig {
     double? sidesIntensity,
     bool? shadowEnabled,
     bool? elevated3d,
+    double? elevated3dCorner,
     double? shadowOpacity,
     double? shadowBlur,
     bool? glowEnabled,
@@ -330,6 +336,7 @@ class RouteStyleConfig {
       sidesIntensity: sidesIntensity ?? this.sidesIntensity,
       shadowEnabled: shadowEnabled ?? this.shadowEnabled,
       elevated3d: elevated3d ?? this.elevated3d,
+      elevated3dCorner: elevated3dCorner ?? this.elevated3dCorner,
       shadowOpacity: shadowOpacity ?? this.shadowOpacity,
       shadowBlur: shadowBlur ?? this.shadowBlur,
       glowEnabled: glowEnabled ?? this.glowEnabled,
@@ -384,6 +391,7 @@ class RouteStyleConfig {
       sidesIntensity: clamp(sidesIntensity, 0, 1),
       shadowEnabled: shadowEnabled,
       elevated3d: elevated3d,
+      elevated3dCorner: clamp(elevated3dCorner, 0, 1),
       shadowOpacity: clamp(shadowOpacity, 0, 1),
       shadowBlur: clamp(shadowBlur, 0, 20),
       glowEnabled: glowEnabled,
@@ -435,6 +443,7 @@ class RouteStyleConfig {
       'sidesIntensity': sidesIntensity,
       'shadowEnabled': shadowEnabled,
       'elevated3d': elevated3d,
+      'elevated3dCorner': elevated3dCorner,
       'shadowOpacity': shadowOpacity,
       'shadowBlur': shadowBlur,
       'glowEnabled': glowEnabled,
@@ -538,6 +547,9 @@ class RouteStyleConfig {
       elevated3d: json['elevated3d'] is bool
           ? json['elevated3d'] as bool
           : false,
+      elevated3dCorner: (json['elevated3dCorner'] is num)
+          ? (json['elevated3dCorner'] as num).toDouble()
+          : 0.5,
       shadowOpacity: (json['shadowOpacity'] is num)
           ? (json['shadowOpacity'] as num).toDouble()
           : 0.40,
