@@ -39,7 +39,7 @@ class BloomArtProfileChoiceSheet extends StatelessWidget {
           ),
           const SizedBox(height: 18),
           const Text(
-            'Quel type de vendeur êtes-vous ?',
+            'Quel parcours Bloom Art ?',
             style: TextStyle(
               fontSize: 24,
               fontWeight: FontWeight.w900,
@@ -48,7 +48,7 @@ class BloomArtProfileChoiceSheet extends StatelessWidget {
           ),
           const SizedBox(height: 8),
           const Text(
-            'Choisissez votre profil pour ouvrir le bon parcours Bloom Art.',
+            'Le dépôt d’œuvre est réservé aux artistes déclarés avec SIRET vérifié. Le parcours “Je me lance” sert à préparer la création d’entreprise.',
             style: TextStyle(
               color: Color(0xFF6A645E),
               height: 1.45,
@@ -56,17 +56,17 @@ class BloomArtProfileChoiceSheet extends StatelessWidget {
           ),
           const SizedBox(height: 18),
           SellerProfileChoiceCard(
-            title: 'Artiste créateur',
+            title: 'Artisan d’art déclaré',
             subtitle:
-                'Vous avez déjà un statut vendeur et pouvez déposer votre création sans détour.',
-            icon: Icons.palette_outlined,
-            onTap: () => Navigator.of(context).pop('artist_creator'),
+                'J’ai un SIRET : vérifier mon activité, créer ma galerie et accéder au dashboard.',
+            icon: Icons.verified_rounded,
+            onTap: () => Navigator.of(context).pop('artisan_art'),
           ),
           const SizedBox(height: 12),
           SellerProfileChoiceCard(
             title: 'Je me lance',
             subtitle:
-                'Vous vendez une première création et devez compléter votre profil avant dépôt.',
+                'Je n’ai pas encore de SIRET : suivre le guide de création d’entreprise.',
             icon: Icons.auto_awesome_outlined,
             onTap: () => Navigator.of(context).pop('je_me_lance'),
           ),
