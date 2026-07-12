@@ -21,17 +21,63 @@ jobs:
       - name: Setup Flutter
         uses: subosito/flutter-action@v2
         with:
-          flutter-version: "3.38.4"
+          flutter-version: "3.44.4"
           cache: true
 
       - name: Install Flutter dependencies
         run: flutter pub get
 
       - name: Analyze Flutter app
-        run: flutter analyze
+        id: flutter_analyze
+        continue-on-error: true
+        run: |
+          set +e
+          flutter analyze > flutter-analyze.log 2>&1
+          status=$?
+          cat flutter-analyze.log
+
+          if grep -Eq '^error •' flutter-analyze.log; then
+            exit 1
+          fi
+
+          if [ "$status" -ne 0 ] && ! grep -Eq '[0-9]+ issues? found' flutter-analyze.log; then
+            exit "$status"
+          fi
+
+          exit 0
+
+      - name: Upload Flutter analyzer report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: flutter-analyze-report
+          path: app/flutter-analyze.log
+          if-no-files-found: error
+          retention-days: 7
 
       - name: Run Flutter tests
-        run: flutter test --reporter compact
+        id: flutter_tests
+        continue-on-error: true
+        run: |
+          set +e
+          flutter test --reporter expanded > flutter-test.log 2>&1
+          status=$?
+          echo "=== Résumé des 160 dernières lignes ==="
+          tail -n 160 flutter-test.log
+          exit "$status"
+
+      - name: Upload Flutter test report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: flutter-test-report
+          path: app/flutter-test.log
+          if-no-files-found: error
+          retention-days: 7
+
+      - name: Enforce Flutter quality results
+        if: steps.flutter_analyze.outcome == 'failure' || steps.flutter_tests.outcome == 'failure'
+        run: exit 1
 
   functions-tests:
     name: Functions Test Suite

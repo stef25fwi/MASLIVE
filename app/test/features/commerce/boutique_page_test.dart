@@ -44,8 +44,7 @@ void main() {
     await tester.pumpWidget(_buildApp(env.controller));
     await tester.pumpAndSettle();
 
-    await tester.tap(find.byIcon(Icons.shopping_bag_outlined));
-    await tester.pumpAndSettle();
+    await _openCart(tester);
 
     expect(find.text('Panier'), findsOneWidget);
     expect(find.text('Ton panier est vide.'), findsOneWidget);
@@ -68,8 +67,7 @@ void main() {
     await tester.tap(find.byIcon(Icons.add_shopping_cart_outlined));
     await tester.pumpAndSettle();
 
-    await tester.tap(find.byIcon(Icons.shopping_bag_outlined));
-    await tester.pumpAndSettle();
+    await _openCart(tester);
 
     expect(find.text('Total: 59.00 EUR'), findsOneWidget);
 
@@ -97,8 +95,7 @@ void main() {
 
     expect(find.textContaining('Commande créée:'), findsOneWidget);
 
-    await tester.tap(find.byIcon(Icons.shopping_bag_outlined));
-    await tester.pumpAndSettle();
+    await _openCart(tester);
 
     expect(find.text('Ton panier est vide.'), findsOneWidget);
   });
@@ -131,6 +128,18 @@ Widget _buildApp(ProductController controller) {
       controller: controller,
     ),
   );
+}
+
+Future<void> _openCart(WidgetTester tester) async {
+  final buttonFinder = find.widgetWithIcon(
+    IconButton,
+    Icons.shopping_bag_outlined,
+  );
+  expect(buttonFinder, findsOneWidget);
+
+  final button = tester.widget<IconButton>(buttonFinder);
+  button.onPressed?.call();
+  await tester.pumpAndSettle();
 }
 
 Future<_TestEnv> _buildEnv({

@@ -8,7 +8,7 @@ class GeolocatorGpsStreamProvider implements GpsStreamProvider {
   }) : _settings = settings ??
             const LocationSettings(
               accuracy: LocationAccuracy.high,
-              distanceFilter: 5,
+              distanceFilter: 15,
             );
 
   final LocationSettings _settings;
