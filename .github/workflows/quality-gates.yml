@@ -6,7 +6,63 @@ on:
   push:
     branches: [main]
 
+permissions:
+  contents: write
+
 jobs:
+  apply-tracking-consistency:
+    name: Apply Tracking Consistency Patch
+    if: github.event_name == 'pull_request' && github.head_ref == 'fix/group-tracking-consistency-security'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout pull request branch
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.head_ref }}
+          fetch-depth: 0
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: "3.44.4"
+          cache: true
+
+      - name: Apply consistency patch
+        run: python3 scripts/apply_group_tracking_consistency_patch.py
+
+      - name: Format Dart changes
+        run: |
+          dart format             app/lib/models/group_tracker.dart             app/lib/services/group/group_tracking_service.dart             app/lib/pages/group/tracker_group_profile_page.dart             app/lib/pages/group/admin_group_dashboard_page.dart
+
+      - name: Validate Flutter
+        working-directory: app
+        run: |
+          flutter pub get
+          flutter analyze
+          flutter test
+
+      - name: Validate Functions
+        working-directory: functions
+        run: |
+          npm ci
+          node -c group_tracking.js
+          npm test
+
+      - name: Validate diff
+        run: git diff --check
+
+      - name: Commit generated patch
+        run: |
+          if git diff --quiet && git diff --cached --quiet; then
+            echo "No generated changes to commit."
+            exit 0
+          fi
+          git config user.name "MASLIVE CI"
+          git config user.email "actions@users.noreply.github.com"
+          git add -A
+          git commit -m "fix(tracking): harmonise présence, sécurité et documentation"
+          git push origin HEAD:${{ github.head_ref }}
+
   flutter-quality:
     name: Flutter Analyze And Test
     runs-on: ubuntu-latest
