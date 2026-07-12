@@ -54,9 +54,21 @@ jobs:
       - name: Validate Flutter
         working-directory: app
         run: |
-          flutter pub get
-          flutter analyze
-          flutter test
+          set -o pipefail
+          {
+            flutter pub get
+            flutter analyze
+            flutter test
+          } 2>&1 | tee generated-flutter-validation.log
+
+      - name: Upload generated Flutter report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: generated-flutter-validation-report
+          path: app/generated-flutter-validation.log
+          if-no-files-found: warn
+          retention-days: 3
 
       - name: Validate Functions
         working-directory: functions
