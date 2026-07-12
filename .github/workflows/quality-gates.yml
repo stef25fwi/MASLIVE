@@ -28,10 +28,27 @@ jobs:
         run: flutter pub get
 
       - name: Analyze Flutter app
-        run: flutter analyze
+        id: flutter_analyze
+        continue-on-error: true
+        run: |
+          set -o pipefail
+          flutter analyze --format=machine 2>&1 | tee flutter-analyze.log
+
+      - name: Upload Flutter analyzer report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: flutter-analyze-report
+          path: app/flutter-analyze.log
+          if-no-files-found: error
+          retention-days: 7
 
       - name: Run Flutter tests
         run: flutter test --reporter compact
+
+      - name: Enforce Flutter analyzer result
+        if: steps.flutter_analyze.outcome == 'failure'
+        run: exit 1
 
   functions-tests:
     name: Functions Test Suite
