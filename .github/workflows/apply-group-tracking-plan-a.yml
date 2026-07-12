@@ -1,0 +1,205 @@
+name: Apply Group Tracking Plan A
+
+on:
+  push:
+    branches:
+      - feat/group-tracking-plan-a
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  apply-plan-a:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout branch
+        uses: actions/checkout@v4
+        with:
+          ref: feat/group-tracking-plan-a
+          fetch-depth: 0
+
+      - name: Apply Plan A safely
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+
+          def replace_once(text: str, old: str, new: str, label: str) -> str:
+              count = text.count(old)
+              if count != 1:
+                  raise SystemExit(f"{label}: attendu 1 occurrence, trouvé {count}")
+              return text.replace(old, new, 1)
+
+          dart_path = Path('app/lib/services/group/group_tracking_service.dart')
+          dart = dart_path.read_text()
+          dart = replace_once(
+              dart,
+              "  static const Duration _profileWriteInterval = Duration(seconds: 60);\n",
+              "  static const Duration _profileWriteInterval = Duration(minutes: 5);\n",
+              'profile interval',
+          )
+          dart = replace_once(
+              dart,
+              "  static const Duration _historyWriteInterval = Duration(seconds: 60);\n",
+              "  static const Duration _historyWriteInterval = Duration(seconds: 120);\n"
+              "  static const Duration _stationaryHistoryHeartbeat = Duration(minutes: 5);\n",
+              'history interval',
+          )
+          dart = replace_once(
+              dart,
+              "  static const double _historyDistanceM = 30;\n",
+              "  static const double _historyDistanceM = 60;\n",
+              'history distance',
+          )
+          dart = replace_once(
+              dart,
+              "      batch.set(\n"
+              "        _firestore\n"
+              "            .collection('group_tracks')\n"
+              "            .doc(session.adminGroupId)\n"
+              "            .collection('sessions')\n"
+              "            .doc(session.id),\n"
+              "        <String, dynamic>{'updatedAt': FieldValue.serverTimestamp()},\n"
+              "        SetOptions(merge: true),\n"
+              "      );\n",
+              "",
+              'session parent write',
+          )
+          old_history = """  bool _isHistoryWriteDue(GeoPosition current, DateTime now) {
+    final lastHistoryAt = _lastHistoryAt;
+    final lastHistoryPosition = _lastHistoryPosition;
+    if (lastHistoryAt == null || lastHistoryPosition == null) {
+      return true;
+    }
+    if (now.difference(lastHistoryAt) >= _historyWriteInterval) {
+      return true;
+    }
+    return _haversineDistance(
+          lastHistoryPosition.lat,
+          lastHistoryPosition.lng,
+          current.lat,
+          current.lng,
+        ) >=
+        _historyDistanceM;
+  }
+"""
+          new_history = """  bool _isHistoryWriteDue(GeoPosition current, DateTime now) {
+    final lastHistoryAt = _lastHistoryAt;
+    final lastHistoryPosition = _lastHistoryPosition;
+    if (lastHistoryAt == null || lastHistoryPosition == null) {
+      return true;
+    }
+
+    final distance = _haversineDistance(
+      lastHistoryPosition.lat,
+      lastHistoryPosition.lng,
+      current.lat,
+      current.lng,
+    );
+    if (distance >= _historyDistanceM) {
+      return true;
+    }
+
+    final stationarySince = _stationarySince;
+    final isStationary = stationarySince != null &&
+        now.difference(stationarySince) >= _stationaryDelay;
+    final interval = isStationary
+        ? _stationaryHistoryHeartbeat
+        : _historyWriteInterval;
+    return now.difference(lastHistoryAt) >= interval;
+  }
+"""
+          dart = replace_once(dart, old_history, new_history, 'history policy')
+          dart_path.write_text(dart)
+
+          functions_path = Path('functions/group_tracking.js')
+          functions = functions_path.read_text()
+          functions = replace_once(
+              functions,
+              '  aggregationMs: 15000,\n',
+              '  aggregationMs: 30000,\n',
+              'aggregation interval',
+          )
+          functions = replace_once(
+              functions,
+              '  publishHeartbeatMs: 30000,\n',
+              '  publishHeartbeatMs: 60000,\n',
+              'publish heartbeat',
+          )
+          functions = replace_once(
+              functions,
+              'exports.__test = {\n  clamp,\n',
+              'exports.__test = {\n  CFG,\n  clamp,\n',
+              'test config export',
+          )
+          functions_path.write_text(functions)
+
+          test_path = Path('functions/test/group_tracking_math.test.js')
+          tests = test_path.read_text()
+          marker = "test('le plan A conserve les cadences optimisées', () => {"
+          if marker in tests:
+              raise SystemExit('test Plan A déjà présent')
+          tests += """
+
+test('le plan A conserve les cadences optimisées', () => {
+  assert.equal(__test.CFG.aggregationMs, 30000);
+  assert.equal(__test.CFG.publishHeartbeatMs, 60000);
+  assert.equal(__test.CFG.idealTrackers, 5);
+  assert.equal(__test.CFG.maxTrackers, 10);
+});
+"""
+          test_path.write_text(tests)
+
+          docs = Path('docs/GROUP_TRACKING_PLAN_A.md')
+          docs.write_text("""# Plan A — allègement du tracking groupe
+
+Configuration de production :
+
+- live tracker : 15 s en mouvement, 45 s lent, 60 s immobile ;
+- calcul du centre groupe : 30 s maximum ;
+- mise à jour du profil tracker : 5 minutes ;
+- historique : 120 s ou 60 mètres ;
+- heartbeat historique immobile : 5 minutes ;
+- publication circuit : déplacement d’au moins 5 mètres ou heartbeat de 60 s ;
+- le document parent de session n’est plus réécrit à chaque point historique ; il est finalisé à l’arrêt.
+
+Objectif : conserver la précision du point groupe tout en réduisant les écritures Firestore permanentes et les mises à jour non indispensables.
+""")
+          PY
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.44.4'
+          cache: true
+
+      - name: Validate Flutter
+        working-directory: app
+        run: |
+          flutter pub get
+          flutter analyze
+          flutter test
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: functions/package-lock.json
+
+      - name: Validate Functions
+        working-directory: functions
+        run: |
+          npm ci
+          node -c group_tracking.js
+          npm test
+
+      - name: Commit Plan A and remove temporary workflow
+        run: |
+          rm .github/workflows/apply-group-tracking-plan-a.yml
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add -A
+          git commit -m 'perf(tracking): applique le plan A Firestore et batterie'
+          git push origin HEAD:feat/group-tracking-plan-a
