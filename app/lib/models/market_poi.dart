@@ -122,8 +122,8 @@ class MarketPoi {
     }
 
     String? normalizedPoiType() {
-      // Certains POIs publiés gardent un `type` legacy non canonique alors que
-      // `layerType` contient déjà la vraie catégorie exploitable côté home.
+      // Un type explicitement enregistré sur le POI est prioritaire. Les champs
+      // layerType et layerId servent uniquement de fallback de compatibilité.
       const canonicalTypes = <String>{
         'visit',
         'food',
@@ -135,8 +135,8 @@ class MarketPoi {
       };
 
       final candidates = <String?>[
-        normalizeRawPoiType(data['layerType']),
         normalizeRawPoiType(data['type']),
+        normalizeRawPoiType(data['layerType']),
         normalizeRawPoiType(data['layerId']),
       ];
 
