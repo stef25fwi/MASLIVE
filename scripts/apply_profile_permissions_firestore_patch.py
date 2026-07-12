@@ -5,7 +5,8 @@ Usage depuis la racine du repo :
   python3 scripts/apply_profile_permissions_firestore_patch.py
 
 Le script est idempotent : il n'ajoute pas deux fois le bloc
-`group_admin_requests` et remplace les helpers commerce legacy si trouvés.
+`group_admin_requests`, remplace les helpers commerce legacy si trouvés
+et retire l'ancienne autorisation générale `accountType == pro`.
 """
 from pathlib import Path
 
@@ -82,7 +83,6 @@ NEW_CAN_SUBMIT = r'''      function canSubmitCommerce() {
           || userRole() == 'group-admin'
           || userRole() == 'admin_group'
           || userRole() == 'admin_groupe'
-          || (getUserData().accountType == 'pro' && getUserData().keys().hasAny(['activities']))
           || userRole() == 'superAdmin'
           || userRole() == 'superadmin'
         );
@@ -113,6 +113,8 @@ NEW_CAN_MODERATE = r'''      function canModerate() {
       }
 '''
 
+LEGACY_PRO_COMMERCE_RULE = """          || (getUserData().accountType == 'pro' && getUserData().keys().hasAny(['activities']))\n"""
+
 
 def main() -> None:
     text = RULES.read_text()
@@ -130,6 +132,10 @@ def main() -> None:
         changed = True
     elif "function canSubmitCommerce()" not in text:
         raise SystemExit("Helper canSubmitCommerce introuvable")
+
+    if LEGACY_PRO_COMMERCE_RULE in text:
+        text = text.replace(LEGACY_PRO_COMMERCE_RULE, "")
+        changed = True
 
     if OLD_CAN_MODERATE in text:
         text = text.replace(OLD_CAN_MODERATE, NEW_CAN_MODERATE, 1)
