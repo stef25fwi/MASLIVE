@@ -379,6 +379,57 @@ service cloud.firestore {
       }
     }
 
+    // ========== COLLECTION: GROUP ADMIN REQUESTS (Demandes Admin Groupe) ==========
+    match /group_admin_requests/{uid} {
+      allow read: if isSignedIn() && (
+        request.auth.uid == uid || isMasterAdmin()
+      );
+
+      allow create: if isSignedIn()
+        && request.auth.uid == uid
+        && request.resource.data.requestUid == uid
+        && request.resource.data.status == 'pending'
+        && request.resource.data.keys().hasOnly([
+          'requestUid',
+          'displayName',
+          'email',
+          'status',
+          'requestedAt',
+          'updatedAt',
+          'reviewedAt',
+          'reviewedBy',
+          'rejectionReason'
+        ])
+        && !request.resource.data.keys().hasAny([
+          'adminGroupId',
+          'role',
+          'groupId',
+          'isAdmin'
+        ]);
+
+      allow update: if isMasterAdmin() || (
+        isSignedIn()
+        && request.auth.uid == uid
+        && resource.data.status in ['pending', 'rejected']
+        && request.resource.data.requestUid == resource.data.requestUid
+        && request.resource.data.status == 'pending'
+        && !request.resource.data.keys().hasAny([
+          'adminGroupId',
+          'role',
+          'groupId',
+          'isAdmin',
+          'reviewedAt',
+          'reviewedBy'
+        ])
+      );
+
+      allow delete: if isMasterAdmin() || (
+        isSignedIn()
+        && request.auth.uid == uid
+        && resource.data.status in ['pending', 'rejected']
+      );
+    }
+
     // ========== COLLECTION: PLACES (Lieux) ==========
     match /places/{id} {
       // Lecture: publique
@@ -870,8 +921,12 @@ service cloud.firestore {
       function canSubmitCommerce() {
         return hasUserDoc() && (
           isMasterAdmin()
+          || userRole() == 'group'
+          || userRole() == 'group-admin'
+          || userRole() == 'admin_group'
           || userRole() == 'admin_groupe'
           || (getUserData().accountType == 'pro' && getUserData().keys().hasAny(['activities']))
+          || userRole() == 'superAdmin'
           || userRole() == 'superadmin'
         );
       }
@@ -879,10 +934,16 @@ service cloud.firestore {
       // Helper: vérifier si l'utilisateur peut modérer
       function canModerate() {
         return isMasterAdmin()
-          || (userRole() == 'admin_groupe' 
-              && resource.data.scopeType == 'group' 
-              && getUserData().keys().hasAny(['managedScopeIds']) 
-              && getUserData().managedScopeIds.hasAny([resource.data.scopeId]));
+          || ((userRole() == 'group'
+              || userRole() == 'group-admin'
+              || userRole() == 'admin_group'
+              || userRole() == 'admin_groupe')
+            && resource.data.scopeType == 'group'
+            && (
+              (getUserData().keys().hasAny(['managedScopeIds'])
+                && getUserData().managedScopeIds.hasAny([resource.data.scopeId]))
+              || userGroupId() == resource.data.scopeId
+            ));
       }
 
       // Lecture:
