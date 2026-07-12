@@ -2,14 +2,11 @@
  * Bloom Art — Galerie d'art avec système d'offres de prix
  *
  * Collections Firestore :
- *   bloom_art_items            — articles en vente
+ *   bloom_art_items              — articles en vente
  *   bloom_art_items/{id}/private — données privées (referencePrice) – lecture serveur uniquement
- *   bloom_art_seller_profiles  — profils vendeur
- *   bloom_art_offers           — offres de prix des visiteurs
- *   bloom_art_orders           — commandes après acceptation d'offre
- *
- * Intégration Stripe :
- *   Réutilise getStripe() existant + webhook central via metadata.kind === "bloom_art"
+ *   bloom_art_seller_profiles    — profils vendeur
+ *   bloom_art_offers             — offres de prix des visiteurs
+ *   bloom_art_orders             — commandes après acceptation d'offre
  */
 
 "use strict";
@@ -25,7 +22,6 @@ module.exports = function createBloomArtHandlers(deps) {
     isAllowedRedirectUrl,
   } = deps;
 
-  // ─── Constants ──────────────────────────────────────────────────────
   const BLOOM_ART_KIND = "bloom_art";
   const AUTO_ACCEPT_THRESHOLD_PERCENT = 0.90;
 
@@ -60,14 +56,16 @@ module.exports = function createBloomArtHandlers(deps) {
     sold: "sold",
   };
 
-  // ─── Helpers ────────────────────────────────────────────────────────
-
   function serverTimestamp() {
     return admin.firestore.FieldValue.serverTimestamp();
   }
 
   function looksLikeNonEmptyString(v) {
     return typeof v === "string" && v.trim().length > 0;
+  }
+
+  function cleanString(value, fallback = "") {
+    return looksLikeNonEmptyString(value) ? value.trim() : fallback;
   }
 
   function toNumber(value, fallback = 0) {
@@ -77,6 +75,27 @@ module.exports = function createBloomArtHandlers(deps) {
 
   function amountToCents(amount) {
     return Math.max(0, Math.round(toNumber(amount, 0) * 100));
+  }
+
+  function normalizeProfileType(profileType) {
+    return profileType === "artist_creator" ? "artisan_art" : profileType;
+  }
+
+  function normalizeMaterials(value) {
+    if (Array.isArray(value)) {
+      return value
+        .map((entry) => String(entry || "").trim())
+        .filter((entry) => entry.length > 0)
+        .slice(0, 20);
+    }
+    if (looksLikeNonEmptyString(value)) {
+      return value
+        .split(",")
+        .map((entry) => entry.trim())
+        .filter((entry) => entry.length > 0)
+        .slice(0, 20);
+    }
+    return [];
   }
 
   function computeAutoAcceptMin(referencePrice) {
@@ -107,18 +126,59 @@ module.exports = function createBloomArtHandlers(deps) {
     }
   }
 
-  // ─── 1. createBloomArtItem ──────────────────────────────────────────
-  // Callable : le vendeur crée un article Bloom Art.
-  // Le referencePrice est stocké dans une sous-collection privée (non lisible côté client).
+  async function getVerifiedSellerProfile(uid) {
+    const profileSnap = await db.collection(COLLECTIONS.sellerProfiles).doc(uid).get();
+    if (!profileSnap.exists) {
+      throw new HttpsError(
+        "failed-precondition",
+        "Bloom Art seller profile is required before creating an item"
+      );
+    }
+
+    const profile = profileSnap.data() || {};
+    const profileType = normalizeProfileType(cleanString(profile.profileType));
+    const siret = cleanString(profile.siret);
+    const sellerStatus = cleanString(profile.sellerStatus, "pending");
+    const verificationStatus = cleanString(profile.businessVerificationStatus, "not_verified");
+
+    if (profileType !== "artisan_art") {
+      throw new HttpsError(
+        "failed-precondition",
+        "Only declared Artisan d'art sellers can create Bloom Art items"
+      );
+    }
+
+    if (sellerStatus !== "active" || verificationStatus !== "verified") {
+      throw new HttpsError(
+        "failed-precondition",
+        "SIRET verification is required before creating Bloom Art items"
+      );
+    }
+
+    if (!/^\d{14}$/.test(siret)) {
+      throw new HttpsError(
+        "failed-precondition",
+        "A valid 14-digit SIRET is required before creating Bloom Art items"
+      );
+    }
+
+    return {
+      ...profile,
+      profileType,
+      siret,
+      sellerStatus,
+      businessVerificationStatus: verificationStatus,
+    };
+  }
+
   const createBloomArtItem = onCall(
     { region: "us-east1", secrets: [STRIPE_SECRET_KEY] },
     async (request) => {
       const uid = assertAuthenticated(request);
       const data = request.data || {};
+      const sellerProfile = await getVerifiedSellerProfile(uid);
 
-      const title = looksLikeNonEmptyString(data.title)
-        ? data.title.trim()
-        : null;
+      const title = cleanString(data.title);
       if (!title) {
         throw new HttpsError("invalid-argument", "Title is required");
       }
@@ -128,53 +188,46 @@ module.exports = function createBloomArtHandlers(deps) {
         throw new HttpsError("invalid-argument", "referencePrice must be > 0");
       }
 
-      const currency = looksLikeNonEmptyString(data.currency)
-        ? data.currency.trim().toUpperCase()
-        : "EUR";
-
+      const currency = cleanString(data.currency, "EUR").toUpperCase();
       const itemRef = db.collection(COLLECTIONS.items).doc();
       const privateRef = itemRef.collection("private").doc("pricing");
+      const sellerDisplayName = cleanString(
+        data.sellerDisplayName,
+        cleanString(sellerProfile.artistName, cleanString(sellerProfile.fullName, "Artisan d'art"))
+      );
 
       const itemPayload = {
         sellerId: uid,
-        sellerProfileType: looksLikeNonEmptyString(data.sellerProfileType)
-          ? data.sellerProfileType.trim()
-          : "individual",
-        sellerDisplayName: looksLikeNonEmptyString(data.sellerDisplayName)
-          ? data.sellerDisplayName.trim()
-          : "",
+        sellerProfileType: "artisan_art",
+        sellerDisplayName,
+        sellerSiretVerified: true,
+        sellerSiret: sellerProfile.siret,
+        sellerBusinessName: cleanString(sellerProfile.businessName),
+        sellerRegion: cleanString(sellerProfile.region),
         title,
-        description: looksLikeNonEmptyString(data.description)
-          ? data.description.trim()
-          : "",
-        category: looksLikeNonEmptyString(data.category)
-          ? data.category.trim()
-          : "other",
-        condition: looksLikeNonEmptyString(data.condition)
-          ? data.condition.trim()
-          : "good",
-        materials: looksLikeNonEmptyString(data.materials)
-          ? data.materials.trim()
-          : "",
-        dimensions: looksLikeNonEmptyString(data.dimensions)
-          ? data.dimensions.trim()
-          : "",
+        description: cleanString(data.description),
+        category: cleanString(data.category, "Artisanat d’art"),
+        condition: cleanString(data.condition, "good"),
+        materials: normalizeMaterials(data.materials),
+        dimensions: cleanString(data.dimensions),
         images: Array.isArray(data.images)
           ? data.images.filter((u) => looksLikeNonEmptyString(u)).slice(0, 10)
           : [],
         currency,
         availabilityStatus: ITEM_STATUS.draft,
         isPublished: false,
+        deliveryMode: cleanString(data.deliveryMode, "delivery_or_pickup"),
+        deliveryNotes: cleanString(data.deliveryNotes),
         createdAt: serverTimestamp(),
         updatedAt: serverTimestamp(),
       };
 
-      // Batch : document public + sous-doc privé (referencePrice)
       const batch = db.batch();
       batch.set(itemRef, itemPayload);
       batch.set(privateRef, {
         referencePrice,
         currency,
+        sellerSiret: sellerProfile.siret,
         updatedAt: serverTimestamp(),
       });
       await batch.commit();
@@ -183,17 +236,13 @@ module.exports = function createBloomArtHandlers(deps) {
     }
   );
 
-  // ─── 2. submitBloomArtOffer ─────────────────────────────────────────
-  // Callable : un visiteur authentifié propose un prix.
   const submitBloomArtOffer = onCall(
     { region: "us-east1", secrets: [STRIPE_SECRET_KEY] },
     async (request) => {
       const uid = assertAuthenticated(request);
       const data = request.data || {};
 
-      const itemId = looksLikeNonEmptyString(data.itemId)
-        ? data.itemId.trim()
-        : null;
+      const itemId = cleanString(data.itemId);
       if (!itemId) {
         throw new HttpsError("invalid-argument", "itemId is required");
       }
@@ -203,25 +252,16 @@ module.exports = function createBloomArtHandlers(deps) {
         throw new HttpsError("invalid-argument", "proposedPrice must be > 0");
       }
 
-      const buyerMessage = looksLikeNonEmptyString(data.buyerMessage)
-        ? data.buyerMessage.trim().slice(0, 500)
-        : "";
-
-      // Charger l'article + prix de référence côté serveur
+      const buyerMessage = cleanString(data.buyerMessage).slice(0, 500);
       const itemRef = db.collection(COLLECTIONS.items).doc(itemId);
       const privateRef = itemRef.collection("private").doc("pricing");
-
-      const [itemSnap, privateSnap] = await Promise.all([
-        itemRef.get(),
-        privateRef.get(),
-      ]);
+      const [itemSnap, privateSnap] = await Promise.all([itemRef.get(), privateRef.get()]);
 
       if (!itemSnap.exists) {
         throw new HttpsError("not-found", "Item not found");
       }
 
       const item = itemSnap.data();
-
       if (item.availabilityStatus !== ITEM_STATUS.published) {
         throw new HttpsError("failed-precondition", "Item is not available");
       }
@@ -239,7 +279,6 @@ module.exports = function createBloomArtHandlers(deps) {
         throw new HttpsError("internal", "Invalid reference price");
       }
 
-      // Empêcher plusieurs offres actives du même acheteur sur le même article
       const existingOffersSnap = await db
         .collection(COLLECTIONS.offers)
         .where("itemId", "==", itemId)
@@ -254,14 +293,10 @@ module.exports = function createBloomArtHandlers(deps) {
         .get();
 
       if (!existingOffersSnap.empty) {
-        throw new HttpsError(
-          "already-exists",
-          "You already have an active offer on this item"
-        );
+        throw new HttpsError("already-exists", "You already have an active offer on this item");
       }
 
       const autoAccepted = shouldAutoAccept(proposedPrice, referencePrice);
-
       const offerRef = db.collection(COLLECTIONS.offers).doc();
       const offerPayload = {
         itemId,
@@ -282,16 +317,9 @@ module.exports = function createBloomArtHandlers(deps) {
       };
 
       await offerRef.set(offerPayload);
-
-      // Si auto-acceptée, marquer l'article comme réservé
       if (autoAccepted) {
-        await itemRef.update({
-          availabilityStatus: ITEM_STATUS.reserved,
-          updatedAt: serverTimestamp(),
-        });
+        await itemRef.update({ availabilityStatus: ITEM_STATUS.reserved, updatedAt: serverTimestamp() });
       }
-
-      // TODO: Envoyer notification au vendeur (FCM / email)
 
       return {
         offerId: offerRef.id,
@@ -301,40 +329,24 @@ module.exports = function createBloomArtHandlers(deps) {
     }
   );
 
-  // ─── 3. acceptBloomArtOffer ─────────────────────────────────────────
-  // Callable : le vendeur accepte une offre pending.
   const acceptBloomArtOffer = onCall(
     { region: "us-east1", secrets: [STRIPE_SECRET_KEY] },
     async (request) => {
       const uid = assertAuthenticated(request);
-      const data = request.data || {};
-
-      const offerId = looksLikeNonEmptyString(data.offerId)
-        ? data.offerId.trim()
-        : null;
-      if (!offerId) {
-        throw new HttpsError("invalid-argument", "offerId is required");
-      }
+      const offerId = cleanString((request.data || {}).offerId);
+      if (!offerId) throw new HttpsError("invalid-argument", "offerId is required");
 
       const offerRef = db.collection(COLLECTIONS.offers).doc(offerId);
-
       await db.runTransaction(async (transaction) => {
         const offerSnap = await transaction.get(offerRef);
-        if (!offerSnap.exists) {
-          throw new HttpsError("not-found", "Offer not found");
-        }
+        if (!offerSnap.exists) throw new HttpsError("not-found", "Offer not found");
 
         const offer = offerSnap.data();
         assertSellerOwnsOffer(uid, offer);
-
         if (offer.status !== OFFER_STATUS.pending) {
-          throw new HttpsError(
-            "failed-precondition",
-            `Cannot accept offer with status: ${offer.status}`
-          );
+          throw new HttpsError("failed-precondition", `Cannot accept offer with status: ${offer.status}`);
         }
 
-        // Vérifier qu'aucune autre offre acceptée n'existe pour cet article
         const otherAcceptedSnap = await transaction.get(
           db
             .collection(COLLECTIONS.offers)
@@ -349,10 +361,7 @@ module.exports = function createBloomArtHandlers(deps) {
         );
 
         if (!otherAcceptedSnap.empty) {
-          throw new HttpsError(
-            "failed-precondition",
-            "Another offer is already accepted for this item"
-          );
+          throw new HttpsError("failed-precondition", "Another offer is already accepted for this item");
         }
 
         transaction.update(offerRef, {
@@ -361,51 +370,31 @@ module.exports = function createBloomArtHandlers(deps) {
           respondedAt: serverTimestamp(),
           acceptedAt: serverTimestamp(),
         });
-
-        // Réserver l'article
-        const itemRef = db.collection(COLLECTIONS.items).doc(offer.itemId);
-        transaction.update(itemRef, {
+        transaction.update(db.collection(COLLECTIONS.items).doc(offer.itemId), {
           availabilityStatus: ITEM_STATUS.reserved,
           updatedAt: serverTimestamp(),
         });
       });
 
-      // TODO: Notifier l'acheteur (FCM / email)
-
       return { success: true };
     }
   );
 
-  // ─── 4. declineBloomArtOffer ────────────────────────────────────────
-  // Callable : le vendeur refuse une offre pending.
   const declineBloomArtOffer = onCall(
     { region: "us-east1", secrets: [STRIPE_SECRET_KEY] },
     async (request) => {
       const uid = assertAuthenticated(request);
-      const data = request.data || {};
-
-      const offerId = looksLikeNonEmptyString(data.offerId)
-        ? data.offerId.trim()
-        : null;
-      if (!offerId) {
-        throw new HttpsError("invalid-argument", "offerId is required");
-      }
+      const offerId = cleanString((request.data || {}).offerId);
+      if (!offerId) throw new HttpsError("invalid-argument", "offerId is required");
 
       const offerRef = db.collection(COLLECTIONS.offers).doc(offerId);
       const offerSnap = await offerRef.get();
-
-      if (!offerSnap.exists) {
-        throw new HttpsError("not-found", "Offer not found");
-      }
+      if (!offerSnap.exists) throw new HttpsError("not-found", "Offer not found");
 
       const offer = offerSnap.data();
       assertSellerOwnsOffer(uid, offer);
-
       if (offer.status !== OFFER_STATUS.pending) {
-        throw new HttpsError(
-          "failed-precondition",
-          `Cannot decline offer with status: ${offer.status}`
-        );
+        throw new HttpsError("failed-precondition", `Cannot decline offer with status: ${offer.status}`);
       }
 
       await offerRef.update({
@@ -415,104 +404,58 @@ module.exports = function createBloomArtHandlers(deps) {
         declinedAt: serverTimestamp(),
       });
 
-      // TODO: Notifier l'acheteur (FCM / email)
-
       return { success: true };
     }
   );
 
-  // ─── 5. createBloomArtCheckout ──────────────────────────────────────
-  // Callable : l'acheteur lance le paiement d'une offre acceptée.
-  // Réutilise getStripe() et le pattern Checkout Session du projet.
   const createBloomArtCheckout = onCall(
     { region: "us-east1", secrets: [STRIPE_SECRET_KEY] },
     async (request) => {
       const uid = assertAuthenticated(request);
       const data = request.data || {};
+      const offerId = cleanString(data.offerId);
+      if (!offerId) throw new HttpsError("invalid-argument", "offerId is required");
 
-      const offerId = looksLikeNonEmptyString(data.offerId)
-        ? data.offerId.trim()
-        : null;
-      if (!offerId) {
-        throw new HttpsError("invalid-argument", "offerId is required");
-      }
-
-      const successUrl = looksLikeNonEmptyString(data.successUrl)
-        ? data.successUrl.trim()
-        : null;
-      const cancelUrl = looksLikeNonEmptyString(data.cancelUrl)
-        ? data.cancelUrl.trim()
-        : null;
-
+      const successUrl = cleanString(data.successUrl);
+      const cancelUrl = cleanString(data.cancelUrl);
       if (!successUrl || !cancelUrl) {
         throw new HttpsError("invalid-argument", "successUrl and cancelUrl are required");
       }
-
       if (!isAllowedRedirectUrl(successUrl) || !isAllowedRedirectUrl(cancelUrl)) {
         throw new HttpsError("invalid-argument", "Invalid redirect URL domain");
       }
 
-      // Transaction : verrouiller l'offre et l'ordre pour eviter les doubles checkouts
       const result = await db.runTransaction(async (transaction) => {
         const offerRef = db.collection(COLLECTIONS.offers).doc(offerId);
         const offerSnap = await transaction.get(offerRef);
-
-        if (!offerSnap.exists) {
-          throw new HttpsError("not-found", "Offer not found");
-        }
+        if (!offerSnap.exists) throw new HttpsError("not-found", "Offer not found");
 
         const offer = offerSnap.data();
         assertBuyerOwnsOffer(uid, offer);
 
-        const eligible = [OFFER_STATUS.accepted, OFFER_STATUS.autoAccepted];
-        if (!eligible.includes(offer.status)) {
-          throw new HttpsError(
-            "failed-precondition",
-            `Cannot checkout offer with status: ${offer.status}`
-          );
+        if (![OFFER_STATUS.accepted, OFFER_STATUS.autoAccepted].includes(offer.status)) {
+          throw new HttpsError("failed-precondition", `Cannot checkout offer with status: ${offer.status}`);
         }
+        if (!offer.checkoutEligible) throw new HttpsError("failed-precondition", "Offer is not eligible for checkout");
 
-        if (!offer.checkoutEligible) {
-          throw new HttpsError("failed-precondition", "Offer is not eligible for checkout");
-        }
-
-        // Vérifier que l'article est toujours réservé / pas déjà vendu
         const itemRef = db.collection(COLLECTIONS.items).doc(offer.itemId);
         const itemSnap = await transaction.get(itemRef);
-
-        if (!itemSnap.exists) {
-          throw new HttpsError("not-found", "Item no longer exists");
-        }
+        if (!itemSnap.exists) throw new HttpsError("not-found", "Item no longer exists");
 
         const item = itemSnap.data();
         if (item.availabilityStatus === ITEM_STATUS.sold) {
           throw new HttpsError("failed-precondition", "Item is already sold");
         }
 
-        // Utilise un ID d'ordre deterministe = offerId pour eviter les doublons.
         const orderRef = db.collection(COLLECTIONS.orders).doc(offerId);
         const orderId = orderRef.id;
         const existingOrderSnap = await transaction.get(orderRef);
-
         if (existingOrderSnap.exists) {
           const existingOrder = existingOrderSnap.data();
-          if (
-            existingOrder.paymentStatus === "paid" ||
-            existingOrder.orderStatus === ORDER_STATUS.paid
-          ) {
-            throw new HttpsError(
-              "failed-precondition",
-              "This Bloom Art order is already paid"
-            );
+          if (existingOrder.paymentStatus === "paid" || existingOrder.orderStatus === ORDER_STATUS.paid) {
+            throw new HttpsError("failed-precondition", "This Bloom Art order is already paid");
           }
-
-          return {
-            orderId,
-            offer,
-            item,
-            orderPayload: existingOrder,
-            reuseExistingOrder: true,
-          };
+          return { orderId, offer, item, orderPayload: existingOrder, reuseExistingOrder: true };
         }
 
         const orderPayload = {
@@ -523,7 +466,7 @@ module.exports = function createBloomArtHandlers(deps) {
           finalPrice: offer.proposedPrice,
           currency: item.currency || "EUR",
           checkoutSource: BLOOM_ART_KIND,
-          stripeCheckoutSessionId: null, // sera rempli après création Stripe
+          stripeCheckoutSessionId: null,
           stripePaymentIntentId: null,
           paymentStatus: "pending",
           orderStatus: ORDER_STATUS.draft,
@@ -531,47 +474,24 @@ module.exports = function createBloomArtHandlers(deps) {
           createdAt: serverTimestamp(),
           updatedAt: serverTimestamp(),
         };
-
         transaction.set(orderRef, orderPayload);
-
-        return {
-          orderId,
-          offer,
-          item,
-          orderPayload,
-          reuseExistingOrder: false,
-        };
+        return { orderId, offer, item, orderPayload, reuseExistingOrder: false };
       });
 
-      // Créer la session Stripe Checkout hors transaction (appel réseau)
       const stripeClient = getStripe();
-
       if (result.reuseExistingOrder === true) {
         const existingSessionId = result.orderPayload?.stripeCheckoutSessionId;
         const existingOrderStatus = result.orderPayload?.orderStatus;
-
         if (looksLikeNonEmptyString(existingSessionId)) {
-          const existingSession = await stripeClient.checkout.sessions.retrieve(
-            existingSessionId
-          );
-
-          return {
-            orderId: result.orderId,
-            checkoutUrl: existingSession.url,
-            stripeSessionId: existingSession.id,
-          };
+          const existingSession = await stripeClient.checkout.sessions.retrieve(existingSessionId);
+          return { orderId: result.orderId, checkoutUrl: existingSession.url, stripeSessionId: existingSession.id };
         }
-
         if (existingOrderStatus && existingOrderStatus !== ORDER_STATUS.failed) {
-          throw new HttpsError(
-            "failed-precondition",
-            "A checkout session is already being prepared for this offer"
-          );
+          throw new HttpsError("failed-precondition", "A checkout session is already being prepared for this offer");
         }
       }
 
       const priceInCents = amountToCents(result.offer.proposedPrice);
-
       let session;
       try {
         session = await stripeClient.checkout.sessions.create(
@@ -583,9 +503,7 @@ module.exports = function createBloomArtHandlers(deps) {
                   currency: (result.item.currency || "EUR").toLowerCase(),
                   product_data: {
                     name: result.item.title || "Bloom Art",
-                    description: `Offre acceptee — ${
-                      result.item.title || "Article Bloom Art"
-                    }`,
+                    description: `Offre acceptee — ${result.item.title || "Article Bloom Art"}`,
                   },
                   unit_amount: priceInCents,
                 },
@@ -612,70 +530,42 @@ module.exports = function createBloomArtHandlers(deps) {
         await db.runTransaction(async (transaction) => {
           const orderRef = db.collection(COLLECTIONS.orders).doc(result.orderId);
           const offerRef = db.collection(COLLECTIONS.offers).doc(offerId);
-          const [orderSnap, offerSnap] = await Promise.all([
-            transaction.get(orderRef),
-            transaction.get(offerRef),
-          ]);
-
+          const [orderSnap, offerSnap] = await Promise.all([transaction.get(orderRef), transaction.get(offerRef)]);
           if (!orderSnap.exists || !offerSnap.exists) {
-            throw new HttpsError(
-              "failed-precondition",
-              "Bloom Art order or offer no longer exists"
-            );
+            throw new HttpsError("failed-precondition", "Bloom Art order or offer no longer exists");
           }
-
           transaction.update(orderRef, {
             stripeCheckoutSessionId: session.id,
             orderStatus: ORDER_STATUS.checkoutStarted,
             updatedAt: serverTimestamp(),
           });
-
-          transaction.update(offerRef, {
-            status: OFFER_STATUS.checkoutStarted,
-            updatedAt: serverTimestamp(),
-          });
+          transaction.update(offerRef, { status: OFFER_STATUS.checkoutStarted, updatedAt: serverTimestamp() });
         });
       } catch (error) {
         await db.collection(COLLECTIONS.orders).doc(result.orderId).set(
-          {
-            orderStatus: ORDER_STATUS.failed,
-            updatedAt: serverTimestamp(),
-          },
+          { orderStatus: ORDER_STATUS.failed, updatedAt: serverTimestamp() },
           { merge: true }
         );
         throw error;
       }
 
-      return {
-        orderId: result.orderId,
-        checkoutUrl: session.url,
-        stripeSessionId: session.id,
-      };
+      return { orderId: result.orderId, checkoutUrl: session.url, stripeSessionId: session.id };
     }
   );
 
-  // ─── 6. Webhook handler ────────────────────────────────────────────
-  // Appelé depuis handleCheckoutSessionCompleted dans index.js
-  // Retourne true si l'événement a été traité (pattern identique à media-marketplace-stripe).
   async function handleBloomArtCheckoutCompleted(session) {
     const kind = (session?.metadata?.kind || "").toLowerCase();
-    if (kind !== BLOOM_ART_KIND) {
-      return false; // pas un événement Bloom Art
-    }
+    if (kind !== BLOOM_ART_KIND) return false;
 
     const orderId = session.metadata?.orderId;
     const offerId = session.metadata?.offerId;
     const itemId = session.metadata?.itemId;
-
     if (!orderId) {
       console.warn("[BloomArt] Missing orderId in checkout session metadata");
-      return true; // traité (en erreur) pour ne pas re-dispatcher
+      return true;
     }
 
-    console.log(`[BloomArt] Processing checkout completed for order ${orderId}`);
-
     const orderRef = db.collection(COLLECTIONS.orders).doc(orderId);
-
     await db.runTransaction(async (transaction) => {
       const orderSnap = await transaction.get(orderRef);
       if (!orderSnap.exists) {
@@ -684,14 +574,8 @@ module.exports = function createBloomArtHandlers(deps) {
       }
 
       const order = orderSnap.data();
+      if (order.paymentStatus === "paid" || order.orderStatus === ORDER_STATUS.paid) return;
 
-      // Idempotence : ne pas re-traiter une commande déjà payée
-      if (order.paymentStatus === "paid" || order.orderStatus === ORDER_STATUS.paid) {
-        console.log(`[BloomArt] Order ${orderId} already paid, skipping`);
-        return;
-      }
-
-      // Mettre à jour la commande
       transaction.update(orderRef, {
         paymentStatus: "paid",
         orderStatus: ORDER_STATUS.paid,
@@ -701,31 +585,22 @@ module.exports = function createBloomArtHandlers(deps) {
         updatedAt: serverTimestamp(),
       });
 
-      // Mettre à jour l'offre
       if (offerId) {
-        const offerRef = db.collection(COLLECTIONS.offers).doc(offerId);
-        transaction.update(offerRef, {
+        transaction.update(db.collection(COLLECTIONS.offers).doc(offerId), {
           status: OFFER_STATUS.paid,
           paidAt: serverTimestamp(),
         });
       }
 
-      // Marquer l'article comme vendu
       if (itemId) {
         const itemRef = db.collection(COLLECTIONS.items).doc(itemId);
-        transaction.update(itemRef, {
-          availabilityStatus: ITEM_STATUS.sold,
-          updatedAt: serverTimestamp(),
-        });
-
-        // Décliner toutes les autres offres en attente sur cet article
+        transaction.update(itemRef, { availabilityStatus: ITEM_STATUS.sold, updatedAt: serverTimestamp() });
         const pendingOffersSnap = await transaction.get(
           db
             .collection(COLLECTIONS.offers)
             .where("itemId", "==", itemId)
             .where("status", "in", [OFFER_STATUS.pending, OFFER_STATUS.accepted, OFFER_STATUS.autoAccepted])
         );
-
         for (const doc of pendingOffersSnap.docs) {
           if (doc.id !== offerId) {
             transaction.update(doc.ref, {
@@ -741,20 +616,14 @@ module.exports = function createBloomArtHandlers(deps) {
     return true;
   }
 
-  // Handler pour payment_intent.succeeded (si utilisé en mode PI au lieu de Checkout)
   async function handleBloomArtPaymentIntentSucceeded(paymentIntent) {
     const kind = (paymentIntent?.metadata?.kind || "").toLowerCase();
-    if (kind !== BLOOM_ART_KIND) {
-      return false;
-    }
-
+    if (kind !== BLOOM_ART_KIND) return false;
     const orderId = paymentIntent.metadata?.orderId;
     if (!orderId) {
       console.warn("[BloomArt] Missing orderId in payment_intent metadata");
       return true;
     }
-
-    // Délègue au même traitement (les champs sont compatibles)
     return handleBloomArtCheckoutCompleted({
       ...paymentIntent,
       id: paymentIntent.id,
@@ -763,7 +632,6 @@ module.exports = function createBloomArtHandlers(deps) {
     });
   }
 
-  // ─── Exports ────────────────────────────────────────────────────────
   return {
     createBloomArtItem,
     submitBloomArtOffer,
