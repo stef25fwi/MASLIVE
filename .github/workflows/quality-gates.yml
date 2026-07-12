@@ -21,14 +21,14 @@ jobs:
           ref: ${{ github.head_ref }}
           fetch-depth: 0
 
+      - name: Apply consistency patch
+        run: python3 scripts/apply_group_tracking_consistency_patch.py
+
       - name: Setup Flutter
         uses: subosito/flutter-action@v2
         with:
           flutter-version: "3.44.4"
           cache: true
-
-      - name: Apply consistency patch
-        run: python3 scripts/apply_group_tracking_consistency_patch.py
 
       - name: Format Dart changes
         run: |
