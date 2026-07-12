@@ -18,10 +18,11 @@ class GroupTrackingService {
   static const Duration _slowInterval = Duration(seconds: 45);
   static const Duration _stationaryInterval = Duration(seconds: 60);
   static const Duration _stationaryDelay = Duration(minutes: 2);
-  static const Duration _profileWriteInterval = Duration(seconds: 60);
-  static const Duration _historyWriteInterval = Duration(seconds: 60);
+  static const Duration _profileWriteInterval = Duration(minutes: 5);
+  static const Duration _historyWriteInterval = Duration(seconds: 120);
+  static const Duration _stationaryHistoryHeartbeat = Duration(minutes: 5);
   static const Duration _liveTtl = Duration(seconds: 120);
-  static const double _historyDistanceM = 30;
+  static const double _historyDistanceM = 60;
   static const double _maxAccuracyM = 50;
   static const double _maxPlausibleSpeedMps = 25;
 
@@ -351,15 +352,6 @@ class GroupTrackingService {
         timestamp: geoPosition.timestamp,
       );
       batch.set(pointRef, storedPoint.toFirestore());
-      batch.set(
-        _firestore
-            .collection('group_tracks')
-            .doc(session.adminGroupId)
-            .collection('sessions')
-            .doc(session.id),
-        <String, dynamic>{'updatedAt': FieldValue.serverTimestamp()},
-        SetOptions(merge: true),
-      );
     }
 
     await batch.commit();
@@ -381,16 +373,24 @@ class GroupTrackingService {
     if (lastHistoryAt == null || lastHistoryPosition == null) {
       return true;
     }
-    if (now.difference(lastHistoryAt) >= _historyWriteInterval) {
+
+    final distance = _haversineDistance(
+      lastHistoryPosition.lat,
+      lastHistoryPosition.lng,
+      current.lat,
+      current.lng,
+    );
+    if (distance >= _historyDistanceM) {
       return true;
     }
-    return _haversineDistance(
-          lastHistoryPosition.lat,
-          lastHistoryPosition.lng,
-          current.lat,
-          current.lng,
-        ) >=
-        _historyDistanceM;
+
+    final stationarySince = _stationarySince;
+    final isStationary = stationarySince != null &&
+        now.difference(stationarySince) >= _stationaryDelay;
+    final interval = isStationary
+        ? _stationaryHistoryHeartbeat
+        : _historyWriteInterval;
+    return now.difference(lastHistoryAt) >= interval;
   }
 
   TrackSummary _calculateSummary(
