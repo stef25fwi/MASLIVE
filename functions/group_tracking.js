@@ -8,7 +8,7 @@ if (!admin.apps.length) admin.initializeApp();
 const db = admin.firestore();
 
 const CFG = Object.freeze({
-  aggregationMs: 15000,
+  aggregationMs: 30000,
   trackerMaxAgeMs: 90000,
   adminMaxAgeMs: 120000,
   maxAccuracyM: 50,
@@ -20,7 +20,7 @@ const CFG = Object.freeze({
   jumpConfirmAgeMs: 45000,
   smoothingAlpha: 0.35,
   publishMoveM: 5,
-  publishHeartbeatMs: 30000,
+  publishHeartbeatMs: 60000,
 });
 
 function timestampMs(value) {
@@ -426,6 +426,7 @@ exports.publishGroupAverageToCircuit = onDocumentWritten({
 });
 
 exports.__test = {
+  CFG,
   clamp,
   median,
   distanceM,
