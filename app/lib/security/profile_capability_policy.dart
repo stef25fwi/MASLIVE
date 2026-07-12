@@ -8,7 +8,6 @@ enum ProfileKind {
   user,
   pro,
   creatorDigital,
-  photographer,
   tracker,
   groupAdmin,
   admin,
@@ -81,6 +80,10 @@ class ProfileCapabilities {
   final String? groupId;
   final String? adminGroupId;
   final bool hasBusiness;
+
+  /// Compat données existantes : les documents `photographers` restent la source
+  /// métier du module médias, mais côté profil utilisateur ils sont exposés comme
+  /// un profil unique "Créateur digital".
   final bool hasPhotographerProfile;
   final String? groupAdminRequestStatus;
   final Set<Capability> capabilities;
@@ -103,8 +106,6 @@ class ProfileCapabilities {
         return 'Admin Groupe';
       case ProfileKind.tracker:
         return 'Tracker Groupe';
-      case ProfileKind.photographer:
-        return 'Photographe';
       case ProfileKind.creatorDigital:
         return 'Créateur digital';
       case ProfileKind.pro:
@@ -125,7 +126,12 @@ class ProfileCapabilityPolicy {
   Future<ProfileCapabilities?> resolveCurrent() async {
     final user = _auth.currentUser;
     if (user == null) return null;
-    return resolve(user.uid, fallbackEmail: user.email, fallbackName: user.displayName, fallbackPhotoUrl: user.photoURL);
+    return resolve(
+      user.uid,
+      fallbackEmail: user.email,
+      fallbackName: user.displayName,
+      fallbackPhotoUrl: user.photoURL,
+    );
   }
 
   Future<ProfileCapabilities?> resolve(
@@ -212,8 +218,9 @@ class ProfileCapabilityPolicy {
     if (canonicalRole == RoleNormalizer.tracker || hasTrackerProfile) {
       return ProfileKind.tracker;
     }
-    if (hasPhotographerProfile) return ProfileKind.photographer;
-    if (activities.contains('createur_digital') || activities.contains('creator_digital')) {
+    if (hasPhotographerProfile ||
+        activities.contains('createur_digital') ||
+        activities.contains('creator_digital')) {
       return ProfileKind.creatorDigital;
     }
     if (accountType == 'pro' || hasBusiness) return ProfileKind.pro;
@@ -245,16 +252,19 @@ class ProfileCapabilityPolicy {
       Capability.manageOwnGallery,
     };
 
+    // Le tracker ne gère rien : il envoie uniquement sa position GPS vers le
+    // groupe rattaché. Le calcul de position moyenne du groupe est ensuite fait
+    // par l'app/backend et représenté côté Admin Groupe.
     final tracker = <Capability>{
       ...base,
       Capability.trackOwnLocation,
       Capability.viewOwnTrackHistory,
       Capability.exportOwnTracks,
-      Capability.viewGroupLiveMap,
     };
 
     final groupAdmin = <Capability>{
       ...tracker,
+      Capability.viewGroupLiveMap,
       Capability.manageGroupMembers,
       Capability.manageGroupShop,
       Capability.manageGroupTracking,
@@ -286,7 +296,6 @@ class ProfileCapabilityPolicy {
         return groupAdmin;
       case ProfileKind.tracker:
         return tracker;
-      case ProfileKind.photographer:
       case ProfileKind.creatorDigital:
         return creator;
       case ProfileKind.pro:
