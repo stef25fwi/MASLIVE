@@ -21,7 +21,8 @@ class AdminGroupDashboardPage extends StatefulWidget {
   const AdminGroupDashboardPage({super.key});
 
   @override
-  State<AdminGroupDashboardPage> createState() => _AdminGroupDashboardPageState();
+  State<AdminGroupDashboardPage> createState() =>
+      _AdminGroupDashboardPageState();
 }
 
 class _AdminGroupDashboardPageState extends State<AdminGroupDashboardPage> {
@@ -45,10 +46,19 @@ class _AdminGroupDashboardPageState extends State<AdminGroupDashboardPage> {
       final uid = _linkService.currentUid;
       if (uid != null) {
         final admin = await _linkService.getAdminProfile(uid);
-        setState(() => _admin = admin);
+        if (!mounted) return;
+        setState(() {
+          _admin = admin;
+          _isTracking =
+              admin != null &&
+              _trackingService.isTrackingFor(
+                adminGroupId: admin.adminGroupId,
+                role: 'admin',
+              );
+        });
       }
     } finally {
-      setState(() => _isLoading = false);
+      if (mounted) setState(() => _isLoading = false);
     }
   }
 
@@ -86,9 +96,10 @@ class _AdminGroupDashboardPageState extends State<AdminGroupDashboardPage> {
           displayName: nameController.text,
         );
         setState(() => _admin = admin);
-        
+
         if (mounted) {
-          TopSnackBar.show(context,
+          TopSnackBar.show(
+            context,
             SnackBar(
               content: Text('Profil créé ! Code: ${admin.adminGroupId}'),
               backgroundColor: Colors.green,
@@ -97,9 +108,7 @@ class _AdminGroupDashboardPageState extends State<AdminGroupDashboardPage> {
         }
       } catch (e) {
         if (mounted) {
-          TopSnackBar.show(context,
-            SnackBar(content: Text('Erreur: $e')),
-          );
+          TopSnackBar.show(context, SnackBar(content: Text('Erreur: $e')));
         }
       } finally {
         setState(() => _isLoading = false);
@@ -116,7 +125,8 @@ class _AdminGroupDashboardPageState extends State<AdminGroupDashboardPage> {
         await _trackingService.stopTracking();
         setState(() => _isTracking = false);
         if (mounted) {
-          TopSnackBar.show(context,
+          TopSnackBar.show(
+            context,
             const SnackBar(content: Text('Tracking arrêté')),
           );
         }
@@ -127,16 +137,15 @@ class _AdminGroupDashboardPageState extends State<AdminGroupDashboardPage> {
         );
         setState(() => _isTracking = true);
         if (mounted) {
-          TopSnackBar.show(context,
+          TopSnackBar.show(
+            context,
             const SnackBar(content: Text('Tracking démarré')),
           );
         }
       }
     } catch (e) {
       if (mounted) {
-        TopSnackBar.show(context,
-          SnackBar(content: Text('Erreur: $e')),
-        );
+        TopSnackBar.show(context, SnackBar(content: Text('Erreur: $e')));
       }
     } finally {
       setState(() => _isLoading = false);
@@ -147,7 +156,7 @@ class _AdminGroupDashboardPageState extends State<AdminGroupDashboardPage> {
     if (_admin == null) return;
 
     final newVisibility = !_admin!.isVisible;
-    
+
     setState(() => _isLoading = true);
     try {
       await _linkService.updateAdminVisibility(
@@ -155,9 +164,10 @@ class _AdminGroupDashboardPageState extends State<AdminGroupDashboardPage> {
         isVisible: newVisibility,
       );
       setState(() => _admin = _admin!.copyWith(isVisible: newVisibility));
-      
+
       if (mounted) {
-        TopSnackBar.show(context,
+        TopSnackBar.show(
+          context,
           SnackBar(
             content: Text(newVisibility ? 'Groupe visible' : 'Groupe masqué'),
           ),
@@ -165,9 +175,7 @@ class _AdminGroupDashboardPageState extends State<AdminGroupDashboardPage> {
       }
     } catch (e) {
       if (mounted) {
-        TopSnackBar.show(context,
-          SnackBar(content: Text('Erreur: $e')),
-        );
+        TopSnackBar.show(context, SnackBar(content: Text('Erreur: $e')));
       }
     } finally {
       setState(() => _isLoading = false);
@@ -184,7 +192,10 @@ class _AdminGroupDashboardPageState extends State<AdminGroupDashboardPage> {
     final country = selection.country;
     final event = selection.event;
     final circuit = selection.circuit;
-    if (!selection.enabled || country == null || event == null || circuit == null) {
+    if (!selection.enabled ||
+        country == null ||
+        event == null ||
+        circuit == null) {
       return;
     }
 
@@ -225,10 +236,7 @@ class _AdminGroupDashboardPageState extends State<AdminGroupDashboardPage> {
       }
     } catch (e) {
       if (mounted) {
-        TopSnackBar.show(
-          context,
-          SnackBar(content: Text('Erreur: $e')),
-        );
+        TopSnackBar.show(context, SnackBar(content: Text('Erreur: $e')));
       }
     } finally {
       if (mounted) setState(() => _isLoading = false);
@@ -238,7 +246,8 @@ class _AdminGroupDashboardPageState extends State<AdminGroupDashboardPage> {
   void _copyCodeToClipboard() {
     if (_admin != null) {
       Clipboard.setData(ClipboardData(text: _admin!.adminGroupId));
-      TopSnackBar.show(context,
+      TopSnackBar.show(
+        context,
         const SnackBar(content: Text('Code copié dans le presse-papier')),
       );
     }
@@ -247,9 +256,7 @@ class _AdminGroupDashboardPageState extends State<AdminGroupDashboardPage> {
   @override
   Widget build(BuildContext context) {
     if (_isLoading) {
-      return const Scaffold(
-        body: Center(child: CircularProgressIndicator()),
-      );
+      return const Scaffold(body: Center(child: CircularProgressIndicator()));
     }
 
     if (_admin == null) {
@@ -259,7 +266,11 @@ class _AdminGroupDashboardPageState extends State<AdminGroupDashboardPage> {
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              const Icon(Icons.admin_panel_settings, size: 100, color: Colors.grey),
+              const Icon(
+                Icons.admin_panel_settings,
+                size: 100,
+                color: Colors.grey,
+              ),
               const SizedBox(height: 24),
               const Text(
                 'Vous n\'avez pas encore de profil\nAdministrateur Groupe',
@@ -272,7 +283,10 @@ class _AdminGroupDashboardPageState extends State<AdminGroupDashboardPage> {
                 icon: const Icon(Icons.add),
                 label: const Text('Créer mon profil Admin'),
                 style: ElevatedButton.styleFrom(
-                  padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 32,
+                    vertical: 16,
+                  ),
                 ),
               ),
             ],
@@ -286,7 +300,9 @@ class _AdminGroupDashboardPageState extends State<AdminGroupDashboardPage> {
         title: const Text('Dashboard Admin Groupe'),
         actions: [
           IconButton(
-            icon: Icon(_admin!.isVisible ? Icons.visibility : Icons.visibility_off),
+            icon: Icon(
+              _admin!.isVisible ? Icons.visibility : Icons.visibility_off,
+            ),
             onPressed: _toggleVisibility,
             tooltip: _admin!.isVisible ? 'Masquer groupe' : 'Rendre visible',
           ),
@@ -411,7 +427,10 @@ class _AdminGroupDashboardPageState extends State<AdminGroupDashboardPage> {
                     children: [
                       Text(
                         _admin!.displayName,
-                        style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                        style: const TextStyle(
+                          fontSize: 20,
+                          fontWeight: FontWeight.bold,
+                        ),
                       ),
                       const SizedBox(height: 4),
                       Text(
@@ -525,11 +544,19 @@ class _AdminGroupDashboardPageState extends State<AdminGroupDashboardPage> {
                       children: [
                         Text(
                           _isTracking ? 'Tracking actif' : 'Tracking inactif',
-                          style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                          style: const TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                          ),
                         ),
                         Text(
-                          _isTracking ? 'Position envoyée en temps réel' : 'Démarrez pour commencer',
-                          style: TextStyle(color: Colors.grey[600], fontSize: 12),
+                          _isTracking
+                              ? 'Position envoyée en temps réel'
+                              : 'Démarrez pour commencer',
+                          style: TextStyle(
+                            color: Colors.grey[600],
+                            fontSize: 12,
+                          ),
                         ),
                       ],
                     ),
@@ -567,7 +594,8 @@ class _AdminGroupDashboardPageState extends State<AdminGroupDashboardPage> {
           onTap: () => Navigator.push(
             context,
             MaterialPageRoute(
-              builder: (_) => GroupMapLivePage(adminGroupId: _admin!.adminGroupId),
+              builder: (_) =>
+                  GroupMapLivePage(adminGroupId: _admin!.adminGroupId),
             ),
           ),
         ),
@@ -578,7 +606,8 @@ class _AdminGroupDashboardPageState extends State<AdminGroupDashboardPage> {
           onTap: () => Navigator.push(
             context,
             MaterialPageRoute(
-              builder: (_) => GroupTrackHistoryPage(adminGroupId: _admin!.adminGroupId),
+              builder: (_) =>
+                  GroupTrackHistoryPage(adminGroupId: _admin!.adminGroupId),
             ),
           ),
         ),
@@ -589,7 +618,8 @@ class _AdminGroupDashboardPageState extends State<AdminGroupDashboardPage> {
           onTap: () => Navigator.push(
             context,
             MaterialPageRoute(
-              builder: (_) => GroupExportPage(adminGroupId: _admin!.adminGroupId),
+              builder: (_) =>
+                  GroupExportPage(adminGroupId: _admin!.adminGroupId),
             ),
           ),
         ),
@@ -598,7 +628,8 @@ class _AdminGroupDashboardPageState extends State<AdminGroupDashboardPage> {
           label: 'Statistiques',
           color: Colors.teal,
           onTap: () {
-            TopSnackBar.show(context,
+            TopSnackBar.show(
+              context,
               const SnackBar(content: Text('Page Stats à venir')),
             );
           },
@@ -608,7 +639,8 @@ class _AdminGroupDashboardPageState extends State<AdminGroupDashboardPage> {
           label: 'Boutique',
           color: Colors.pink,
           onTap: () {
-            TopSnackBar.show(context,
+            TopSnackBar.show(
+              context,
               const SnackBar(content: Text('Page Boutique à venir')),
             );
           },
@@ -618,7 +650,8 @@ class _AdminGroupDashboardPageState extends State<AdminGroupDashboardPage> {
           label: 'Médias',
           color: Colors.indigo,
           onTap: () {
-            TopSnackBar.show(context,
+            TopSnackBar.show(
+              context,
               const SnackBar(content: Text('Page Médias à venir')),
             );
           },
@@ -676,7 +709,11 @@ class _AdminGroupDashboardPageState extends State<AdminGroupDashboardPage> {
                   child: Center(
                     child: Column(
                       children: [
-                        Icon(Icons.people_outline, size: 64, color: Colors.grey[400]),
+                        Icon(
+                          Icons.people_outline,
+                          size: 64,
+                          color: Colors.grey[400],
+                        ),
                         const SizedBox(height: 16),
                         Text(
                           'Aucun tracker rattaché',
@@ -685,7 +722,10 @@ class _AdminGroupDashboardPageState extends State<AdminGroupDashboardPage> {
                         const SizedBox(height: 8),
                         Text(
                           'Partagez le code ${_admin!.adminGroupId}',
-                          style: TextStyle(color: Colors.grey[600], fontSize: 12),
+                          style: TextStyle(
+                            color: Colors.grey[600],
+                            fontSize: 12,
+                          ),
                         ),
                       ],
                     ),
@@ -695,34 +735,49 @@ class _AdminGroupDashboardPageState extends State<AdminGroupDashboardPage> {
             }
 
             final trackers = snapshot.data!;
-            return ListView.builder(
-              shrinkWrap: true,
-              physics: const NeverScrollableScrollPhysics(),
-              itemCount: trackers.length,
-              itemBuilder: (context, index) {
-                final tracker = trackers[index];
-                return Card(
-                  child: ListTile(
-                    leading: CircleAvatar(
-                      child: Text(tracker.displayName[0].toUpperCase()),
-                    ),
-                    title: Text(tracker.displayName),
-                    subtitle: Text(
-                      tracker.lastPosition != null
-                          ? 'Position: ${DateTime.now().difference(tracker.lastPosition!.timestamp).inSeconds}s'
-                          : 'Aucune position',
-                    ),
-                    trailing: Icon(
-                      tracker.lastPosition != null &&
-                              DateTime.now().difference(tracker.lastPosition!.timestamp).inSeconds < 30
-                          ? Icons.gps_fixed
-                          : Icons.gps_off,
-                      color: tracker.lastPosition != null &&
-                              DateTime.now().difference(tracker.lastPosition!.timestamp).inSeconds < 30
-                          ? Colors.green
-                          : Colors.grey,
-                    ),
-                  ),
+            return StreamBuilder<Set<String>>(
+              stream: _trackingService.streamActiveMemberUids(
+                _admin!.adminGroupId,
+              ),
+              builder: (context, liveSnapshot) {
+                final activeUids = liveSnapshot.data ?? const <String>{};
+                return ListView.builder(
+                  shrinkWrap: true,
+                  physics: const NeverScrollableScrollPhysics(),
+                  itemCount: trackers.length,
+                  itemBuilder: (context, index) {
+                    final tracker = trackers[index];
+                    final isLive = activeUids.contains(tracker.uid);
+                    final stale = tracker.trackingActive && !isLive;
+                    final initial = tracker.displayName.trim().isEmpty
+                        ? '?'
+                        : tracker.displayName.trim()[0].toUpperCase();
+                    return Card(
+                      child: ListTile(
+                        leading: CircleAvatar(child: Text(initial)),
+                        title: Text(tracker.displayName),
+                        subtitle: Text(
+                          isLive
+                              ? 'GPS actif • position live reçue'
+                              : stale
+                              ? 'Signal expiré • relance requise'
+                              : 'GPS inactif',
+                        ),
+                        trailing: Icon(
+                          isLive
+                              ? Icons.gps_fixed
+                              : stale
+                              ? Icons.gps_not_fixed
+                              : Icons.gps_off,
+                          color: isLive
+                              ? Colors.green
+                              : stale
+                              ? Colors.orange
+                              : Colors.grey,
+                        ),
+                      ),
+                    );
+                  },
                 );
               },
             );

@@ -1,14 +1,14 @@
 # Tracking groupe — batterie, qualité et coût
 
-## Réglages appliqués
+## Réglages de production
 
 - GPS mobile : précision haute uniquement pendant la session, filtre distance 15 m.
 - Envoi live adaptatif : 15 s en mouvement, 45 s lent, 60 s immobile.
-- Historique : 60 s ou 30 m, au lieu de chaque position live.
-- Profil tracker/admin : mise à jour toutes les 60 s.
+- Historique : 120 s ou 60 m ; heartbeat de 5 min après 2 min immobile.
+- Profil tracker/admin : mise à jour toutes les 5 min.
 - Présence live : TTL 120 s et suppression serveur à l'arrêt.
-- Agrégation serveur : maximum une fois toutes les 15 s.
-- Publication carte : déplacement supérieur ou égal à 5 m, ou heartbeat 30 s.
+- Agrégation serveur : maximum une fois toutes les 30 s.
+- Publication carte : déplacement supérieur ou égal à 5 m, ou heartbeat 60 s.
 
 ## Qualité de calcul
 
@@ -29,5 +29,3 @@
 - idéal : 5 trackers ;
 - grand groupe : 6 à 8 trackers ;
 - plafond de calcul : 10 trackers.
-
-Répartition conseillée pour 5 trackers : avant, arrière, centre, gauche, droite.

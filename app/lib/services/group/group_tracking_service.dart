@@ -46,6 +46,16 @@ class GroupTrackingService {
   bool get isTracking =>
       _positionSubscription != null && _currentSession?.isActive == true;
 
+  TrackSession? get currentSession => _currentSession;
+
+  bool isTrackingFor({required String adminGroupId, required String role}) {
+    final session = _currentSession;
+    final normalizedRole = role == 'admin' ? 'admin' : 'tracker';
+    return isTracking &&
+        session?.adminGroupId == adminGroupId &&
+        session?.role == normalizedRole;
+  }
+
   Future<TrackSession> startTracking({
     required String adminGroupId,
     required String role,
@@ -92,16 +102,17 @@ class GroupTrackingService {
       accuracy: LocationAccuracy.high,
       distanceFilter: 15,
     );
-    _positionSubscription = Geolocator.getPositionStream(
-      locationSettings: settings,
-    ).listen((position) {
-      if (!_isUsablePosition(position)) {
-        return;
-      }
-      _latestGoodPosition = position;
-      _updateStationaryState(position);
-      unawaited(_flushLatest(force: _lastSentAt == null));
-    });
+    _positionSubscription =
+        Geolocator.getPositionStream(locationSettings: settings).listen((
+          position,
+        ) {
+          if (!_isUsablePosition(position)) {
+            return;
+          }
+          _latestGoodPosition = position;
+          _updateStationaryState(position);
+          unawaited(_flushLatest(force: _lastSentAt == null));
+        });
 
     _flushTimer = Timer.periodic(_movingInterval, (_) {
       unawaited(_flushLatest());
@@ -142,29 +153,25 @@ class GroupTrackingService {
           .doc(user.uid);
       // Le membre marque sa présence inactive. La Cloud Function la supprime
       // ensuite avec les droits serveur et déclenche le recalcul du groupe.
-      batch.set(
-        liveRef,
-        <String, dynamic>{
-          'isTracking': false,
-          'expiresAt': Timestamp.fromDate(DateTime.now()),
-          'updatedAt': FieldValue.serverTimestamp(),
-        },
-        SetOptions(merge: true),
-      );
+      batch.set(liveRef, <String, dynamic>{
+        'isTracking': false,
+        'expiresAt': Timestamp.fromDate(DateTime.now()),
+        'updatedAt': FieldValue.serverTimestamp(),
+      }, SetOptions(merge: true));
 
       final profileRef = session.role == 'admin'
           ? _firestore.collection('group_admins').doc(user.uid)
           : _firestore.collection('group_trackers').doc(user.uid);
-      batch.set(
-        profileRef,
-        <String, dynamic>{
-          'trackingActive': false,
-          'trackingSessionId': null,
-          'trackingStoppedAt': FieldValue.serverTimestamp(),
-          'updatedAt': FieldValue.serverTimestamp(),
-        },
-        SetOptions(merge: true),
-      );
+      final stoppedProfileData = <String, dynamic>{
+        'trackingActive': false,
+        'trackingSessionId': null,
+        'trackingStoppedAt': FieldValue.serverTimestamp(),
+        'updatedAt': FieldValue.serverTimestamp(),
+      };
+      if (session.role == 'tracker') {
+        stoppedProfileData['uid'] = user.uid;
+      }
+      batch.set(profileRef, stoppedProfileData, SetOptions(merge: true));
     }
 
     await batch.commit();
@@ -295,7 +302,8 @@ class GroupTrackingService {
       timestamp: now,
     );
     final historyDue = _isHistoryWriteDue(geoPosition, now);
-    final profileDue = _lastProfileWriteAt == null ||
+    final profileDue =
+        _lastProfileWriteAt == null ||
         now.difference(_lastProfileWriteAt!) >= _profileWriteInterval;
     final batch = _firestore.batch();
 
@@ -304,34 +312,31 @@ class GroupTrackingService {
         .doc(session.adminGroupId)
         .collection('members')
         .doc(user.uid);
-    batch.set(
-      memberRef,
-      <String, dynamic>{
-        'role': session.role,
-        'isTracking': true,
-        'sessionId': session.id,
-        'lastPosition': geoPosition.toMap(),
-        'previousPosition': _lastSentPosition?.toMap(),
-        'expiresAt': Timestamp.fromDate(now.add(_liveTtl)),
-        'updatedAt': FieldValue.serverTimestamp(),
-      },
-      SetOptions(merge: true),
-    );
+    batch.set(memberRef, <String, dynamic>{
+      'role': session.role,
+      'isTracking': true,
+      'sessionId': session.id,
+      'lastPosition': geoPosition.toMap(),
+      'previousPosition': _lastSentPosition?.toMap(),
+      'expiresAt': Timestamp.fromDate(now.add(_liveTtl)),
+      'updatedAt': FieldValue.serverTimestamp(),
+    }, SetOptions(merge: true));
 
     if (profileDue) {
       final profileRef = session.role == 'admin'
           ? _firestore.collection('group_admins').doc(user.uid)
           : _firestore.collection('group_trackers').doc(user.uid);
-      batch.set(
-        profileRef,
-        <String, dynamic>{
-          'lastPosition': geoPosition.toMap(),
-          'trackingActive': true,
-          'trackingSessionId': session.id,
-          'updatedAt': FieldValue.serverTimestamp(),
-        },
-        SetOptions(merge: true),
-      );
+      final profileData = <String, dynamic>{
+        'lastPosition': geoPosition.toMap(),
+        'trackingActive': true,
+        'trackingSessionId': session.id,
+        'updatedAt': FieldValue.serverTimestamp(),
+      };
+      if (session.role == 'tracker') {
+        profileData['uid'] = user.uid;
+        profileData['trackingStoppedAt'] = null;
+      }
+      batch.set(profileRef, profileData, SetOptions(merge: true));
     }
 
     TrackPoint? storedPoint;
@@ -385,7 +390,8 @@ class GroupTrackingService {
     }
 
     final stationarySince = _stationarySince;
-    final isStationary = stationarySince != null &&
+    final isStationary =
+        stationarySince != null &&
         now.difference(stationarySince) >= _stationaryDelay;
     final interval = isStationary
         ? _stationaryHistoryHeartbeat
@@ -393,10 +399,7 @@ class GroupTrackingService {
     return now.difference(lastHistoryAt) >= interval;
   }
 
-  TrackSummary _calculateSummary(
-    List<TrackPoint> points,
-    DateTime startedAt,
-  ) {
+  TrackSummary _calculateSummary(List<TrackPoint> points, DateTime startedAt) {
     if (points.isEmpty) {
       return TrackSummary(
         durationSec: 0,
@@ -423,7 +426,7 @@ class GroupTrackingService {
       );
       final elapsedSeconds =
           current.timestamp.difference(previous.timestamp).inMilliseconds /
-              1000;
+          1000;
       if (elapsedSeconds > 0 &&
           travelled / elapsedSeconds < _maxPlausibleSpeedMps) {
         distanceM += travelled;
@@ -457,7 +460,8 @@ class GroupTrackingService {
     const earthRadiusM = 6371000.0;
     final dLat = _toRadians(lat2 - lat1);
     final dLon = _toRadians(lon2 - lon1);
-    final a = sin(dLat / 2) * sin(dLat / 2) +
+    final a =
+        sin(dLat / 2) * sin(dLat / 2) +
         cos(_toRadians(lat1)) *
             cos(_toRadians(lat2)) *
             sin(dLon / 2) *
@@ -466,6 +470,38 @@ class GroupTrackingService {
   }
 
   double _toRadians(double degree) => degree * pi / 180;
+
+  Stream<Set<String>> streamActiveMemberUids(String adminGroupId) {
+    return _firestore
+        .collection('group_positions')
+        .doc(adminGroupId)
+        .collection('members')
+        .snapshots()
+        .map((snapshot) {
+          final now = DateTime.now();
+          return snapshot.docs
+              .where((doc) {
+                final data = doc.data();
+                if (data['isTracking'] != true) return false;
+
+                final expiresAt = data['expiresAt'];
+                if (expiresAt is! Timestamp ||
+                    !expiresAt.toDate().isAfter(now)) {
+                  return false;
+                }
+
+                final rawPosition = data['lastPosition'];
+                if (rawPosition is! Map) return false;
+                final rawTimestamp = rawPosition['ts'];
+                if (rawTimestamp is! Timestamp) return false;
+
+                final age = now.difference(rawTimestamp.toDate());
+                return age.inSeconds >= -30 && age <= _liveTtl;
+              })
+              .map((doc) => doc.id)
+              .toSet();
+        });
+  }
 
   Stream<List<TrackSession>> streamGroupSessions(String adminGroupId) {
     return _firestore
@@ -511,8 +547,6 @@ class GroupTrackingService {
         .collection('points')
         .orderBy('ts')
         .get();
-    return snapshot.docs
-        .map((doc) => TrackPoint.fromFirestore(doc))
-        .toList();
+    return snapshot.docs.map((doc) => TrackPoint.fromFirestore(doc)).toList();
   }
 }
