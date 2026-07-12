@@ -49,7 +49,7 @@ class _AccountUiPageState extends State<AccountUiPage> {
   void _navigateTo(BuildContext context, _AccountTileData tile) {
     if (tile.route == null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(tile.lockedMessage ?? '${tile.title} indisponible')),
+        SnackBar(content: Text('${tile.title} indisponible')),
       );
       return;
     }
@@ -543,7 +543,6 @@ class _AccountTileData {
   final String subtitle;
   final String? route;
   final Object? arguments;
-  final String? lockedMessage;
 
   const _AccountTileData({
     required this.icon,
@@ -551,6 +550,5 @@ class _AccountTileData {
     required this.subtitle,
     this.route,
     this.arguments,
-    this.lockedMessage,
   });
 }

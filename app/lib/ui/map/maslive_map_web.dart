@@ -1850,8 +1850,7 @@ class _MasLiveMapWebState extends State<MasLiveMapWeb> {
             img.onError.first.then((_) {}),
             Future<void>.delayed(const Duration(seconds: 3)),
           ]);
-          final loaded =
-              (img.complete == true) && ((img.naturalWidth ?? 0) > 0);
+          final loaded = img.complete && img.naturalWidth > 0;
           if (loaded) {
             map.callMethod('addImage', [_poiIconPointId, img]);
             break; // icône chargée => stop
