@@ -5027,23 +5027,67 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
                 ),
               ),
             if (_routeStyleAdvancedExpanded)
-              IconButton(
-                tooltip: 'Tracé 3D (ruban extrudé)',
-                onPressed: () {
-                  final current =
-                      _routeStyleProConfig ?? const rsp.RouteStyleConfig();
-                  setState(() {
-                    _routeStyleProConfig = current.copyWith(
-                      elevated3d: !current.elevated3d,
-                    );
-                  });
+              Builder(
+                builder: (context) {
+                  final active = _routeStyleProConfig?.elevated3d ?? false;
+                  return Tooltip(
+                    message: 'Tracé 3D (ruban extrudé avec épaisseur)',
+                    child: Material(
+                      color: Colors.transparent,
+                      child: InkWell(
+                        borderRadius: BorderRadius.circular(12),
+                        onTap: () {
+                          final current = _routeStyleProConfig ??
+                              const rsp.RouteStyleConfig();
+                          setState(() {
+                            _routeStyleProConfig = current.copyWith(
+                              elevated3d: !current.elevated3d,
+                            );
+                          });
+                        },
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 10,
+                            vertical: 8,
+                          ),
+                          decoration: BoxDecoration(
+                            color: active
+                                ? proBlue.withValues(alpha: 0.14)
+                                : Colors.white.withValues(alpha: 0.72),
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(
+                              color: active
+                                  ? proBlue.withValues(alpha: 0.55)
+                                  : colorScheme.outline.withValues(alpha: 0.35),
+                            ),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(
+                                Icons.view_in_ar,
+                                size: 20,
+                                color: active
+                                    ? proBlue
+                                    : colorScheme.onSurfaceVariant,
+                              ),
+                              const SizedBox(width: 6),
+                              Text(
+                                'Tracé 3D',
+                                style: toolLabelStyle.copyWith(
+                                  color: active
+                                      ? proBlue
+                                      : colorScheme.onSurface,
+                                  fontWeight: FontWeight.w700,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+                  );
                 },
-                icon: Icon(
-                  Icons.view_in_ar,
-                  color: (_routeStyleProConfig?.elevated3d ?? false)
-                      ? proBlue
-                      : colorScheme.onSurfaceVariant,
-                ),
               ),
             if (_routeStyleAdvancedExpanded)
               IconButton(
