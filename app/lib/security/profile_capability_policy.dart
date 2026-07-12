@@ -6,7 +6,6 @@ import 'role_normalizer.dart';
 /// Profils fonctionnels affichés dans l'application.
 enum ProfileKind {
   user,
-  pro,
   artisanArt,
   creatorDigital,
   tracker,
@@ -84,6 +83,9 @@ class ProfileCapabilities {
   final String canonicalRole;
   final String? groupId;
   final String? adminGroupId;
+
+  /// Compat données existantes : le champ reste disponible, mais le profil
+  /// fonctionnel "Compte Pro" est supprimé de MASLIVE.
   final bool hasBusiness;
 
   /// Profil vendeur Bloom Art, exposé comme profil fonctionnel Artisan d’art.
@@ -120,8 +122,6 @@ class ProfileCapabilities {
         return 'Artisan d’art';
       case ProfileKind.creatorDigital:
         return 'Créateur digital';
-      case ProfileKind.pro:
-        return 'Compte Pro';
       case ProfileKind.user:
         return 'Utilisateur';
     }
@@ -161,9 +161,6 @@ class ProfileCapabilityPolicy {
       isAdminFlag: isAdminFlag,
     );
 
-    final businessDoc = await _firestore.collection('businesses').doc(uid).get();
-    final hasBusiness = businessDoc.exists;
-    final accountType = (userData['accountType'] as String?)?.trim().toLowerCase();
     final activities = (userData['activities'] as List<dynamic>?)
             ?.map((e) => e.toString())
             .toSet() ??
@@ -198,9 +195,7 @@ class ProfileCapabilityPolicy {
 
     final kind = _resolveKind(
       canonicalRole: canonicalRole,
-      accountType: accountType,
       activities: activities,
-      hasBusiness: hasBusiness,
       hasBloomArtSellerProfile: hasBloomArtSellerProfile,
       hasPhotographerProfile: hasPhotographerProfile,
       hasGroupAdminProfile: groupAdminDoc.exists,
@@ -217,7 +212,7 @@ class ProfileCapabilityPolicy {
       canonicalRole: canonicalRole,
       groupId: userData['groupId'] as String?,
       adminGroupId: adminGroupId,
-      hasBusiness: hasBusiness,
+      hasBusiness: false,
       hasBloomArtSellerProfile: hasBloomArtSellerProfile,
       hasPhotographerProfile: hasPhotographerProfile,
       groupAdminRequestStatus: requestData?['status'] as String?,
@@ -228,9 +223,7 @@ class ProfileCapabilityPolicy {
 
   ProfileKind _resolveKind({
     required String canonicalRole,
-    required String? accountType,
     required Set<String> activities,
-    required bool hasBusiness,
     required bool hasBloomArtSellerProfile,
     required bool hasPhotographerProfile,
     required bool hasGroupAdminProfile,
@@ -252,7 +245,6 @@ class ProfileCapabilityPolicy {
         activities.contains('creator_digital')) {
       return ProfileKind.creatorDigital;
     }
-    if (accountType == 'pro' || hasBusiness) return ProfileKind.pro;
     return ProfileKind.user;
   }
 
@@ -269,12 +261,6 @@ class ProfileCapabilityPolicy {
       Capability.requestGroupAdmin,
     };
 
-    final pro = <Capability>{
-      ...base,
-      Capability.manageOwnBusiness,
-      Capability.submitProduct,
-    };
-
     final artisanArt = <Capability>{
       ...base,
       Capability.manageArtGallery,
@@ -284,7 +270,7 @@ class ProfileCapabilityPolicy {
     };
 
     final creator = <Capability>{
-      ...pro,
+      ...base,
       Capability.submitMedia,
       Capability.manageOwnGallery,
     };
@@ -337,8 +323,6 @@ class ProfileCapabilityPolicy {
         return artisanArt;
       case ProfileKind.creatorDigital:
         return creator;
-      case ProfileKind.pro:
-        return pro;
       case ProfileKind.user:
         return base;
     }
