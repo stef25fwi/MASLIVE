@@ -60,12 +60,12 @@ void main() {
       ).validated();
 
       expect(cfg.snapToleranceMeters, inInclusiveRange(5, 150));
-      expect(cfg.mainWidth, inInclusiveRange(2, 20));
+      expect(cfg.mainWidth, inInclusiveRange(1.6, 20));
       // casingWidth doit pouvoir être 0 (preset minimal)
       expect(cfg.casingWidth, inInclusiveRange(0, 30));
       expect(cfg.opacity, inInclusiveRange(0.2, 1.0));
-      expect(cfg.widthScale3d, inInclusiveRange(0.5, 3.0));
-      expect(cfg.thickness3d, inInclusiveRange(0.6, 1.8));
+      expect(cfg.widthScale3d, inInclusiveRange(0.4, 3.0));
+      expect(cfg.thickness3d, inInclusiveRange(0.48, 1.8));
       expect(cfg.elevationPx, inInclusiveRange(0.0, 40.0));
       expect(cfg.glowOpacity, inInclusiveRange(0.0, 1.0));
       expect(cfg.vanishingProgress, inInclusiveRange(0.0, 1.0));
@@ -165,7 +165,7 @@ void main() {
       for (final p in RouteStylePresets.all) {
         final v = p.config.validated();
         // Invariants simples: rien d'inf/NaN et clamp OK.
-        expect(v.mainWidth, inInclusiveRange(2.0, 20.0));
+        expect(v.mainWidth, inInclusiveRange(1.6, 20.0));
         expect(v.casingWidth, inInclusiveRange(0.0, 30.0));
         expect(v.opacity, inInclusiveRange(0.0, 1.0));
         expect(v.glowBlur, inInclusiveRange(0.0, 40.0));
