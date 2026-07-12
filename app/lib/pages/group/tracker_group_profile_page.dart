@@ -14,7 +14,8 @@ class TrackerGroupProfilePage extends StatefulWidget {
   const TrackerGroupProfilePage({super.key});
 
   @override
-  State<TrackerGroupProfilePage> createState() => _TrackerGroupProfilePageState();
+  State<TrackerGroupProfilePage> createState() =>
+      _TrackerGroupProfilePageState();
 }
 
 class _TrackerGroupProfilePageState extends State<TrackerGroupProfilePage> {
@@ -39,10 +40,20 @@ class _TrackerGroupProfilePageState extends State<TrackerGroupProfilePage> {
       final uid = _linkService.currentUid;
       if (uid != null) {
         final tracker = await _linkService.getTrackerProfile(uid);
-        setState(() => _tracker = tracker);
+        if (!mounted) return;
+        setState(() {
+          _tracker = tracker;
+          final groupId = tracker?.adminGroupId;
+          _isTracking =
+              groupId != null &&
+              _trackingService.isTrackingFor(
+                adminGroupId: groupId,
+                role: 'tracker',
+              );
+        });
       }
     } finally {
-      setState(() => _isLoading = false);
+      if (mounted) setState(() => _isLoading = false);
     }
   }
 
@@ -56,7 +67,9 @@ class _TrackerGroupProfilePageState extends State<TrackerGroupProfilePage> {
     if (payload == null) {
       TopSnackBar.show(
         context,
-        const SnackBar(content: Text('QR non reconnu (code groupe introuvable)')),
+        const SnackBar(
+          content: Text('QR non reconnu (code groupe introuvable)'),
+        ),
       );
       return;
     }
@@ -64,8 +77,8 @@ class _TrackerGroupProfilePageState extends State<TrackerGroupProfilePage> {
     setState(() => _codeController.text = payload.code);
 
     // Confirmation affichant le nom du groupe (si présent dans le QR).
-    final groupLabel = (payload.groupName != null &&
-            payload.groupName!.trim().isNotEmpty)
+    final groupLabel =
+        (payload.groupName != null && payload.groupName!.trim().isNotEmpty)
         ? '« ${payload.groupName!.trim()} »'
         : 'ce groupe (code ${payload.code})';
     final confirm = await showDialog<bool>(
@@ -93,7 +106,9 @@ class _TrackerGroupProfilePageState extends State<TrackerGroupProfilePage> {
     } else {
       TopSnackBar.show(
         context,
-        const SnackBar(content: Text('Code validé. Saisis ton nom puis rattache-toi.')),
+        const SnackBar(
+          content: Text('Code validé. Saisis ton nom puis rattache-toi.'),
+        ),
       );
     }
   }
@@ -114,7 +129,7 @@ class _TrackerGroupProfilePageState extends State<TrackerGroupProfilePage> {
         displayName: _nameController.text,
       );
       setState(() => _tracker = tracker);
-      
+
       if (mounted) {
         TopSnackBar.show(
           context,
@@ -126,10 +141,7 @@ class _TrackerGroupProfilePageState extends State<TrackerGroupProfilePage> {
       }
     } catch (e) {
       if (mounted) {
-        TopSnackBar.show(
-          context,
-          SnackBar(content: Text('Erreur: $e')),
-        );
+        TopSnackBar.show(context, SnackBar(content: Text('Erreur: $e')));
       }
     } finally {
       setState(() => _isLoading = false);
@@ -153,10 +165,7 @@ class _TrackerGroupProfilePageState extends State<TrackerGroupProfilePage> {
       }
     } catch (e) {
       if (mounted) {
-        TopSnackBar.show(
-          context,
-          SnackBar(content: Text('Erreur: $e')),
-        );
+        TopSnackBar.show(context, SnackBar(content: Text('Erreur: $e')));
       }
     } finally {
       setState(() => _isLoading = false);
@@ -166,9 +175,7 @@ class _TrackerGroupProfilePageState extends State<TrackerGroupProfilePage> {
   @override
   Widget build(BuildContext context) {
     if (_isLoading) {
-      return const Scaffold(
-        body: Center(child: CircularProgressIndicator()),
-      );
+      return const Scaffold(body: Center(child: CircularProgressIndicator()));
     }
 
     return Scaffold(
@@ -253,7 +260,10 @@ class _TrackerGroupProfilePageState extends State<TrackerGroupProfilePage> {
                 const SizedBox(height: 16),
                 Text(
                   _tracker!.displayName,
-                  style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                  style: const TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
+                  ),
                 ),
                 const SizedBox(height: 8),
                 Text('Groupe: ${_tracker!.adminGroupId}'),
@@ -276,7 +286,10 @@ class _TrackerGroupProfilePageState extends State<TrackerGroupProfilePage> {
                 const SizedBox(height: 12),
                 Text(
                   _isTracking ? 'Tracking actif' : 'Tracking inactif',
-                  style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                  style: const TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                  ),
                 ),
                 const SizedBox(height: 16),
                 ElevatedButton.icon(

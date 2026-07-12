@@ -108,22 +108,18 @@ value = replace_once(
 """,
     "tracker restore",
 )
-value = replace_once(
-    value,
-    """    } finally {
-      setState(() => _isLoading = false);
-    }
-
-  Future<void> _scanQr() async {
-""",
-    """    } finally {
-      if (mounted) setState(() => _isLoading = false);
-    }
-
-  Future<void> _scanQr() async {
-""",
-    "tracker mounted guard",
+load_start = value.index("  Future<void> _loadTrackerProfile() async {")
+load_end = value.index("  Future<void> _scanQr() async {", load_start)
+load_block = value[load_start:load_end]
+old_loading = "      setState(() => _isLoading = false);"
+if old_loading not in load_block:
+    raise RuntimeError("tracker mounted guard: loading statement not found")
+load_block = load_block.replace(
+    old_loading,
+    "      if (mounted) setState(() => _isLoading = false);",
+    1,
 )
+value = value[:load_start] + load_block + value[load_end:]
 write(path, value)
 
 

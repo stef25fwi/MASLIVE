@@ -46,8 +46,7 @@ class GroupTracker {
           : null,
       trackingActive: data['trackingActive'] == true,
       trackingSessionId: data['trackingSessionId'] as String?,
-      trackingStoppedAt:
-          (data['trackingStoppedAt'] as Timestamp?)?.toDate(),
+      trackingStoppedAt: (data['trackingStoppedAt'] as Timestamp?)?.toDate(),
       createdAt: (data['createdAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
       updatedAt: (data['updatedAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
     );

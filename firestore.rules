@@ -1070,6 +1070,66 @@ service cloud.firestore {
       allow delete: if isMasterAdmin();
     }
 
+    function isValidTrackingPosition(position) {
+      return position is map
+        && position.keys().hasAll(['lat', 'lng', 'alt', 'accuracy', 'ts'])
+        && position.keys().hasOnly(['lat', 'lng', 'alt', 'accuracy', 'ts'])
+        && position.lat is number
+        && position.lng is number
+        && position.lat >= -90
+        && position.lat <= 90
+        && position.lng >= -180
+        && position.lng <= 180
+        && !(position.lat == 0 && position.lng == 0)
+        && (position.alt == null || position.alt is number)
+        && position.accuracy is number
+        && position.accuracy >= 0
+        && position.accuracy <= 50
+        && position.ts is timestamp
+        && position.ts >= request.time - duration.value(10, 'm')
+        && position.ts <= request.time + duration.value(2, 'm');
+    }
+
+    function isValidTrackerLink(data) {
+      return (
+          data.adminGroupId == null
+          && data.linkedAdminUid == null
+        ) || (
+          data.adminGroupId is string
+          && data.adminGroupId.matches('^\\d{6}$')
+          && data.linkedAdminUid is string
+          && exists(/databases/$(database)/documents/group_admin_codes/$(data.adminGroupId))
+          && get(/databases/$(database)/documents/group_admin_codes/$(data.adminGroupId)).data.isActive == true
+          && get(/databases/$(database)/documents/group_admin_codes/$(data.adminGroupId)).data.adminUid == data.linkedAdminUid
+        );
+    }
+
+    function isValidTrackerProfile(data, trackerUid) {
+      return data.keys().hasOnly([
+          'uid',
+          'adminGroupId',
+          'linkedAdminUid',
+          'displayName',
+          'lastPosition',
+          'trackingActive',
+          'trackingSessionId',
+          'trackingStoppedAt',
+          'createdAt',
+          'updatedAt'
+        ])
+        && data.uid == trackerUid
+        && data.displayName is string
+        && data.displayName.size() > 0
+        && data.displayName.size() <= 120
+        && isValidTrackerLink(data)
+        && (data.lastPosition == null || isValidTrackingPosition(data.lastPosition))
+        && data.trackingActive is bool
+        && (data.trackingSessionId == null || data.trackingSessionId is string)
+        && (data.trackingStoppedAt == null || data.trackingStoppedAt is timestamp)
+        && data.createdAt is timestamp
+        && data.updatedAt is timestamp;
+    }
+
     // Profils trackers
     match /group_trackers/{trackerUid} {
       allow read: if isSignedIn() && (
@@ -1079,40 +1139,113 @@ service cloud.firestore {
       );
 
       allow create: if isSignedIn()
-        && request.resource.data.uid == trackerUid
-        && request.resource.data.adminGroupId is string
-        && request.resource.data.adminGroupId.matches('^\\d{6}$')
+        && isValidTrackerProfile(request.resource.data, trackerUid)
         && (
           isMasterAdmin()
           || isGroupAdminByAdminGroupId(request.resource.data.adminGroupId)
+          || request.auth.uid == trackerUid
         );
 
-      allow update: if isSignedIn() && (
-        isMasterAdmin()
-        || (
-          request.auth.uid == trackerUid
-          && request.resource.data.adminGroupId == resource.data.adminGroupId
-          && request.resource.data.uid == resource.data.uid
-        )
-        || (
-          isGroupAdminByAdminGroupId(resource.data.adminGroupId)
-          && request.resource.data.adminGroupId == resource.data.adminGroupId
-          && request.resource.data.uid == resource.data.uid
-        )
-      );
+      allow update: if isSignedIn()
+        && isValidTrackerProfile(request.resource.data, trackerUid)
+        && (
+          isMasterAdmin()
+          || (
+            request.auth.uid == trackerUid
+            && request.resource.data.uid == resource.data.uid
+            && request.resource.data.createdAt == resource.data.createdAt
+            && request.resource.data.diff(resource.data).changedKeys().hasOnly([
+              'adminGroupId',
+              'linkedAdminUid',
+              'displayName',
+              'lastPosition',
+              'trackingActive',
+              'trackingSessionId',
+              'trackingStoppedAt',
+              'updatedAt'
+            ])
+          )
+          || (
+            isGroupAdminByAdminGroupId(resource.data.adminGroupId)
+            && request.resource.data.uid == resource.data.uid
+            && request.resource.data.createdAt == resource.data.createdAt
+            && request.resource.data.adminGroupId == resource.data.adminGroupId
+            && request.resource.data.linkedAdminUid == resource.data.linkedAdminUid
+            && request.resource.data.diff(resource.data).changedKeys().hasOnly([
+              'displayName',
+              'updatedAt'
+            ])
+          )
+        );
       allow delete: if isMasterAdmin();
+    }
+
+    function expectedLiveRole(adminGroupId, uid) {
+      return exists(/databases/$(database)/documents/group_admins/$(uid))
+          && get(/databases/$(database)/documents/group_admins/$(uid)).data.adminGroupId == adminGroupId
+        ? 'admin'
+        : (exists(/databases/$(database)/documents/group_trackers/$(uid))
+            && get(/databases/$(database)/documents/group_trackers/$(uid)).data.adminGroupId == adminGroupId
+          ? 'tracker'
+          : null);
+    }
+
+    function isValidLiveMember(data, adminGroupId, uid) {
+      return data.keys().hasAll([
+          'role',
+          'isTracking',
+          'sessionId',
+          'lastPosition',
+          'previousPosition',
+          'expiresAt',
+          'updatedAt'
+        ])
+        && data.keys().hasOnly([
+          'role',
+          'isTracking',
+          'sessionId',
+          'lastPosition',
+          'previousPosition',
+          'expiresAt',
+          'updatedAt'
+        ])
+        && data.role == expectedLiveRole(adminGroupId, uid)
+        && data.isTracking is bool
+        && data.sessionId is string
+        && data.sessionId.size() > 0
+        && isValidTrackingPosition(data.lastPosition)
+        && (data.previousPosition == null || isValidTrackingPosition(data.previousPosition))
+        && data.expiresAt is timestamp
+        && data.expiresAt >= request.time - duration.value(2, 'm')
+        && data.expiresAt <= request.time + duration.value(3, 'm')
+        && data.updatedAt == request.time;
     }
 
     // Positions live par membre (source d'agrégation CF)
     match /group_positions/{adminGroupId} {
-      allow read: if isSignedIn() && (isGroupMemberByAdminGroupId(adminGroupId) || isMasterAdmin());
+      allow read: if isSignedIn() && (
+        isGroupMemberByAdminGroupId(adminGroupId) || isMasterAdmin()
+      );
       allow write: if false;
 
       match /members/{uid} {
-        allow read: if isSignedIn() && (isGroupMemberByAdminGroupId(adminGroupId) || isMasterAdmin());
-        allow create, update: if isSignedIn()
+        allow read: if isSignedIn() && (
+          isGroupMemberByAdminGroupId(adminGroupId) || isMasterAdmin()
+        );
+        allow create: if isSignedIn()
           && request.auth.uid == uid
-          && isGroupMemberByAdminGroupId(adminGroupId);
+          && isGroupMemberByAdminGroupId(adminGroupId)
+          && isValidLiveMember(request.resource.data, adminGroupId, uid);
+        allow update: if isSignedIn()
+          && request.auth.uid == uid
+          && isGroupMemberByAdminGroupId(adminGroupId)
+          && isValidLiveMember(request.resource.data, adminGroupId, uid)
+          && (
+            request.resource.data.sessionId == resource.data.sessionId
+            || resource.data.isTracking == false
+            || resource.data.expiresAt < request.time
+          )
+          && request.resource.data.lastPosition.ts >= resource.data.lastPosition.ts;
         allow delete: if isMasterAdmin();
       }
     }
@@ -1157,7 +1290,11 @@ service cloud.firestore {
 
           allow create: if isSignedIn()
             && isGroupMemberByAdminGroupId(adminGroupId)
-            && _sessionDoc().uid == request.auth.uid;
+            && _sessionDoc().uid == request.auth.uid
+            && request.resource.data.keys().hasAll(['lat', 'lng', 'alt', 'accuracy', 'ts'])
+            && request.resource.data.keys().hasOnly(['lat', 'lng', 'alt', 'accuracy', 'ts'])
+            && isValidTrackingPosition(request.resource.data)
+            && request.resource.data.ts >= _sessionDoc().startedAt;
 
           allow update, delete: if false;
         }
