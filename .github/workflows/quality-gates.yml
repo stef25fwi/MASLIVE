@@ -31,8 +31,20 @@ jobs:
         id: flutter_analyze
         continue-on-error: true
         run: |
-          set -o pipefail
-          flutter analyze --no-fatal-warnings 2>&1 | tee flutter-analyze.log
+          set +e
+          flutter analyze > flutter-analyze.log 2>&1
+          status=$?
+          cat flutter-analyze.log
+
+          if grep -Eq '^error •' flutter-analyze.log; then
+            exit 1
+          fi
+
+          if [ "$status" -ne 0 ] && ! grep -Eq '[0-9]+ issues? found' flutter-analyze.log; then
+            exit "$status"
+          fi
+
+          exit 0
 
       - name: Upload Flutter analyzer report
         if: always()
