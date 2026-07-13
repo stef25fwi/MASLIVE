@@ -38,6 +38,7 @@ jobs:
           python3 scripts/patch-preload-mapmarket-catalog.py
           dart format app/lib/services/market_map_service.dart app/lib/pages/default_map_page.dart
           git rm -f scripts/patch-preload-mapmarket-catalog.py .github/workflows/apply-preload-mapmarket-catalog.yml
+          git fetch origin main --depth=1
           git checkout origin/main -- .github/workflows/quality-gates.yml
           if git diff --quiet; then
             echo "No patch changes"
