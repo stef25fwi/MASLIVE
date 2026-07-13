@@ -9,10 +9,7 @@ import '../l10n/app_localizations.dart';
 import 'business_signup_page.dart';
 
 class LoginPage extends StatefulWidget {
-  const LoginPage({
-    super.key,
-    this.onLoginSuccess,
-  });
+  const LoginPage({super.key, this.onLoginSuccess});
 
   final VoidCallback? onLoginSuccess;
 
@@ -34,6 +31,8 @@ class _LoginPageState extends State<LoginPage> {
 
   bool get _supportsAppleSignInUi => AuthService.instance.supportsAppleSignInUi;
   bool get _isSignUpMode => _mode == LoginPageMode.signUp;
+
+  bool get _hasValidEmail => validateLoginEmail(_emailCtrl.text.trim()) == null;
 
   String _validationMessageFor(
     LoginValidationCode code,
@@ -280,9 +279,7 @@ class _LoginPageState extends State<LoginPage> {
                 ),
                 FilledButton(
                   onPressed: sending ? null : submitReset,
-                  child: Text(
-                    sending ? l10n.signingIn : l10n.forgotPassword,
-                  ),
+                  child: Text(sending ? l10n.signingIn : l10n.forgotPassword),
                 ),
               ],
             );
@@ -309,7 +306,9 @@ class _LoginPageState extends State<LoginPage> {
     _emailCtrl.addListener(() {
       if (_emailError && _emailCtrl.text.trim().isNotEmpty) {
         setState(() => _emailError = false);
+        return;
       }
+      setState(() {});
     });
     _passCtrl.addListener(() {
       if (_passwordError && _passCtrl.text.isNotEmpty) {
@@ -460,6 +459,22 @@ class _LoginPageState extends State<LoginPage> {
                                       prefixIcon: Icons.mail_outline_rounded,
                                       borderColor: border,
                                       hasError: _emailError,
+                                      suffix: _emailCtrl.text.trim().isEmpty
+                                          ? null
+                                          : Tooltip(
+                                              message: _hasValidEmail
+                                                  ? 'Format email valide'
+                                                  : 'Format email invalide',
+                                              child: Icon(
+                                                _hasValidEmail
+                                                    ? Icons.check_circle_rounded
+                                                    : Icons
+                                                          .error_outline_rounded,
+                                                color: _hasValidEmail
+                                                    ? Colors.green
+                                                    : Colors.orange,
+                                              ),
+                                            ),
                                     ),
                                     const SizedBox(height: 12),
                                     _PremiumField(
@@ -571,9 +586,7 @@ class _LoginPageState extends State<LoginPage> {
                                     _GradientButton(
                                       gradient: masliveGradient,
                                       text: _isSignUpMode
-                                          ? AppLocalizations.of(
-                                              context,
-                                            )!.signIn
+                                          ? AppLocalizations.of(context)!.signIn
                                           : AppLocalizations.of(
                                               context,
                                             )!.createAccountWithEmail,
@@ -593,9 +606,8 @@ class _LoginPageState extends State<LoginPage> {
                                       leading: const _GLogo(),
                                       onPressed: _loading
                                           ? () {}
-                                          : () => _runProvider(
-                                              AuthAction.google,
-                                            ),
+                                          : () =>
+                                                _runProvider(AuthAction.google),
                                     ),
                                     if (_supportsAppleSignInUi) ...[
                                       const SizedBox(height: 10),
