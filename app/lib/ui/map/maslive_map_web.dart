@@ -2208,6 +2208,14 @@ class _MasLiveMapWebState extends State<MasLiveMapWeb> {
       await _applyWaterColor(color);
     };
 
+    controller.setNavControlsVisibleImpl = (visible) async {
+      try {
+        _mbSetControlsVisible(_containerId, visible);
+      } catch (e) {
+        debugPrint('⚠️ setNavControlsVisible error: $e');
+      }
+    };
+
     controller
         .setPolygonImpl = (points, fillColor, strokeColor, strokeWidth, show) async {
       if (!show) {
@@ -3029,6 +3037,9 @@ external void _mbMoveTo(
 
 @JS('MasliveMapboxV2.resize')
 external void _mbResize(String containerId);
+
+@JS('MasliveMapboxV2.setControlsVisible')
+external void _mbSetControlsVisible(String containerId, bool visible);
 
 @JS('MasliveMapboxV2.setStyle')
 external void _mbSetStyle(String containerId, String styleUrl);

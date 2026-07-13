@@ -150,8 +150,65 @@ fourni pour précharger le 1er écran d'autres pages (ex. grille boutique).
 - Conservés : cache disque des URLs `gs://`, `gaplessPlayback`,
   `FilterQuality.medium`, precache des galeries.
 
-**Piste structurelle (hors périmètre de ce correctif)** : le flash résiduel à
-la (re)création des pages — y compris la ré-initialisation du canvas Mapbox —
-vient du `pushReplacementNamed` par onglet. Le vrai correctif serait de rester
-dans l'`AppShell` (IndexedStack, pages gardées en vie) au lieu de remplacer la
-route à chaque clic de la bottom bar.
+**Piste structurelle** : voir § 7 — implémentée dans la 4e itération.
+
+---
+
+## 7. Correctif structurel (4e itération) — retour au shell vivant
+
+**Constat** : `UserFacingShellPage` garde déjà ses onglets en vie (cache
+`_tabCache` + carte Mapbox conservée sous la pile) — les clics d'onglet **à
+l'intérieur** du shell sont instantanés. Le flash résiduel venait exclusivement
+des bottom bars **hors shell** (détail produit, checkout, routes `/boutique`…)
+dont chaque clic faisait `pushReplacementNamed('/user-shell')` → reconstruction
+complète d'un shell neuf (carte re-initialisée, onglets à froid).
+
+**Correctif** :
+- `UserFacingShellPage.switchToExistingShell(context, tab)` : si un shell
+  vivant est présent dans la pile de navigation, `popUntil` vers sa route puis
+  bascule d'onglet (`_selectTab`, logique commune avec la bar du shell) —
+  retour **instantané**, pages et carte conservées.
+- La bottom bar tente ce chemin avant son repli `pushReplacementNamed`
+  (conservé pour le tout premier accès, quand aucun shell n'existe).
+- **Pont léger `user_facing_shell_switch.dart`** : la bar (eager) n'importe pas
+  la page shell (bibliothèque **différée**) — sinon le shell et ses 4 onglets
+  seraient embarqués dans le bundle JS initial. Le shell installe un callback
+  global à sa création et le retire à sa destruction.
+
+**Effet** : après le premier affichage du shell, tous les clics Boutique /
+Média / Home / Profil depuis n'importe quelle page sont sans reconstruction —
+plus de flash blanc, carte Mapbox comprise.
+
+---
+
+## 8. Correctif régression (5e itération) — outils de carte visibles hors carte
+
+**Symptôme signalé** : sur les pages Boutique / Média (et toute page hors
+Home/Explorer), les contrôles de carte (zoom +/-, boussole, géolocalisation)
+restent visibles en haut à gauche, alors qu'aucune carte ne devrait s'afficher.
+
+**Cause racine** : ces contrôles sont ajoutés par **Mapbox GL JS**
+(`NavigationControl` + `GeolocateControl`, dans `mapbox_bridge.js`) comme de
+**vrais éléments DOM**, pas des widgets Flutter. Le shell garde la carte Home
+vivante en permanence sous les autres onglets (`Positioned.fill` + overlay
+opaque Flutter par-dessus — cf. § 7), mais l'overlay Flutter ne couvre que le
+rendu Flutter : les contrôles DOM de Mapbox, positionnés dans le conteneur HTML
+de la carte, ne sont pas concernés par cet overlay et restent visibles.
+Bug préexistant (indépendant des passes 1–4), rendu plus visible depuis que la
+navigation reste dans le même shell (§ 7) au lieu de détruire la carte à
+chaque sortie.
+
+**Correctif** :
+- **JS** (`mapbox_bridge.js`) : nouvelle fonction `MasliveMapboxV2.setControlsVisible(containerId, visible)` qui bascule `visibility`/`pointer-events` sur les
+  4 conteneurs de coin Mapbox (`.mapboxgl-ctrl-top-left/-top-right/-bottom-left/-bottom-right`) sans détruire ni redimensionner la carte.
+- **Dart** : `MasLiveMapController.setNavControlsVisible(bool)` (API unifiée,
+  no-op sur natif) ; branché côté web dans `maslive_map_web.dart`.
+- **`DefaultMapPage`** : nouveau paramètre `mapVisibleListenable` — masque les
+  contrôles quand la page n'est pas au premier plan, les réaffiche instantanément quand elle le redevient (sans recharger la carte).
+- **`UserFacingShellPage`** : `ValueNotifier<bool> _homeMapForegroundVisible`
+  synchronisé à chaque changement d'onglet (Home/Explorer visible vs Boutique/
+  Média/Profil au premier plan), passé au `DefaultMapPage` mis en cache.
+
+**Effet** : les contrôles de carte ne sont visibles que sur les pages Home/
+Explorer ; ils disparaissent instantanément dès qu'un autre onglet passe au
+premier plan, sans détruire la carte (le retour reste instantané, cf. § 7).

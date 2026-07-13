@@ -7,17 +7,50 @@ import 'default_map_page.dart';
 import 'login_page.dart';
 import 'storex_shop_page.dart';
 import 'user_facing_bottom_bar.dart';
+import 'user_facing_shell_switch.dart';
 
 class UserFacingShellPage extends StatefulWidget {
   const UserFacingShellPage({super.key, this.initialTab});
 
   final Object? initialTab;
 
+  /// Bascule l'onglet du shell déjà présent dans la pile de navigation, en
+  /// dépilant les pages posées au-dessus (détail produit, checkout, …).
+  ///
+  /// Objectif anti-flash: le shell garde ses onglets (et la carte Mapbox)
+  /// vivants; y revenir est instantané, alors que `pushReplacementNamed`
+  /// reconstruit tout à froid (flash blanc). Renvoie false s'il n'existe pas
+  /// de shell vivant atteignable depuis ce context — l'appelant garde alors
+  /// son repli navigation classique.
+  static bool switchToExistingShell(
+    BuildContext context,
+    UserFacingBottomBarTab tab,
+  ) {
+    final state = _UserFacingShellPageState._active;
+    if (state == null || !state.mounted) return false;
+
+    final shellRoute = state._route;
+    if (shellRoute == null || !shellRoute.isActive) return false;
+
+    final navigator = Navigator.maybeOf(context);
+    if (navigator == null || shellRoute.navigator != navigator) return false;
+
+    navigator.popUntil((route) => route == shellRoute);
+    state._selectTab(tab);
+    return true;
+  }
+
   @override
   State<UserFacingShellPage> createState() => _UserFacingShellPageState();
 }
 
 class _UserFacingShellPageState extends State<UserFacingShellPage> {
+  /// Shell actuellement vivant (au plus un: la navigation par onglets ne
+  /// crée jamais deux shells empilés).
+  static _UserFacingShellPageState? _active;
+
+  ModalRoute<Object?>? _route;
+
   late UserFacingBottomBarTab _currentTab;
   Map<String, dynamic> _mediaArgs = const <String, dynamic>{};
   final ValueNotifier<int> _homeActionsMenuSignal = ValueNotifier<int>(0);
@@ -25,11 +58,55 @@ class _UserFacingShellPageState extends State<UserFacingShellPage> {
   final Map<UserFacingBottomBarTab, Widget> _tabCache =
       <UserFacingBottomBarTab, Widget>{};
 
+  /// Reflète si la carte (onglets Home/Explorer) est actuellement au premier
+  /// plan. Passé à [DefaultMapPage] pour masquer ses contrôles superposés
+  /// (zoom, boussole, géolocalisation — de vrais éléments DOM sur web) quand
+  /// un autre onglet est affiché par-dessus la carte gardée vivante.
+  final ValueNotifier<bool> _homeMapForegroundVisible = ValueNotifier<bool>(
+    true,
+  );
+
   @override
   void initState() {
     super.initState();
+    _active = this;
+    // Publie le basculement d'onglet pour la bottom bar des pages hors shell
+    // (via le pont léger, sans que la bar importe cette bibliothèque différée).
+    activeShellTabSwitcher = UserFacingShellPage.switchToExistingShell;
     _currentTab = _resolveTab(widget.initialTab);
     _mediaArgs = _resolveMediaArgs(widget.initialTab);
+    _syncHomeMapForegroundVisible();
+  }
+
+  void _syncHomeMapForegroundVisible() {
+    _homeMapForegroundVisible.value = _isHomeMapVisible;
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _route = ModalRoute.of(context);
+  }
+
+  /// Sélection d'onglet commune (bar du shell et retours depuis les pages
+  /// posées au-dessus via [UserFacingShellPage.switchToExistingShell]).
+  void _selectTab(UserFacingBottomBarTab tab) {
+    if (!mounted) return;
+
+    if (tab == UserFacingBottomBarTab.explorer) {
+      if (_currentTab == UserFacingBottomBarTab.explorer) return;
+      setState(() => _currentTab = UserFacingBottomBarTab.explorer);
+      _syncHomeMapForegroundVisible();
+      _homeActionsMenuSignal.value++;
+      return;
+    }
+
+    if (_currentTab == UserFacingBottomBarTab.explorer) {
+      _homeActionsMenuCloseSignal.value++;
+    }
+    if (tab == _currentTab) return;
+    setState(() => _currentTab = tab);
+    _syncHomeMapForegroundVisible();
   }
 
   @override
@@ -38,6 +115,7 @@ class _UserFacingShellPageState extends State<UserFacingShellPage> {
     if (oldWidget.initialTab != widget.initialTab) {
       _currentTab = _resolveTab(widget.initialTab);
       _mediaArgs = _resolveMediaArgs(widget.initialTab);
+      _syncHomeMapForegroundVisible();
       if (_currentTab == UserFacingBottomBarTab.explorer) {
         _homeActionsMenuSignal.value++;
       }
@@ -46,8 +124,13 @@ class _UserFacingShellPageState extends State<UserFacingShellPage> {
 
   @override
   void dispose() {
+    if (identical(_active, this)) {
+      _active = null;
+      activeShellTabSwitcher = null;
+    }
     _homeActionsMenuSignal.dispose();
     _homeActionsMenuCloseSignal.dispose();
+    _homeMapForegroundVisible.dispose();
     super.dispose();
   }
 
@@ -118,6 +201,7 @@ class _UserFacingShellPageState extends State<UserFacingShellPage> {
         openActionsMenuOnLoad: _currentTab == UserFacingBottomBarTab.explorer,
         actionsMenuOpenSignal: _homeActionsMenuSignal,
         actionsMenuCloseSignal: _homeActionsMenuCloseSignal,
+        mapVisibleListenable: _homeMapForegroundVisible,
       ),
     );
   }
@@ -197,27 +281,23 @@ class _UserFacingShellPageState extends State<UserFacingShellPage> {
             onExplorerTap: () {
               if (_currentTab == UserFacingBottomBarTab.home) {
                 setState(() => _currentTab = UserFacingBottomBarTab.explorer);
+                _syncHomeMapForegroundVisible();
                 _homeActionsMenuSignal.value++;
                 return;
               }
 
               if (_currentTab == UserFacingBottomBarTab.explorer) {
                 setState(() => _currentTab = UserFacingBottomBarTab.home);
+                _syncHomeMapForegroundVisible();
                 _homeActionsMenuCloseSignal.value++;
                 return;
               }
 
               setState(() => _currentTab = UserFacingBottomBarTab.explorer);
+              _syncHomeMapForegroundVisible();
               _homeActionsMenuSignal.value++;
             },
-            onTabSelected: (tab) {
-              if (_currentTab == UserFacingBottomBarTab.explorer &&
-                  tab != UserFacingBottomBarTab.explorer) {
-                _homeActionsMenuCloseSignal.value++;
-              }
-              if (tab == _currentTab) return;
-              setState(() => _currentTab = tab);
-            },
+            onTabSelected: _selectTab,
           ),
         );
       },

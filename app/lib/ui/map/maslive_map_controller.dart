@@ -67,6 +67,10 @@ class MasLiveMapController {
   /// Callback interne pour régler la couleur de l'eau.
   Future<void> Function(Color? color)? _setWaterColorImpl;
 
+  /// Callback interne pour afficher/masquer les contrôles superposés
+  /// (zoom, boussole, géolocalisation) sans détruire la carte.
+  Future<void> Function(bool visible)? _setNavControlsVisibleImpl;
+
   // =====================================================================
   // SETTERS publics pour brancher les implémentations (Web/Native)
   // ⚠️ Ne PAS utiliser dans le code applicatif, réservés aux impl internes
@@ -173,6 +177,11 @@ class MasLiveMapController {
   /// @nodoc - Usage interne seulement
   set setWaterColorImpl(Future<void> Function(Color? color)? impl) {
     _setWaterColorImpl = impl;
+  }
+
+  /// @nodoc - Usage interne seulement
+  set setNavControlsVisibleImpl(Future<void> Function(bool visible)? impl) {
+    _setNavControlsVisibleImpl = impl;
   }
 
   // =====================================================================
@@ -333,6 +342,19 @@ class MasLiveMapController {
     await _setWaterColorImpl?.call(color);
   }
 
+  /// Affiche/masque les contrôles superposés à la carte (zoom, boussole,
+  /// géolocalisation) sans détruire ni recharger la carte.
+  ///
+  /// Web: nécessaire car ces contrôles sont de vrais éléments DOM ajoutés par
+  /// Mapbox GL JS — ils restent visibles au-dessus des pages Flutter tant
+  /// qu'une carte gardée vivante en arrière-plan (onglet non actif) ne les
+  /// masque pas explicitement.
+  /// Natif: no-op tant que l'impl native n'est pas branchée (les contrôles
+  /// natifs suivent la visibilité du widget Flutter qui les héberge).
+  Future<void> setNavControlsVisible(bool visible) async {
+    await _setNavControlsVisibleImpl?.call(visible);
+  }
+
   /// Afficher un polygone (zone, circuit fermé)
   Future<void> setPolygon({
     required List<MapPoint> points,
@@ -417,6 +439,7 @@ class MasLiveMapController {
     _getCameraStateImpl = null;
     _setZoomRangeImpl = null;
     _setPitchImpl = null;
+    _setNavControlsVisibleImpl = null;
   }
 }
 

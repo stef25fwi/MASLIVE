@@ -58,6 +58,7 @@ class DefaultMapPage extends StatefulWidget {
     this.actionsMenuOpenSignal,
     this.actionsMenuCloseSignal,
     this.homeControlsThemeService,
+    this.mapVisibleListenable,
   });
 
   final bool showBottomBar;
@@ -65,6 +66,15 @@ class DefaultMapPage extends StatefulWidget {
   final ValueListenable<int>? actionsMenuOpenSignal;
   final ValueListenable<int>? actionsMenuCloseSignal;
   final HomeControlsThemeService? homeControlsThemeService;
+
+  /// Reflète si cette page est le contenu au premier plan (visible à l'écran)
+  /// dans un shell qui garde la carte vivante sous d'autres onglets. `null`
+  /// (défaut): toujours visible (page de carte autonome, ex. routes directes).
+  ///
+  /// Quand elle passe à `false`, les contrôles superposés à la carte (zoom,
+  /// boussole, géolocalisation — de vrais éléments DOM sur web) sont masqués
+  /// pour qu'ils n'apparaissent pas au-dessus des pages superposées.
+  final ValueListenable<bool>? mapVisibleListenable;
 
   @override
   State<DefaultMapPage> createState() => _DefaultMapPageState();
@@ -154,6 +164,7 @@ class _DefaultMapPageState extends State<DefaultMapPage>
   bool _isApplyingMarketRoute = false;
   ValueListenable<int>? _boundActionsMenuSignal;
   ValueListenable<int>? _boundActionsMenuCloseSignal;
+  ValueListenable<bool>? _boundMapVisibleListenable;
 
   MarketMapService _getMarketMapService() {
     return _marketMapService ??= MarketMapService();
@@ -855,6 +866,25 @@ class _DefaultMapPageState extends State<DefaultMapPage>
     _boundActionsMenuCloseSignal?.addListener(_handleExternalActionsMenuClose);
   }
 
+  void _bindMapVisibleListenable(ValueListenable<bool>? listenable) {
+    if (identical(_boundMapVisibleListenable, listenable)) return;
+    _boundMapVisibleListenable?.removeListener(_handleMapVisibilityChanged);
+    _boundMapVisibleListenable = listenable;
+    _boundMapVisibleListenable?.addListener(_handleMapVisibilityChanged);
+    // Applique immédiatement l'état courant (utile si le shell crée cette
+    // page pendant qu'un autre onglet est déjà au premier plan).
+    _handleMapVisibilityChanged();
+  }
+
+  /// Affiche/masque les contrôles superposés (zoom, boussole, géolocalisation)
+  /// selon que cette page de carte est actuellement au premier plan ou gardée
+  /// vivante sous un autre onglet du shell. Voir [MasLiveMapController.setNavControlsVisible].
+  void _handleMapVisibilityChanged() {
+    if (!_isMasLiveMapReady) return;
+    final visible = _boundMapVisibleListenable?.value ?? true;
+    unawaited(_mapController.setNavControlsVisible(visible));
+  }
+
   void _handleExternalActionsMenuOpen() {
     if (!mounted) return;
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -879,6 +909,7 @@ class _DefaultMapPageState extends State<DefaultMapPage>
     WidgetsBinding.instance.addObserver(this);
     _bindActionsMenuSignal(widget.actionsMenuOpenSignal);
     _bindActionsMenuCloseSignal(widget.actionsMenuCloseSignal);
+    _bindMapVisibleListenable(widget.mapVisibleListenable);
     unawaited(_restoreLastHomeStyleUrl());
     unawaited(_preloadMapMarketSelectorCatalog());
 
@@ -933,6 +964,12 @@ class _DefaultMapPageState extends State<DefaultMapPage>
     )) {
       _bindActionsMenuCloseSignal(widget.actionsMenuCloseSignal);
     }
+    if (!identical(
+      oldWidget.mapVisibleListenable,
+      widget.mapVisibleListenable,
+    )) {
+      _bindMapVisibleListenable(widget.mapVisibleListenable);
+    }
   }
 
   Future<void> _autoOpenActionsMenuOnceIfNeeded() async {
@@ -974,6 +1011,7 @@ class _DefaultMapPageState extends State<DefaultMapPage>
     _boundActionsMenuCloseSignal?.removeListener(
       _handleExternalActionsMenuClose,
     );
+    _boundMapVisibleListenable?.removeListener(_handleMapVisibilityChanged);
     _groupPublicPosSub?.cancel();
     _homeControlsThemeSub?.cancel();
     _marketPoisSub?.cancel();
@@ -2325,6 +2363,7 @@ class _DefaultMapPageState extends State<DefaultMapPage>
                                   unawaited(_syncMarketPoisToMap());
                                   unawaited(_applyCachedMarketRouteToMap());
                                   unawaited(_applyStartupHomeMapAppearance());
+                                  _handleMapVisibilityChanged();
                                 },
                                 onInitError: _handleMapInitError,
                                 onStyleFallback: _handleMapStyleFallback,

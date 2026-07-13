@@ -2,6 +2,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 
 import '../ui/widgets/maslive_standard_bottom_bar.dart';
+import 'user_facing_shell_switch.dart';
 
 // Ordre UX commun : Boutique, Media, Home, Explorer, Profil.
 enum UserFacingBottomBarTab { boutique, media, home, explorer, profile }
@@ -24,6 +25,12 @@ class UserFacingBottomBar extends StatelessWidget {
       return;
     }
 
+    // Anti-flash: si un shell vivant est déjà dans la pile (pages détail,
+    // checkout, … posées au-dessus), on y revient et on change d'onglet —
+    // ses pages (et la carte) sont conservées, l'affichage est instantané.
+    if (activeShellTabSwitcher?.call(context, tab) ?? false) return;
+
+    // Aucun shell vivant (premier accès): construction classique.
     Navigator.of(context).pushReplacementNamed(
       '/user-shell',
       arguments: <String, dynamic>{'tab': tab.name},
