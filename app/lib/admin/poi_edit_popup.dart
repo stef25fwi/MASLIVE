@@ -593,33 +593,34 @@ class _PoiEditPopupState extends State<PoiEditPopup> {
 
   Future<void> _setSelectedFile(XFile file) async {
     if (!mounted) return;
+
+    final readFuture = file.readAsBytes();
     setState(() {
       _selectedFile = file;
       _selectedPreviewBytes = null;
-      _previewBytesFuture = file.readAsBytes();
+      _previewBytesFuture = readFuture;
     });
 
     try {
-      final originalBytes = await file.readAsBytes();
+      final originalBytes = await readFuture;
+      if (originalBytes.isEmpty) {
+        throw StateError('Le fichier image est vide.');
+      }
 
       if (!mounted) return;
       setState(() {
         _selectedFile = file;
         _selectedPreviewBytes = originalBytes;
-      });
-
-      // Si l'utilisateur ajoute une image, on peut re-permettre le popup.
-      if (!mounted) return;
-      if (!_popupEnabled) {
-        setState(() {
+        _previewBytesFuture = null;
+        if (!_popupEnabled) {
           _popupEnabled = PoiPopupService.isPopupEnabled(
             type: widget.poi.layerType,
             meta: _initialMeta,
             requireImage: true,
-            hasImage: _hasAnyImage,
+            hasImage: true,
           );
-        });
-      }
+        }
+      });
     } catch (e) {
       if (!mounted) return;
       setState(() {
@@ -696,12 +697,20 @@ class _PoiEditPopupState extends State<PoiEditPopup> {
         },
       );
 
+      final resolvedUrl = asset.mediumUrl.trim().isNotEmpty
+          ? asset.mediumUrl.trim()
+          : asset.originalUrl.trim();
+      if (resolvedUrl.isEmpty) {
+        throw StateError('Aucune URL image retournée après upload.');
+      }
+
       if (!mounted) return;
       setState(() {
-        _uploadedImageUrl = asset.mediumUrl;
+        _uploadedImageUrl = resolvedUrl;
         _uploadedImageAssetId = asset.id;
         _selectedFile = null;
-        _selectedPreviewBytes = null;
+        // Conserver les octets locaux après upload : l'aperçu reste visible
+        // immédiatement et ne dépend pas du premier chargement réseau Storage.
         _previewBytesFuture = null;
       });
 
@@ -979,30 +988,36 @@ class _PoiEditPopupState extends State<PoiEditPopup> {
         : null;
 
     Widget image;
-    if (selected != null) {
-      if (previewBytes != null) {
-        image = Image.memory(previewBytes, fit: BoxFit.cover);
-      } else {
-        image = FutureBuilder<Uint8List>(
-          future: _previewBytesFuture,
-          builder: (context, snap) {
-            if (snap.hasData) {
-              return Image.memory(snap.data!, fit: BoxFit.cover);
-            }
-            if (snap.hasError) {
-              return const ColoredBox(
-                color: Colors.black12,
-                child: Center(
-                  child: Icon(Icons.broken_image_rounded, size: 42),
-                ),
-              );
-            }
-            return const Center(child: CircularProgressIndicator());
-          },
-        );
-      }
+    if (previewBytes != null) {
+      image = Image.memory(
+        previewBytes,
+        key: ValueKey<int>(previewBytes.length),
+        fit: BoxFit.cover,
+        gaplessPlayback: true,
+      );
+    } else if (selected != null) {
+      image = FutureBuilder<Uint8List>(
+        future: _previewBytesFuture,
+        builder: (context, snap) {
+          if (snap.hasData && snap.data!.isNotEmpty) {
+            return Image.memory(
+              snap.data!,
+              fit: BoxFit.cover,
+              gaplessPlayback: true,
+            );
+          }
+          if (snap.hasError) {
+            return const ColoredBox(
+              color: Colors.black12,
+              child: Center(child: Icon(Icons.broken_image_rounded, size: 42)),
+            );
+          }
+          return const Center(child: CircularProgressIndicator());
+        },
+      );
     } else if (url != null) {
       image = StorageImage(
+        key: ValueKey<String>(url),
         url: url,
         fit: BoxFit.cover,
         cacheWidth: 500,
@@ -1332,7 +1347,18 @@ class _PoiEditPopupState extends State<PoiEditPopup> {
                     FilledButton.icon(
                       onPressed: (!canUpload || _isSaving || _isUploading)
                           ? null
-                          : _uploadSelectedImageIfNeeded,
+                          : () async {
+                              try {
+                                await _uploadSelectedImageIfNeeded();
+                              } catch (e) {
+                                if (!mounted) return;
+                                TopSnackBar.showMessage(
+                                  context,
+                                  '❌ ${_extractErrorMessage(e)}',
+                                  isError: true,
+                                );
+                              }
+                            },
                       style: FilledButton.styleFrom(
                         backgroundColor: Colors.white,
                         foregroundColor: MasliveTokens.text,

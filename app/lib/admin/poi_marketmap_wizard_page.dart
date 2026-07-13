@@ -45,22 +45,16 @@ Stream<R> _combineLatest2<A, B, R>(
 
   controller = StreamController<R>(
     onListen: () {
-      subA = a$.listen(
-        (a) {
-          lastA = a;
-          hasA = true;
-          emitIfReady();
-        },
-        onError: controller.addError,
-      );
-      subB = b$.listen(
-        (b) {
-          lastB = b;
-          hasB = true;
-          emitIfReady();
-        },
-        onError: controller.addError,
-      );
+      subA = a$.listen((a) {
+        lastA = a;
+        hasA = true;
+        emitIfReady();
+      }, onError: controller.addError);
+      subB = b$.listen((b) {
+        lastB = b;
+        hasB = true;
+        emitIfReady();
+      }, onError: controller.addError);
     },
     onCancel: () async {
       await subA?.cancel();
@@ -123,7 +117,9 @@ class _POIMarketMapWizardPageState extends State<POIMarketMapWizardPage> {
       _watchDraftCircuitsIndexPreferAllThenFallbackToUid();
 
   late final Stream<Set<String>> _marketMapCountryIdsWithAtLeastOneEvent$ =
-      FirebaseFirestore.instance.collectionGroup('events').snapshots().map((snap) {
+      FirebaseFirestore.instance.collectionGroup('events').snapshots().map((
+        snap,
+      ) {
         final ids = <String>{};
         for (final d in snap.docs) {
           // Attendu: marketMap/{countryId}/events/{eventId}
@@ -141,17 +137,17 @@ class _POIMarketMapWizardPageState extends State<POIMarketMapWizardPage> {
         return ids;
       });
 
-  late final Stream<Set<String>> _countryIdsWithAtLeastOneEvent$ = _combineLatest2<
-      Set<String>,
-      Set<String>,
-      Set<String>>(
-    _marketMapCountryIdsWithAtLeastOneEvent$,
-    _draftCircuitsIndex$.map((idx) => idx.countryIds),
-    (a, b) => <String>{...a, ...b},
-  );
+  late final Stream<Set<String>> _countryIdsWithAtLeastOneEvent$ =
+      _combineLatest2<Set<String>, Set<String>, Set<String>>(
+        _marketMapCountryIdsWithAtLeastOneEvent$,
+        _draftCircuitsIndex$.map((idx) => idx.countryIds),
+        (a, b) => <String>{...a, ...b},
+      );
 
   late final Stream<VisibleCircuitsIndex> _publishedCircuitsIndex$ =
-      FirebaseFirestore.instance.collectionGroup('circuits').snapshots().map((snap) {
+      FirebaseFirestore.instance.collectionGroup('circuits').snapshots().map((
+        snap,
+      ) {
         final countryIds = <String>{};
         final eventIdsByCountry = <String, Set<String>>{};
 
@@ -192,11 +188,15 @@ class _POIMarketMapWizardPageState extends State<POIMarketMapWizardPage> {
       });
 
   late final Stream<VisibleCircuitsIndex> _eventsWithCircuitsIndex$ =
-      _combineLatest2<VisibleCircuitsIndex, VisibleCircuitsIndex, VisibleCircuitsIndex>(
-    _publishedCircuitsIndex$,
-    _draftCircuitsIndex$,
-    _mergeVisibleCircuitsIndexes,
-  );
+      _combineLatest2<
+        VisibleCircuitsIndex,
+        VisibleCircuitsIndex,
+        VisibleCircuitsIndex
+      >(
+        _publishedCircuitsIndex$,
+        _draftCircuitsIndex$,
+        _mergeVisibleCircuitsIndexes,
+      );
 
   MarketCountry? _country;
   MarketEvent? _event;
@@ -209,14 +209,18 @@ class _POIMarketMapWizardPageState extends State<POIMarketMapWizardPage> {
 
   final TextEditingController _countryCtrl = TextEditingController();
 
-  Stream<VisibleCircuitsIndex> _watchDraftCircuitsIndexPreferAllThenFallbackToUid() {
+  Stream<VisibleCircuitsIndex>
+  _watchDraftCircuitsIndexPreferAllThenFallbackToUid() {
     final uid = FirebaseAuth.instance.currentUser?.uid.trim() ?? '';
     final db = FirebaseFirestore.instance;
 
     final primary = db.collection('map_projects').snapshots();
     final fallback = uid.isEmpty
         ? const Stream<QuerySnapshot<Map<String, dynamic>>>.empty()
-        : db.collection('map_projects').where('uid', isEqualTo: uid).snapshots();
+        : db
+              .collection('map_projects')
+              .where('uid', isEqualTo: uid)
+              .snapshots();
 
     late final StreamController<VisibleCircuitsIndex> controller;
     StreamSubscription<QuerySnapshot<Map<String, dynamic>>>? sub;
@@ -294,7 +298,11 @@ class _POIMarketMapWizardPageState extends State<POIMarketMapWizardPage> {
     final circuitId = widget.initialCircuitId;
 
     if (countryId != null && eventId != null && circuitId != null) {
-      _preselectFromIds(countryId: countryId, eventId: eventId, circuitId: circuitId);
+      _preselectFromIds(
+        countryId: countryId,
+        eventId: eventId,
+        circuitId: circuitId,
+      );
     }
   }
 
@@ -354,8 +362,11 @@ class _POIMarketMapWizardPageState extends State<POIMarketMapWizardPage> {
         _event = event;
         _circuit = circuit;
         _step = 3; // on atterrit directement sur la gestion des couches/POI
-        _countryCtrl.text = country.name.trim().isNotEmpty ? country.name : country.id;
-        _selectedCircuitPickKey = '${country.id}::${event.id}::${circuit.id}::${CircuitSource.mapMarket.name}';
+        _countryCtrl.text = country.name.trim().isNotEmpty
+            ? country.name
+            : country.id;
+        _selectedCircuitPickKey =
+            '${country.id}::${event.id}::${circuit.id}::${CircuitSource.mapMarket.name}';
       });
     } catch (_) {
       // En cas d'erreur réseau ou autre, on laisse le wizard en mode normal.
@@ -368,7 +379,9 @@ class _POIMarketMapWizardPageState extends State<POIMarketMapWizardPage> {
       if (!mounted) return;
       TopSnackBar.show(
         context,
-        const SnackBar(content: Text('❌ Brouillon invalide (projectId manquant).')),
+        const SnackBar(
+          content: Text('❌ Brouillon invalide (projectId manquant).'),
+        ),
       );
       return;
     }
@@ -425,7 +438,9 @@ class _POIMarketMapWizardPageState extends State<POIMarketMapWizardPage> {
       if (!mounted) return;
       TopSnackBar.show(
         context,
-        const SnackBar(content: Text('❌ Erreur lors du chargement du circuit.')),
+        const SnackBar(
+          content: Text('❌ Erreur lors du chargement du circuit.'),
+        ),
       );
     }
   }
@@ -436,7 +451,10 @@ class _POIMarketMapWizardPageState extends State<POIMarketMapWizardPage> {
     });
   }
 
-  Future<String?> _promptName({required String title, required String hint}) async {
+  Future<String?> _promptName({
+    required String title,
+    required String hint,
+  }) async {
     final ctrl = TextEditingController();
     final value = await showDialog<String>(
       context: context,
@@ -461,7 +479,9 @@ class _POIMarketMapWizardPageState extends State<POIMarketMapWizardPage> {
     );
     final normalized = (value ?? '').trim().replaceAll(RegExp(r'\s+'), ' ');
     if (normalized.isEmpty) return null;
-    return normalized.length > 60 ? normalized.substring(0, 60).trim() : normalized;
+    return normalized.length > 60
+        ? normalized.substring(0, 60).trim()
+        : normalized;
   }
 
   Future<void> _createEvent() async {
@@ -539,10 +559,7 @@ class _POIMarketMapWizardPageState extends State<POIMarketMapWizardPage> {
       });
     } catch (e) {
       if (!mounted) return;
-      TopSnackBar.show(
-        context,
-        SnackBar(content: Text('Erreur: $e')),
-      );
+      TopSnackBar.show(context, SnackBar(content: Text('Erreur: $e')));
     }
   }
 
@@ -753,15 +770,20 @@ class _POIMarketMapWizardPageState extends State<POIMarketMapWizardPage> {
                 child: StreamBuilder<VisibleCircuitsIndex>(
                   stream: _eventsWithCircuitsIndex$,
                   builder: (context, idxSnap) {
-                    final allowedEventIds = idxSnap.data?.eventIdsForCountry(country.id) ?? const <String>{};
-                    final shouldFilterByVisibleCircuits = allowedEventIds.isNotEmpty;
+                    final allowedEventIds =
+                        idxSnap.data?.eventIdsForCountry(country.id) ??
+                        const <String>{};
+                    final shouldFilterByVisibleCircuits =
+                        allowedEventIds.isNotEmpty;
 
                     return StreamBuilder<List<MarketEvent>>(
                       stream: _service.watchEvents(countryId: country.id),
                       builder: (context, snapshot) {
                         var items = snapshot.data ?? const <MarketEvent>[];
                         if (shouldFilterByVisibleCircuits) {
-                          items = items.where((e) => allowedEventIds.contains(e.id)).toList();
+                          items = items
+                              .where((e) => allowedEventIds.contains(e.id))
+                              .toList();
                         }
 
                         return DropdownButtonFormField<String>(
@@ -773,7 +795,10 @@ class _POIMarketMapWizardPageState extends State<POIMarketMapWizardPage> {
                           ),
                           items: [
                             for (final e in items)
-                              DropdownMenuItem(value: e.id, child: Text(e.name)),
+                              DropdownMenuItem(
+                                value: e.id,
+                                child: Text(e.name),
+                              ),
                           ],
                           onChanged: (id) {
                             final selected = items.firstWhere(
@@ -811,11 +836,7 @@ class _POIMarketMapWizardPageState extends State<POIMarketMapWizardPage> {
           Text(
             'Pays: ${formatCountryLabelWithFlag(
               name: country.name,
-              iso2: guessIso2FromMarketMapCountry(
-                id: country.id,
-                slug: country.slug,
-                name: country.name,
-              ),
+              iso2: guessIso2FromMarketMapCountry(id: country.id, slug: country.slug, name: country.name),
             )}',
           ),
         ],
@@ -865,7 +886,9 @@ class _POIMarketMapWizardPageState extends State<POIMarketMapWizardPage> {
                     final items = snapshot.data ?? const <CircuitPick>[];
 
                     return DropdownButtonFormField<String>(
-                      key: ValueKey('circuit-pick-${_selectedCircuitPickKey ?? ''}'),
+                      key: ValueKey(
+                        'circuit-pick-${_selectedCircuitPickKey ?? ''}',
+                      ),
                       initialValue: _selectedCircuitPickKey,
                       decoration: const InputDecoration(
                         labelText: 'Circuit',
@@ -879,7 +902,9 @@ class _POIMarketMapWizardPageState extends State<POIMarketMapWizardPage> {
                           ),
                       ],
                       onChanged: (key) async {
-                        final selected = items.where((c) => c.key == key).toList();
+                        final selected = items
+                            .where((c) => c.key == key)
+                            .toList();
                         if (selected.isEmpty) return;
                         final pick = selected.first;
 
@@ -918,7 +943,9 @@ class _POIMarketMapWizardPageState extends State<POIMarketMapWizardPage> {
     final event = _event;
     final circuit = _circuit;
     if (country == null || event == null || circuit == null) {
-      return const Center(child: Text('Sélectionne un pays, un événement et un circuit.'));
+      return const Center(
+        child: Text('Sélectionne un pays, un événement et un circuit.'),
+      );
     }
     return Column(
       children: [
@@ -950,14 +977,16 @@ class _POIMarketMapWizardPageState extends State<POIMarketMapWizardPage> {
               final layers = snapshot.data ?? const <MarketLayer>[];
               if (layers.isEmpty) {
                 return const Center(
-                    child: Text('Aucune couche trouvée pour ce circuit.'));
+                  child: Text('Aucune couche trouvée pour ce circuit.'),
+                );
               }
 
               return GlassScrollbar(
                 child: ListView.separated(
                   padding: const EdgeInsets.all(16),
                   itemCount: layers.length,
-                  separatorBuilder: (context, index) => const SizedBox(height: 10),
+                  separatorBuilder: (context, index) =>
+                      const SizedBox(height: 10),
                   itemBuilder: (context, index) {
                     final layer = layers[index];
                     final color = _layerColor(layer);
@@ -970,7 +999,9 @@ class _POIMarketMapWizardPageState extends State<POIMarketMapWizardPage> {
                           child: Icon(_layerIcon(layer)),
                         ),
                         title: Text(_layerLabel(layer)),
-                        subtitle: Text(layer.isEnabled ? 'Active' : 'Désactivée'),
+                        subtitle: Text(
+                          layer.isEnabled ? 'Active' : 'Désactivée',
+                        ),
                         trailing: const Icon(Icons.chevron_right_rounded),
                         onTap: () {
                           Navigator.of(context).push(
@@ -1015,11 +1046,7 @@ class _CircuitStyleSelector extends StatelessWidget {
   final MarketMapService service;
 
   static const List<Map<String, String>> _styles = [
-    {
-      'id': '',
-      'name': 'Effacer',
-      'url': '',
-    },
+    {'id': '', 'name': 'Effacer', 'url': ''},
     {
       'id': 'streets-v12',
       'name': 'Streets',
@@ -1108,7 +1135,9 @@ class _CircuitStyleSelector extends StatelessWidget {
         final data = snap.data!.data() ?? const <String, dynamic>{};
         final styleUrl = (data['styleUrl'] as String?) ?? '';
         final styleId = (data['styleId'] as String?) ?? '';
-        final currentId = styleId.trim().isNotEmpty ? styleId : _styleIdFromUrl(styleUrl);
+        final currentId = styleId.trim().isNotEmpty
+            ? styleId
+            : _styleIdFromUrl(styleUrl);
 
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -1161,11 +1190,10 @@ class _CircuitStyleSelector extends StatelessWidget {
                   children: [
                     Expanded(
                       child: Text(
-                        _styles
-                                .firstWhere(
-                                  (s) => s['id'] == currentId,
-                                  orElse: () => _styles.first,
-                                )['name'] ??
+                        _styles.firstWhere(
+                              (s) => s['id'] == currentId,
+                              orElse: () => _styles.first,
+                            )['name'] ??
                             'Style',
                       ),
                     ),
@@ -1203,7 +1231,11 @@ class _Breadcrumb extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    Widget chip({required int index, required String label, required bool enabled}) {
+    Widget chip({
+      required int index,
+      required String label,
+      required bool enabled,
+    }) {
       return InkWell(
         onTap: enabled ? () => onTap(index) : null,
         child: Chip(
@@ -1292,7 +1324,8 @@ class _LayerPoisPage extends StatefulWidget {
 class _LayerPoisPageState extends State<_LayerPoisPage> {
   final _db = FirebaseFirestore.instance;
 
-  String get _imagesProjectId => 'marketmap_${widget.countryId}_${widget.eventId}_${widget.circuitId}';
+  String get _imagesProjectId =>
+      'marketmap_${widget.countryId}_${widget.eventId}_${widget.circuitId}';
 
   String _norm(String? value) {
     return (value ?? '').trim().toLowerCase();
@@ -1319,20 +1352,24 @@ class _LayerPoisPageState extends State<_LayerPoisPage> {
       .doc(widget.circuitId)
       .collection('pois');
 
-  Future<void> _createOrEditPoi({String? poiId, Map<String, dynamic>? existing}) async {
+  Future<void> _createOrEditPoi({
+    String? poiId,
+    Map<String, dynamic>? existing,
+  }) async {
     final isNew = poiId == null;
     final resolvedId = poiId ?? _poisCol.doc().id;
 
     String? asString(dynamic v) => v is String ? v : (v?.toString());
     double asDouble(dynamic v, double fallback) {
       if (v is num) return v.toDouble();
-      if (v is String) return double.tryParse(v.trim().replaceAll(',', '.')) ?? fallback;
+      if (v is String)
+        return double.tryParse(v.trim().replaceAll(',', '.')) ?? fallback;
       return fallback;
     }
 
     final existingMeta = (existing?['metadata'] is Map)
-      ? Map<String, dynamic>.from(existing?['metadata'] as Map)
-      : null;
+        ? Map<String, dynamic>.from(existing?['metadata'] as Map)
+        : null;
 
     final centerLat = (widget.circuit.center['lat'] ?? 0.0).toDouble();
     final centerLng = (widget.circuit.center['lng'] ?? 0.0).toDouble();
@@ -1348,16 +1385,31 @@ class _LayerPoisPageState extends State<_LayerPoisPage> {
       isVisible: (existing?['isVisible'] as bool?) ?? true,
       layerId: widget.layer.id,
       description: asString(existing?['description']),
-      imageUrl: asString(existing?['imageUrl'] ?? existing?['photoUrl'] ?? existing?['image']),
-      address: asString(existing?['address'] ?? existing?['adresse'] ?? existing?['locationLabel']),
-      openingHours: existing?['openingHours'] ?? existing?['hours'] ?? existing?['horaires'],
-      phone: asString(existing?['phone'] ?? existing?['tel'] ?? existing?['telephone']),
+      imageUrl: asString(
+        existing?['imageUrl'] ?? existing?['photoUrl'] ?? existing?['image'],
+      ),
+      address: asString(
+        existing?['address'] ??
+            existing?['adresse'] ??
+            existing?['locationLabel'],
+      ),
+      openingHours:
+          existing?['openingHours'] ??
+          existing?['hours'] ??
+          existing?['horaires'],
+      phone: asString(
+        existing?['phone'] ?? existing?['tel'] ?? existing?['telephone'],
+      ),
       website: asString(existing?['website'] ?? existing?['site']),
       instagram: asString(existing?['instagram']),
       facebook: asString(existing?['facebook']),
       whatsapp: asString(existing?['whatsapp']),
       email: asString(existing?['email']),
-      mapsUrl: asString(existing?['mapsUrl'] ?? existing?['googleMapsUrl'] ?? existing?['mapUrl']),
+      mapsUrl: asString(
+        existing?['mapsUrl'] ??
+            existing?['googleMapsUrl'] ??
+            existing?['mapUrl'],
+      ),
       metadata: isNew ? null : existingMeta,
     );
 
@@ -1365,10 +1417,8 @@ class _LayerPoisPageState extends State<_LayerPoisPage> {
       context: context,
       isScrollControlled: true,
       useSafeArea: true,
-      builder: (ctx) => PoiEditPopup(
-        poi: initialPoi,
-        projectId: _imagesProjectId,
-      ),
+      builder: (ctx) =>
+          PoiEditPopup(poi: initialPoi, projectId: _imagesProjectId),
     );
 
     if (updated == null) return;
@@ -1376,8 +1426,11 @@ class _LayerPoisPageState extends State<_LayerPoisPage> {
     final user = FirebaseAuth.instance.currentUser;
     final now = FieldValue.serverTimestamp();
 
+    final normalizedImageUrl = updated.imageUrl?.trim();
     final data = <String, dynamic>{
       ...updated.toFirestore(),
+      if (normalizedImageUrl != null && normalizedImageUrl.isNotEmpty)
+        'photoUrl': normalizedImageUrl,
       // Normalisation: dans cette page on édite les POI d'UNE couche.
       'layerType': widget.layer.type,
       'layerId': widget.layer.id,
@@ -1497,7 +1550,11 @@ class _LayerPoisPageState extends State<_LayerPoisPage> {
                   Row(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      const Icon(Icons.info_outline_rounded, size: 18, color: Color(0xFF9C27B0)),
+                      const Icon(
+                        Icons.info_outline_rounded,
+                        size: 18,
+                        color: Color(0xFF9C27B0),
+                      ),
                       const SizedBox(width: 10),
                       const Expanded(
                         child: Text(
@@ -1532,21 +1589,31 @@ class _LayerPoisPageState extends State<_LayerPoisPage> {
                   return const Center(child: CircularProgressIndicator());
                 }
 
-                final docs = snapshot.data!.docs.where((doc) => _matchesLayer(doc.data())).toList()
-                  ..sort((a, b) {
-                    final an = (a.data()['name'] ?? a.id).toString().toLowerCase();
-                    final bn = (b.data()['name'] ?? b.id).toString().toLowerCase();
-                    return an.compareTo(bn);
-                  });
+                final docs =
+                    snapshot.data!.docs
+                        .where((doc) => _matchesLayer(doc.data()))
+                        .toList()
+                      ..sort((a, b) {
+                        final an = (a.data()['name'] ?? a.id)
+                            .toString()
+                            .toLowerCase();
+                        final bn = (b.data()['name'] ?? b.id)
+                            .toString()
+                            .toLowerCase();
+                        return an.compareTo(bn);
+                      });
                 if (docs.isEmpty) {
-                  return const Center(child: Text('Aucun POI pour cette couche.'));
+                  return const Center(
+                    child: Text('Aucun POI pour cette couche.'),
+                  );
                 }
 
                 return GlassScrollbar(
                   child: ListView.separated(
                     padding: const EdgeInsets.all(12),
                     itemCount: docs.length,
-                    separatorBuilder: (context, index) => const SizedBox(height: 10),
+                    separatorBuilder: (context, index) =>
+                        const SizedBox(height: 10),
                     itemBuilder: (context, index) {
                       final doc = docs[index];
                       final data = doc.data();
@@ -1558,12 +1625,12 @@ class _LayerPoisPageState extends State<_LayerPoisPage> {
 
                       return Card(
                         child: ListTile(
-                          leading: CircleAvatar(
-                            child: Icon(_typeIcon(type)),
-                          ),
+                          leading: CircleAvatar(child: Icon(_typeIcon(type))),
                           title: Text(name),
                           subtitle: lat != null && lng != null
-                              ? Text('${lat.toStringAsFixed(5)}, ${lng.toStringAsFixed(5)}')
+                              ? Text(
+                                  '${lat.toStringAsFixed(5)}, ${lng.toStringAsFixed(5)}',
+                                )
                               : const Text('Coordonnées non définies'),
                           trailing: Row(
                             mainAxisSize: MainAxisSize.min,
