@@ -1,0 +1,56 @@
+name: Cleanup SuperAdmin Analyze
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - app/lib/admin/superadmin_user_management_page.dart
+      - .github/workflows/cleanup-superadmin-analyze.yml
+
+permissions:
+  contents: write
+  pull-requests: read
+
+jobs:
+  cleanup:
+    if: github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout PR branch
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.ref }}
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Apply analyzer cleanup
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          p = Path('app/lib/admin/superadmin_user_management_page.dart')
+          s = p.read_text()
+          replacements = {
+              "separatorBuilder: (_, __) => const SizedBox(height: 8),": "separatorBuilder: (context, index) => const SizedBox(height: 8),",
+              "if (sheetContext.mounted)\n                Navigator.of(sheetContext).pop(mutation);": "if (sheetContext.mounted) {\n                Navigator.of(sheetContext).pop(mutation);\n              }",
+              "DropdownButtonFormField<String>(\n                      value: role == 'superAdmin' ? 'user' : role,": "DropdownButtonFormField<String>(\n                      initialValue: role == 'superAdmin' ? 'user' : role,",
+          }
+          for old, new in replacements.items():
+              if old not in s:
+                  raise SystemExit(f'Missing expected snippet: {old!r}')
+              s = s.replace(old, new, 1)
+          p.write_text(s)
+          PY
+
+      - name: Remove temporary workflow
+        run: rm -f .github/workflows/cleanup-superadmin-analyze.yml
+
+      - name: Commit cleanup
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add app/lib/admin/superadmin_user_management_page.dart .github/workflows/cleanup-superadmin-analyze.yml
+          if git diff --cached --quiet; then
+            echo "No changes"
+          else
+            git commit -m "fix: nettoie les diagnostics analyzer superadmin"
+            git push
+          fi
