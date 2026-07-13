@@ -2233,11 +2233,26 @@ class _ImgRaw extends StatelessWidget {
       );
     }
     if (u.startsWith('http')) {
+      final mq = MediaQuery.maybeOf(context);
+      final dpr = mq?.devicePixelRatio ?? 2.0;
+      final screenW = mq?.size.width ?? 400;
       return Image.network(
         u,
         fit: fit,
         width: double.infinity,
         height: double.infinity,
+        cacheWidth: (screenW * dpr).round(),
+        gaplessPlayback: true,
+        filterQuality: FilterQuality.low,
+        frameBuilder: (context, child, frame, wasSync) {
+          if (wasSync) return child;
+          return AnimatedOpacity(
+            opacity: frame == null ? 0 : 1,
+            duration: const Duration(milliseconds: 200),
+            curve: Curves.easeOut,
+            child: child,
+          );
+        },
         errorBuilder: (context, error, stackTrace) => _fallback(),
       );
     }

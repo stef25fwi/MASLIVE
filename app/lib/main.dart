@@ -40,6 +40,7 @@ import 'route_style_pro/ui/route_style_pro_args.dart';
 // ── Eager: pages critiques au démarrage ──
 import 'pages/default_map_page.dart';
 import 'pages/splash_wrapper_page.dart';
+import 'utils/storage_url_cache.dart';
 import 'widgets/debug/debug_admin_overlay.dart';
 // ── Deferred: toutes les autres pages (chargées à la demande) ──
 import 'pages/account_admin_page.dart' deferred as account;
@@ -247,6 +248,16 @@ Future<void> main() async {
     DebugLogBuffer.install();
     _installStartupErrorHandling();
     StartupTrace.log('MAIN', 'WidgetsFlutterBinding initialized');
+
+    // Cache image mémoire plus généreux: moins d'évictions / re-décodages en
+    // scroll -> listes et grilles plus fluides, images réaffichées instantanément.
+    PaintingBinding.instance.imageCache
+      ..maximumSizeBytes = 256 << 20 // 256 Mo
+      ..maximumSize = 2000;
+
+    // Précharge (disque -> mémoire) les résolutions gs://->downloadURL connues
+    // pour un affichage immédiat sans aller-retour réseau au démarrage à froid.
+    unawaited(StorageUrlCache.init());
 
     SystemChrome.setSystemUIOverlayStyle(
       const SystemUiOverlayStyle(
