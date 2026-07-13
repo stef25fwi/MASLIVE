@@ -171,7 +171,7 @@ class _DefaultMapPageState extends State<DefaultMapPage>
   }
 
   int? get _activeBottomBarIndex =>
-      _showActionsMenu ? 4 : (_selectedBottomBarIndex ?? 2);
+      _showActionsMenu ? 3 : (_selectedBottomBarIndex ?? 2);
 
   String? get _activeCircuitName {
     final circuitName = _marketPoiSelection.circuit?.name.trim();
@@ -1884,32 +1884,28 @@ class _DefaultMapPageState extends State<DefaultMapPage>
 
     return [
       MasliveStandardBottomBarItem(
-        icon: Icons.person_outline_rounded,
-        activeIcon: Icons.person_rounded,
-        label: 'Profil',
-        tooltip: pseudo.isEmpty ? localizations.profile : pseudo,
-        onTap: () {
-          _selectBottomBarIndex(0);
-          if (user != null) {
-            Navigator.pushNamed(context, '/account-ui');
-          } else {
-            Navigator.pushNamed(context, '/login');
-          }
-        },
-      ),
-      MasliveStandardBottomBarItem(
         icon: Icons.storefront_outlined,
         activeIcon: Icons.storefront,
         label: 'Boutique',
         tooltip: localizations.shop,
         onTap: () {
-          _selectBottomBarIndex(1);
+          _selectBottomBarIndex(0);
           Navigator.of(context).push(
             MaterialPageRoute(
               builder: (_) =>
                   const StorexShopPage(shopId: 'global', groupId: 'MASLIVE'),
             ),
           );
+        },
+      ),
+      MasliveStandardBottomBarItem(
+        icon: Icons.photo_library_outlined,
+        activeIcon: Icons.photo_library,
+        label: 'Media',
+        tooltip: 'Media',
+        onTap: () {
+          _selectBottomBarIndex(1);
+          Navigator.pushNamed(context, '/media-marketplace');
         },
       ),
       MasliveStandardBottomBarItem(
@@ -1925,23 +1921,27 @@ class _DefaultMapPageState extends State<DefaultMapPage>
         },
       ),
       MasliveStandardBottomBarItem(
-        icon: Icons.photo_library_outlined,
-        activeIcon: Icons.photo_library,
-        label: 'Media',
-        tooltip: 'Media',
-        onTap: () {
-          _selectBottomBarIndex(3);
-          Navigator.pushNamed(context, '/media-marketplace');
-        },
-      ),
-      MasliveStandardBottomBarItem(
         icon: Icons.search_rounded,
         activeIcon: Icons.search,
         label: 'Explorer',
         tooltip: 'Explorer',
         onTap: () {
-          _selectBottomBarIndex(4);
+          _selectBottomBarIndex(3);
           _toggleActionsMenu();
+        },
+      ),
+      MasliveStandardBottomBarItem(
+        icon: Icons.person_outline_rounded,
+        activeIcon: Icons.person_rounded,
+        label: 'Profil',
+        tooltip: pseudo.isEmpty ? localizations.profile : pseudo,
+        onTap: () {
+          _selectBottomBarIndex(4);
+          if (user != null) {
+            Navigator.pushNamed(context, '/account-ui');
+          } else {
+            Navigator.pushNamed(context, '/login');
+          }
         },
       ),
     ];
