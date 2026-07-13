@@ -4,7 +4,8 @@ import 'dart:math' as math;
 import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
-import 'package:flutter/foundation.dart' show ValueListenable, kDebugMode, kIsWeb;
+import 'package:flutter/foundation.dart'
+    show ValueListenable, kDebugMode, kIsWeb;
 import 'package:flutter/services.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:pointer_interceptor/pointer_interceptor.dart';
@@ -156,6 +157,17 @@ class _DefaultMapPageState extends State<DefaultMapPage>
 
   MarketMapService _getMarketMapService() {
     return _marketMapService ??= MarketMapService();
+  }
+
+  Future<void> _preloadMapMarketSelectorCatalog() async {
+    try {
+      await _getMarketMapService().preloadSelectorCatalog();
+      if (kDebugMode) {
+        debugPrint('✅ MapMarket selector catalog preloaded');
+      }
+    } catch (error) {
+      debugPrint('⚠️ MapMarket selector preload failed: $error');
+    }
   }
 
   int? get _activeBottomBarIndex =>
@@ -868,6 +880,7 @@ class _DefaultMapPageState extends State<DefaultMapPage>
     _bindActionsMenuSignal(widget.actionsMenuOpenSignal);
     _bindActionsMenuCloseSignal(widget.actionsMenuCloseSignal);
     unawaited(_restoreLastHomeStyleUrl());
+    unawaited(_preloadMapMarketSelectorCatalog());
 
     _isTracking = _geo.isTracking;
     _listenHomeControlsThemeConfig();
@@ -1060,21 +1073,26 @@ class _DefaultMapPageState extends State<DefaultMapPage>
           circuitId: selection.circuit!.id,
           layerIds: selection.layerIds,
         )
-        .listen((pois) {
-          if (!mounted) return;
-          if (kDebugMode) {
+        .listen(
+          (pois) {
+            if (!mounted) return;
+            if (kDebugMode) {
+              debugPrint(
+                '[POI_RECEIVED] '
+                'circuit=${selection.circuit!.id} '
+                'layers=${selection.layerIds.toList()..sort()} '
+                'count=${pois.length}',
+              );
+            }
+            setState(() => _marketPois = pois);
+            _refreshMarketPoiMarkers();
+          },
+          onError: (e, st) {
             debugPrint(
-              '[POI_RECEIVED] '
-              'circuit=${selection.circuit!.id} '
-              'layers=${selection.layerIds.toList()..sort()} '
-              'count=${pois.length}',
+              '[POI_STREAM_ERROR] circuit=${selection.circuit!.id} err=$e',
             );
-          }
-          setState(() => _marketPois = pois);
-          _refreshMarketPoiMarkers();
-        }, onError: (e, st) {
-          debugPrint('[POI_STREAM_ERROR] circuit=${selection.circuit!.id} err=$e');
-        });
+          },
+        );
 
     // Démarre/reprend le stream du curseur groupe pour ce circuit (couvre aussi
     // la restauration au démarrage, pas seulement la sélection manuelle).
@@ -1249,7 +1267,7 @@ class _DefaultMapPageState extends State<DefaultMapPage>
           roadLike: shouldRoadLike,
           shadow3d: cfg.effectiveShadowEnabled,
           elevated3d: cfg.elevated3d,
-      elevated3dCorner: cfg.elevated3dCorner,
+          elevated3dCorner: cfg.elevated3dCorner,
           shadowOpacity: cfg.shadowOpacity,
           shadowBlur: cfg.shadowBlur,
           showDirection: false,
@@ -2375,7 +2393,8 @@ class _DefaultMapPageState extends State<DefaultMapPage>
                         color: Colors.black.withValues(alpha: 0.55),
                         shape: const CircleBorder(),
                         clipBehavior: Clip.antiAlias,
-                        child: const AdminDebugLogsButton(), // scope null => tous
+                        child:
+                            const AdminDebugLogsButton(), // scope null => tous
                       ),
                     ),
                   ),
