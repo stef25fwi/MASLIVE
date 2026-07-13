@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 
 import '../ui/widgets/maslive_standard_bottom_bar.dart';
 
-enum UserFacingBottomBarTab { profile, boutique, home, media, explorer }
+enum UserFacingBottomBarTab { boutique, media, home, explorer, profile }
 
 class UserFacingBottomBar extends StatelessWidget {
   const UserFacingBottomBar({
@@ -41,18 +41,6 @@ class UserFacingBottomBar extends StatelessWidget {
         return MasliveStandardBottomBar(
           items: [
             MasliveStandardBottomBarItem(
-              iconBuilder: (context, active) => _ProfileBottomBarIcon(
-                active: active,
-                isConnected: user != null,
-              ),
-              label: 'Profil',
-              tooltip: pseudo.isEmpty ? 'Profil' : pseudo,
-              onTap: () {
-                if (currentTab == UserFacingBottomBarTab.profile) return;
-                _openShellTab(context, UserFacingBottomBarTab.profile);
-              },
-            ),
-            MasliveStandardBottomBarItem(
               icon: Icons.storefront_outlined,
               activeIcon: Icons.storefront,
               label: 'Boutique',
@@ -63,16 +51,6 @@ class UserFacingBottomBar extends StatelessWidget {
               },
             ),
             MasliveStandardBottomBarItem(
-              icon: Icons.home_outlined,
-              activeIcon: Icons.home,
-              label: 'Home',
-              tooltip: 'Revenir à l’accueil',
-              onTap: () {
-                if (currentTab == UserFacingBottomBarTab.home) return;
-                _openShellTab(context, UserFacingBottomBarTab.home);
-              },
-            ),
-            MasliveStandardBottomBarItem(
               icon: Icons.photo_library_outlined,
               activeIcon: Icons.photo_library,
               label: 'Media',
@@ -80,6 +58,16 @@ class UserFacingBottomBar extends StatelessWidget {
               onTap: () {
                 if (currentTab == UserFacingBottomBarTab.media) return;
                 _openShellTab(context, UserFacingBottomBarTab.media);
+              },
+            ),
+            MasliveStandardBottomBarItem(
+              icon: Icons.home_outlined,
+              activeIcon: Icons.home,
+              label: 'Home',
+              tooltip: 'Revenir à l’accueil',
+              onTap: () {
+                if (currentTab == UserFacingBottomBarTab.home) return;
+                _openShellTab(context, UserFacingBottomBarTab.home);
               },
             ),
             MasliveStandardBottomBarItem(
@@ -94,6 +82,18 @@ class UserFacingBottomBar extends StatelessWidget {
                 }
                 if (currentTab != UserFacingBottomBarTab.home) return;
                 _openShellTab(context, UserFacingBottomBarTab.explorer);
+              },
+            ),
+            MasliveStandardBottomBarItem(
+              iconBuilder: (context, active) => _ProfileBottomBarIcon(
+                active: active,
+                isConnected: user != null,
+              ),
+              label: 'Profil',
+              tooltip: pseudo.isEmpty ? 'Profil' : pseudo,
+              onTap: () {
+                if (currentTab == UserFacingBottomBarTab.profile) return;
+                _openShellTab(context, UserFacingBottomBarTab.profile);
               },
             ),
           ],
