@@ -58,6 +58,14 @@ class _UserFacingShellPageState extends State<UserFacingShellPage> {
   final Map<UserFacingBottomBarTab, Widget> _tabCache =
       <UserFacingBottomBarTab, Widget>{};
 
+  /// Reflète si la carte (onglets Home/Explorer) est actuellement au premier
+  /// plan. Passé à [DefaultMapPage] pour masquer ses contrôles superposés
+  /// (zoom, boussole, géolocalisation — de vrais éléments DOM sur web) quand
+  /// un autre onglet est affiché par-dessus la carte gardée vivante.
+  final ValueNotifier<bool> _homeMapForegroundVisible = ValueNotifier<bool>(
+    true,
+  );
+
   @override
   void initState() {
     super.initState();
@@ -67,6 +75,11 @@ class _UserFacingShellPageState extends State<UserFacingShellPage> {
     activeShellTabSwitcher = UserFacingShellPage.switchToExistingShell;
     _currentTab = _resolveTab(widget.initialTab);
     _mediaArgs = _resolveMediaArgs(widget.initialTab);
+    _syncHomeMapForegroundVisible();
+  }
+
+  void _syncHomeMapForegroundVisible() {
+    _homeMapForegroundVisible.value = _isHomeMapVisible;
   }
 
   @override
@@ -83,6 +96,7 @@ class _UserFacingShellPageState extends State<UserFacingShellPage> {
     if (tab == UserFacingBottomBarTab.explorer) {
       if (_currentTab == UserFacingBottomBarTab.explorer) return;
       setState(() => _currentTab = UserFacingBottomBarTab.explorer);
+      _syncHomeMapForegroundVisible();
       _homeActionsMenuSignal.value++;
       return;
     }
@@ -92,6 +106,7 @@ class _UserFacingShellPageState extends State<UserFacingShellPage> {
     }
     if (tab == _currentTab) return;
     setState(() => _currentTab = tab);
+    _syncHomeMapForegroundVisible();
   }
 
   @override
@@ -100,6 +115,7 @@ class _UserFacingShellPageState extends State<UserFacingShellPage> {
     if (oldWidget.initialTab != widget.initialTab) {
       _currentTab = _resolveTab(widget.initialTab);
       _mediaArgs = _resolveMediaArgs(widget.initialTab);
+      _syncHomeMapForegroundVisible();
       if (_currentTab == UserFacingBottomBarTab.explorer) {
         _homeActionsMenuSignal.value++;
       }
@@ -114,6 +130,7 @@ class _UserFacingShellPageState extends State<UserFacingShellPage> {
     }
     _homeActionsMenuSignal.dispose();
     _homeActionsMenuCloseSignal.dispose();
+    _homeMapForegroundVisible.dispose();
     super.dispose();
   }
 
@@ -184,6 +201,7 @@ class _UserFacingShellPageState extends State<UserFacingShellPage> {
         openActionsMenuOnLoad: _currentTab == UserFacingBottomBarTab.explorer,
         actionsMenuOpenSignal: _homeActionsMenuSignal,
         actionsMenuCloseSignal: _homeActionsMenuCloseSignal,
+        mapVisibleListenable: _homeMapForegroundVisible,
       ),
     );
   }
@@ -263,17 +281,20 @@ class _UserFacingShellPageState extends State<UserFacingShellPage> {
             onExplorerTap: () {
               if (_currentTab == UserFacingBottomBarTab.home) {
                 setState(() => _currentTab = UserFacingBottomBarTab.explorer);
+                _syncHomeMapForegroundVisible();
                 _homeActionsMenuSignal.value++;
                 return;
               }
 
               if (_currentTab == UserFacingBottomBarTab.explorer) {
                 setState(() => _currentTab = UserFacingBottomBarTab.home);
+                _syncHomeMapForegroundVisible();
                 _homeActionsMenuCloseSignal.value++;
                 return;
               }
 
               setState(() => _currentTab = UserFacingBottomBarTab.explorer);
+              _syncHomeMapForegroundVisible();
               _homeActionsMenuSignal.value++;
             },
             onTabSelected: _selectTab,

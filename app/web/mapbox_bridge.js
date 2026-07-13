@@ -2140,6 +2140,41 @@
       }
     },
 
+    /**
+     * Affiche/masque les contrôles superposés à la carte (zoom, boussole,
+     * géolocalisation, attribution, logo) sans détruire ni redimensionner la
+     * carte elle-même.
+     *
+     * Nécessaire car ces contrôles sont de VRAIS éléments DOM ajoutés par
+     * Mapbox GL JS dans le conteneur de la carte (mapboxgl.NavigationControl /
+     * GeolocateControl / AttributionControl) — ce ne sont pas des widgets
+     * Flutter. Quand la carte est gardée vivante mais masquée derrière une
+     * autre page Flutter (ex: onglet Boutique/Média superposé en Positioned),
+     * ces éléments DOM restent visibles au-dessus du contenu Flutter tant
+     * qu'on ne les cache pas explicitement ici.
+     */
+    setControlsVisible: function(containerId, visible) {
+      try {
+        const map = _getMap(containerId);
+        if (!map || typeof map.getContainer !== 'function') return;
+        const containerEl = map.getContainer();
+        if (!containerEl || typeof containerEl.querySelectorAll !== 'function') return;
+        const nodes = containerEl.querySelectorAll(
+          '.mapboxgl-ctrl-top-left, .mapboxgl-ctrl-top-right, .mapboxgl-ctrl-bottom-left, .mapboxgl-ctrl-bottom-right'
+        );
+        Array.from(nodes).forEach((node) => {
+          try {
+            node.style.visibility = visible ? '' : 'hidden';
+            node.style.pointerEvents = visible ? '' : 'none';
+          } catch (_) {
+            // ignore
+          }
+        });
+      } catch (_) {
+        // ignore
+      }
+    },
+
     setStyle: function(containerId, styleUrl) {
       const map = _getMap(containerId);
       if (!map) return;
