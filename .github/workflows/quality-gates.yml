@@ -4,11 +4,7 @@ on:
   pull_request:
     branches: [main]
   push:
-    branches: [main, fix/parking-style-sheet-pointer-block]
-
-permissions:
-  contents: write
-  actions: read
+    branches: [main]
 
 jobs:
   flutter-quality:
@@ -21,30 +17,12 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
-        with:
-          ref: fix/parking-style-sheet-pointer-block
-          token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Setup Flutter
         uses: subosito/flutter-action@v2
         with:
           flutter-version: "3.44.4"
           cache: true
-
-      - name: Apply parking pointer-block patch
-        if: github.actor != 'github-actions[bot]'
-        working-directory: ${{ github.workspace }}
-        run: |
-          python3 scripts/patch-parking-style-pointer-block.py
-          dart format app/lib/admin/parking_zone_drawer_page.dart app/test/admin/parking_style_sheet_pointer_test.dart
-          git rm -f scripts/patch-parking-style-pointer-block.py
-          git fetch origin main --depth=1
-          git checkout origin/main -- .github/workflows/quality-gates.yml
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add app/lib/admin/parking_zone_drawer_page.dart app/test/admin/parking_style_sheet_pointer_test.dart .github/workflows/quality-gates.yml
-          git commit -m "fix: bloque les taps derrière le menu style parking"
-          git push origin HEAD:fix/parking-style-sheet-pointer-block
 
       - name: Install Flutter dependencies
         run: flutter pub get
@@ -57,8 +35,15 @@ jobs:
           flutter analyze > flutter-analyze.log 2>&1
           status=$?
           cat flutter-analyze.log
-          if grep -Eq '^error •' flutter-analyze.log; then exit 1; fi
-          if [ "$status" -ne 0 ] && ! grep -Eq '[0-9]+ issues? found' flutter-analyze.log; then exit "$status"; fi
+
+          if grep -Eq '^error •' flutter-analyze.log; then
+            exit 1
+          fi
+
+          if [ "$status" -ne 0 ] && ! grep -Eq '[0-9]+ issues? found' flutter-analyze.log; then
+            exit "$status"
+          fi
+
           exit 0
 
       - name: Upload Flutter analyzer report
@@ -77,6 +62,7 @@ jobs:
           set +e
           flutter test --reporter expanded > flutter-test.log 2>&1
           status=$?
+          echo "=== Résumé des 160 dernières lignes ==="
           tail -n 160 flutter-test.log
           exit "$status"
 
