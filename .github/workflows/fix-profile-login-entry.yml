@@ -1,0 +1,100 @@
+name: Fix Profile Login Entry
+
+on:
+  push:
+    branches:
+      - fix/profile-login-entry
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout branch
+        uses: actions/checkout@v4
+        with:
+          ref: fix/profile-login-entry
+          token: ${{ secrets.GITHUB_TOKEN }}
+      - name: Patch signed-out profile login CTA
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          p = Path('app/lib/pages/account_page.dart')
+          s = p.read_text()
+
+          old = """                  else if (profile == null)
+                    SliverFillRemaining(
+                      hasScrollBody: false,
+                      child: _SignedOutBlock(onRetry: _refresh),
+                    )
+"""
+          new = """                  else if (profile == null)
+                    SliverFillRemaining(
+                      hasScrollBody: false,
+                      child: _SignedOutBlock(
+                        onLogin: () => Navigator.of(context).pushNamed('/login'),
+                        onRetry: _refresh,
+                      ),
+                    )
+"""
+          if old not in s:
+              raise SystemExit('SignedOutBlock usage not found')
+          s = s.replace(old, new)
+
+          old = """class _SignedOutBlock extends StatelessWidget {
+  const _SignedOutBlock({required this.onRetry});
+
+  final Future<void> Function() onRetry;
+"""
+          new = """class _SignedOutBlock extends StatelessWidget {
+  const _SignedOutBlock({required this.onLogin, required this.onRetry});
+
+  final VoidCallback onLogin;
+  final Future<void> Function() onRetry;
+"""
+          if old not in s:
+              raise SystemExit('SignedOutBlock constructor not found')
+          s = s.replace(old, new)
+
+          old = """          const SizedBox(height: 16),
+          OutlinedButton.icon(
+            onPressed: onRetry,
+            icon: const Icon(Icons.refresh),
+            label: const Text('Réessayer'),
+          ),
+"""
+          new = """          const SizedBox(height: 20),
+          FilledButton.icon(
+            onPressed: onLogin,
+            icon: const Icon(Icons.login_rounded),
+            label: const Text('Se connecter'),
+          ),
+          const SizedBox(height: 8),
+          TextButton.icon(
+            onPressed: onRetry,
+            icon: const Icon(Icons.refresh),
+            label: const Text('Réessayer'),
+          ),
+"""
+          if old not in s:
+              raise SystemExit('Retry button block not found')
+          s = s.replace(old, new)
+
+          p.write_text(s)
+          PY
+      - name: Remove temporary workflow
+        run: rm .github/workflows/fix-profile-login-entry.yml
+      - name: Commit patch
+        run: |
+          if git diff --quiet; then
+            echo 'No changes to commit'
+            exit 0
+          fi
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add app/lib/pages/account_page.dart .github/workflows/fix-profile-login-entry.yml
+          git commit -m 'fix: add login CTA to signed-out profile'
+          git push origin fix/profile-login-entry
