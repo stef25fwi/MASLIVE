@@ -9,10 +9,7 @@ import 'storex_shop_page.dart';
 import 'user_facing_bottom_bar.dart';
 
 class UserFacingShellPage extends StatefulWidget {
-  const UserFacingShellPage({
-    super.key,
-    this.initialTab,
-  });
+  const UserFacingShellPage({super.key, this.initialTab});
 
   final Object? initialTab;
 
@@ -27,14 +24,6 @@ class _UserFacingShellPageState extends State<UserFacingShellPage> {
   final ValueNotifier<int> _homeActionsMenuCloseSignal = ValueNotifier<int>(0);
   final Map<UserFacingBottomBarTab, Widget> _tabCache =
       <UserFacingBottomBarTab, Widget>{};
-
-  static const List<UserFacingBottomBarTab> _tabs = <UserFacingBottomBarTab>[
-    UserFacingBottomBarTab.profile,
-    UserFacingBottomBarTab.boutique,
-    UserFacingBottomBarTab.home,
-    UserFacingBottomBarTab.media,
-    UserFacingBottomBarTab.explorer,
-  ];
 
   @override
   void initState() {
@@ -89,9 +78,7 @@ class _UserFacingShellPageState extends State<UserFacingShellPage> {
   }
 
   int? _resolveMediaInitialTabIndex(Object? raw) {
-    if (raw is int) {
-      return raw.clamp(0, 3);
-    }
+    if (raw is int) return raw.clamp(0, 3);
     if (raw is String) {
       switch (raw) {
         case 'cart':
@@ -136,13 +123,8 @@ class _UserFacingShellPageState extends State<UserFacingShellPage> {
   }
 
   Widget _buildCachedPage(UserFacingBottomBarTab tab) {
-    if (tab == UserFacingBottomBarTab.home) {
-      return _buildHomePage();
-    }
-
-    if (tab == UserFacingBottomBarTab.media) {
-      return _buildMediaPage();
-    }
+    if (tab == UserFacingBottomBarTab.home) return _buildHomePage();
+    if (tab == UserFacingBottomBarTab.media) return _buildMediaPage();
 
     return _tabCache.putIfAbsent(tab, () {
       switch (tab) {
@@ -153,11 +135,10 @@ class _UserFacingShellPageState extends State<UserFacingShellPage> {
             showBottomBar: false,
           );
         case UserFacingBottomBarTab.home:
+        case UserFacingBottomBarTab.explorer:
           return const SizedBox.shrink();
         case UserFacingBottomBarTab.media:
           return _buildMediaPage();
-        case UserFacingBottomBarTab.explorer:
-          return const SizedBox.shrink();
         case UserFacingBottomBarTab.profile:
           return const SizedBox.shrink();
       }
@@ -165,9 +146,7 @@ class _UserFacingShellPageState extends State<UserFacingShellPage> {
   }
 
   Widget _buildProfilePage(User? user) {
-    if (user != null) {
-      return const AccountUiPage(showBottomBar: false);
-    }
+    if (user != null) return const AccountUiPage(showBottomBar: false);
     return LoginPage(
       onLoginSuccess: () {
         if (mounted) setState(() {});
@@ -175,52 +154,60 @@ class _UserFacingShellPageState extends State<UserFacingShellPage> {
     );
   }
 
+  Widget _buildForegroundPage(User? user) {
+    switch (_currentTab) {
+      case UserFacingBottomBarTab.profile:
+        return _buildProfilePage(user);
+      case UserFacingBottomBarTab.boutique:
+        return _buildCachedPage(UserFacingBottomBarTab.boutique);
+      case UserFacingBottomBarTab.media:
+        return _buildCachedPage(UserFacingBottomBarTab.media);
+      case UserFacingBottomBarTab.home:
+      case UserFacingBottomBarTab.explorer:
+        return const SizedBox.shrink();
+    }
+  }
+
+  bool get _isHomeMapVisible =>
+      _currentTab == UserFacingBottomBarTab.home ||
+      _currentTab == UserFacingBottomBarTab.explorer;
+
   @override
   Widget build(BuildContext context) {
     return StreamBuilder<User?>(
       stream: FirebaseAuth.instance.authStateChanges(),
       initialData: FirebaseAuth.instance.currentUser,
       builder: (context, snapshot) {
-        final children = <Widget>[
-          _buildProfilePage(snapshot.data),
-          _buildCachedPage(UserFacingBottomBarTab.boutique),
-          _buildHomePage(),
-          _buildCachedPage(UserFacingBottomBarTab.media),
-          _buildCachedPage(UserFacingBottomBarTab.explorer),
-        ];
-
-        final visibleIndex = _currentTab == UserFacingBottomBarTab.explorer
-            ? _tabs.indexOf(UserFacingBottomBarTab.home)
-            : _tabs.indexOf(_currentTab);
-
         return Scaffold(
           resizeToAvoidBottomInset: false,
-          body: IndexedStack(
-            index: visibleIndex,
-            children: children,
+          body: Stack(
+            children: [
+              Positioned.fill(child: _buildHomePage()),
+              if (!_isHomeMapVisible)
+                Positioned.fill(
+                  child: ColoredBox(
+                    color: Theme.of(context).scaffoldBackgroundColor,
+                    child: _buildForegroundPage(snapshot.data),
+                  ),
+                ),
+            ],
           ),
           bottomNavigationBar: UserFacingBottomBar(
             currentTab: _currentTab,
             onExplorerTap: () {
               if (_currentTab == UserFacingBottomBarTab.home) {
-                setState(() {
-                  _currentTab = UserFacingBottomBarTab.explorer;
-                });
+                setState(() => _currentTab = UserFacingBottomBarTab.explorer);
                 _homeActionsMenuSignal.value++;
                 return;
               }
 
               if (_currentTab == UserFacingBottomBarTab.explorer) {
-                setState(() {
-                  _currentTab = UserFacingBottomBarTab.home;
-                });
+                setState(() => _currentTab = UserFacingBottomBarTab.home);
                 _homeActionsMenuCloseSignal.value++;
                 return;
               }
 
-              setState(() {
-                _currentTab = UserFacingBottomBarTab.explorer;
-              });
+              setState(() => _currentTab = UserFacingBottomBarTab.explorer);
               _homeActionsMenuSignal.value++;
             },
             onTabSelected: (tab) {
