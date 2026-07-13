@@ -41,6 +41,7 @@ import 'route_style_pro/ui/route_style_pro_args.dart';
 // ── Eager: pages critiques au démarrage ──
 import 'pages/default_map_page.dart';
 import 'pages/splash_wrapper_page.dart';
+import 'utils/storage_url_cache.dart';
 import 'widgets/debug/debug_admin_overlay.dart';
 // ── Deferred: toutes les autres pages (chargées à la demande) ──
 import 'pages/account_admin_page.dart' deferred as account;
@@ -261,6 +262,16 @@ Future<void> main() async {
     _installStartupErrorHandling();
     StartupTrace.log('MAIN', 'WidgetsFlutterBinding initialized');
 
+    // Cache image mémoire plus généreux: moins d'évictions / re-décodages en
+    // scroll -> listes et grilles plus fluides, images réaffichées instantanément.
+    PaintingBinding.instance.imageCache
+      ..maximumSizeBytes = 256 << 20 // 256 Mo
+      ..maximumSize = 2000;
+
+    // Précharge (disque -> mémoire) les résolutions gs://->downloadURL connues
+    // pour un affichage immédiat sans aller-retour réseau au démarrage à froid.
+    unawaited(StorageUrlCache.init());
+
     SystemChrome.setSystemUIOverlayStyle(
       const SystemUiOverlayStyle(
         statusBarColor: Colors.transparent,
@@ -461,8 +472,20 @@ class _BootstrapRootState extends State<_BootstrapRoot> {
       return;
     }
 
+    // Identifiant marchand Apple Pay (requis pour Apple Pay dans la PaymentSheet).
+    // Fourni au build via --dart-define=STRIPE_APPLE_MERCHANT_ID=merchant.com.maslive
+    const appleMerchantId = String.fromEnvironment(
+      'STRIPE_APPLE_MERCHANT_ID',
+      defaultValue: '',
+    );
+
     try {
       Stripe.publishableKey = stripePublishableKey;
+      if (appleMerchantId.isNotEmpty) {
+        Stripe.merchantIdentifier = appleMerchantId;
+      }
+      // Schéma d'URL pour les retours de redirection (3DS, wallets) sur natif.
+      Stripe.urlScheme = 'maslive';
       await Stripe.instance.applySettings().timeout(const Duration(seconds: 4));
       StartupTrace.log('STRIPE', 'applySettings success');
     } catch (error) {

@@ -27,6 +27,18 @@ if [ -n "${STRIPE_PREMIUM_MONTHLY_PRICE_ID:-}" ] && [ -n "${STRIPE_PREMIUM_YEARL
 else
 	echo "⚠️ Price IDs premium web absents: le paywall web restera en configuration manquante."
 fi
+# Clé publique Stripe (indispensable pour la PaymentSheet native iOS/Android).
+# Sur web le paiement passe par Stripe Checkout (redirection) et n'en a pas besoin,
+# mais on transmet la valeur si présente pour un build unifié.
+if [ -n "${STRIPE_PUBLISHABLE_KEY:-}" ]; then
+	STRIPE_PREMIUM_ARGS+=(--dart-define=STRIPE_PUBLISHABLE_KEY="$STRIPE_PUBLISHABLE_KEY")
+	echo "💳 Clé publique Stripe détectée: OK (redacted)"
+else
+	echo "⚠️ STRIPE_PUBLISHABLE_KEY absente: la PaymentSheet native sera désactivée."
+fi
+if [ -n "${STRIPE_APPLE_MERCHANT_ID:-}" ]; then
+	STRIPE_PREMIUM_ARGS+=(--dart-define=STRIPE_APPLE_MERCHANT_ID="$STRIPE_APPLE_MERCHANT_ID")
+fi
 flutter build web --release --dart-define=MAPBOX_ACCESS_TOKEN="$TOKEN" "${STRIPE_PREMIUM_ARGS[@]}"
 cd /workspaces/MASLIVE
 echo "✅ Build complété"

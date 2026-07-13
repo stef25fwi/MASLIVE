@@ -1111,7 +1111,11 @@ exports.createStorexPaymentIntent = onCall(
       amount: storeOrder.totalCents,
       currency,
       automatic_payment_methods: { enabled: true },
-      metadata: { uid, orderId: storeOrder.orderId },
+      receipt_email: shippingAddress.email || auth.token?.email || undefined,
+      // transfer_group permet de relier les reversements vendeurs (Connect)
+      // effectués après paiement à cette commande (voir settleStorexOrderTransfers).
+      transfer_group: `order_${storeOrder.orderId}`,
+      metadata: { uid, orderId: storeOrder.orderId, kind: "storex_checkout" },
     },
     { idempotencyKey: storeOrder.orderId }
   );
@@ -1200,6 +1204,7 @@ exports.createStorexCheckoutSession = onCall(
         customer_email: auth.token?.email || shippingAddress.email || undefined,
         metadata: sessionMetadata,
         payment_intent_data: {
+          transfer_group: `order_${storeOrder.orderId}`,
           metadata: {
             uid,
             userId: uid,
@@ -1239,6 +1244,75 @@ exports.createStorexCheckoutSession = onCall(
       stripeSessionId: session.id,
       totalCents: storeOrder.totalCents,
     };
+  }
+);
+
+/**
+ * confirmStorexPayment (callable) — confirme côté serveur qu'un PaymentIntent
+ * est bien "succeeded" et finalise la commande immédiatement, sans dépendre
+ * uniquement du webhook (fiabilise l'écran de succès mobile). Idempotent: le
+ * webhook reste le filet de sécurité.
+ */
+exports.confirmStorexPayment = onCall(
+  { region: "us-east1", secrets: [STRIPE_SECRET_KEY] },
+  async (req) => {
+    const auth = req.auth;
+    if (!auth) throw new HttpsError("unauthenticated", "Sign in required");
+    const uid = auth.uid;
+
+    const data = req.data || {};
+    const orderId = looksLikeNonEmptyString(data.orderId) ? data.orderId.trim() : "";
+    if (!orderId) throw new HttpsError("invalid-argument", "orderId required");
+
+    const rootSnap = await db.collection("orders").doc(orderId).get();
+    if (!rootSnap.exists) throw new HttpsError("not-found", "Order not found");
+    const rootOrder = rootSnap.data() || {};
+
+    // La commande doit appartenir à l'appelant
+    if ((rootOrder.userId || rootOrder.buyerId) !== uid) {
+      throw new HttpsError("permission-denied", "Not your order");
+    }
+
+    const paymentIntentId =
+      (rootOrder.stripe && rootOrder.stripe.paymentIntentId) ||
+      rootOrder.stripePaymentIntentId ||
+      null;
+    if (!looksLikeNonEmptyString(paymentIntentId)) {
+      // Rien à confirmer côté PaymentIntent (flux Checkout redirigé).
+      return {
+        status: normalizeLowerString(rootOrder.status) || "pending",
+        finalized: false,
+      };
+    }
+
+    const stripeClient = getStripe();
+    const pi = await stripeClient.paymentIntents.retrieve(paymentIntentId.trim());
+
+    // Sécurité: le PaymentIntent doit référencer ce même utilisateur.
+    if (pi?.metadata?.uid && pi.metadata.uid !== uid) {
+      throw new HttpsError("permission-denied", "PaymentIntent mismatch");
+    }
+
+    if (pi.status !== "succeeded") {
+      return { status: pi.status || "pending", finalized: false };
+    }
+
+    const kind = normalizeLowerString(
+      pi.metadata?.kind || (rootOrder.stripe && rootOrder.stripe.kind) || ""
+    );
+    const mediaOrderId = pi.metadata?.mediaOrderId || null;
+
+    const finalized = await finalizeStorexOrderPayment({
+      uid,
+      orderId,
+      kind,
+      mediaOrderId,
+      paymentIntentId: pi.id,
+      stripeCustomerId: pi.customer || null,
+      stripeStatus: pi.status,
+    });
+
+    return { status: "paid", finalized };
   }
 );
 
@@ -1621,9 +1695,14 @@ exports.createMixedCartPaymentIntent = onCall(
         amount: totalCents,
         currency,
         automatic_payment_methods: { enabled: true },
+        receipt_email: shippingAddress.email || auth.token?.email || undefined,
+        // Seule la part merch sera reversée aux vendeurs via Connect
+        // (settleStorexOrderTransfers); la part media suit son propre ledger.
+        transfer_group: `order_${storeOrder.orderId}`,
         metadata: {
           uid,
           kind: "mixed_cart",
+          orderId: storeOrder.orderId,
           storeOrderId: storeOrder.orderId,
           mediaOrderId: mediaOrder.orderId,
           promoCode: promoCode || "none",
@@ -1817,6 +1896,7 @@ exports.createMixedCartCheckoutSession = onCall(
         customer_email: auth.token?.email || shippingAddress.email || undefined,
         metadata: sessionMetadata,
         payment_intent_data: {
+          ...(storeOrder ? { transfer_group: `order_${storeOrder.orderId}` } : {}),
           metadata: {
             uid,
             userId: uid,
@@ -3742,6 +3822,18 @@ exports.stripeWebhook = onRequest(
           await handlePaymentIntentSucceeded(event.data.object);
           break;
 
+        case "payment_intent.payment_failed":
+          await handlePaymentIntentFailed(event.data.object);
+          break;
+
+        case "charge.refunded":
+          await handleChargeRefunded(event.data.object);
+          break;
+
+        case "charge.dispute.created":
+          await handleChargeDisputeCreated(event.data.object);
+          break;
+
         case "account.updated":
           await handleAccountUpdated(event.data.object);
           break;
@@ -3943,6 +4035,15 @@ async function finalizeStorexOrderPayment({
       console.error(
         `Failed to decrement stock for root order ${normalizedOrderId}:`,
         stockErr
+      );
+    }
+
+    try {
+      await settleStorexOrderTransfers(rootOrder, { orderId: normalizedOrderId });
+    } catch (payoutErr) {
+      console.error(
+        `Failed to settle Connect transfers for root order ${normalizedOrderId}:`,
+        payoutErr
       );
     }
   }
@@ -4281,6 +4382,161 @@ async function decrementStorexStockForRootOrder(rootOrder) {
     }
   });
 }
+
+/**
+ * Reverse la part merch d'une commande aux vendeurs via Stripe Connect
+ * (modèle "separate transfers"). Chaque vendeur (item.sellerId) reçoit un
+ * virement de sa part (prix * quantité) diminuée de la commission plateforme.
+ *
+ * - Activé uniquement si config/stripe_connect.autoTransferEnabled === true
+ *   (désactivé par défaut tant que le flux n'est pas validé en prod).
+ * - Commission: config/stripe_connect.feeBps (basis points, défaut 1000 = 10%).
+ * - Un vendeur sans compte Connect actif (chargesEnabled) est ignoré: sa part
+ *   reste sur le compte plateforme et le reversement pourra être refait plus tard.
+ * - Idempotent: un virement déjà enregistré (payouts.{sellerId}.transferId) ou la
+ *   clé d'idempotence Stripe empêchent tout doublon.
+ * - Le frais de port n'est jamais reversé (il reste à la plateforme).
+ */
+async function settleStorexOrderTransfers(rootOrder, { orderId } = {}) {
+  const normalizedOrderId = looksLikeNonEmptyString(orderId)
+    ? orderId.trim()
+    : (looksLikeNonEmptyString(rootOrder?.id) ? rootOrder.id.trim() : "");
+  if (!normalizedOrderId) return;
+
+  const items = Array.isArray(rootOrder?.items) ? rootOrder.items : [];
+  if (!items.length) return;
+
+  // Config reversement (flag d'activation + commission)
+  const configSnap = await db.collection("config").doc("stripe_connect").get();
+  const config = configSnap.exists && configSnap.data() ? configSnap.data() : {};
+  if (config.autoTransferEnabled !== true) {
+    console.log(
+      `Connect auto-transfer disabled; skipping payout for order ${normalizedOrderId}`
+    );
+    return;
+  }
+  let feeBps = toSafeInt(config.feeBps, 1000);
+  if (feeBps < 0) feeBps = 0;
+  if (feeBps > 10000) feeBps = 10000;
+  const minPayoutCents = Math.max(0, toSafeInt(config.minPayoutCents, 0));
+
+  const currency = normalizeCurrencyCode(
+    rootOrder?.storex?.currency || rootOrder?.currency,
+    "EUR"
+  ).toLowerCase();
+
+  // Regrouper la part merch par vendeur (prix unitaire * quantité)
+  const grossBySeller = new Map();
+  for (const it of items) {
+    const sellerId = looksLikeNonEmptyString(it?.sellerId) ? it.sellerId.trim() : "";
+    if (!sellerId) continue;
+    const unit = toSafeInt(it.pricePerUnit ?? it.priceCents, 0);
+    const qty = Math.max(1, toSafeInt(it.quantity, 1));
+    if (unit <= 0) continue;
+    grossBySeller.set(sellerId, (grossBySeller.get(sellerId) || 0) + unit * qty);
+  }
+  if (!grossBySeller.size) return;
+
+  const existingPayouts =
+    rootOrder?.payouts && typeof rootOrder.payouts === "object"
+      ? rootOrder.payouts
+      : {};
+
+  const stripeClient = getStripe();
+  const payoutUpdate = {};
+
+  for (const [sellerId, grossCents] of grossBySeller.entries()) {
+    // Déjà reversé pour ce vendeur -> ne pas dupliquer
+    if (existingPayouts[sellerId]?.transferId) continue;
+
+    const feeCents = Math.round((grossCents * feeBps) / 10000);
+    const netCents = grossCents - feeCents;
+    if (netCents <= 0 || netCents < minPayoutCents) {
+      payoutUpdate[sellerId] = {
+        status: "skipped",
+        reason: "amount_too_low",
+        grossCents,
+        feeCents,
+        netCents,
+        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+      };
+      continue;
+    }
+
+    // Compte Connect du vendeur (businesses/{sellerId})
+    const businessSnap = await db.collection("businesses").doc(sellerId).get();
+    const business = businessSnap.exists ? (businessSnap.data() || {}) : {};
+    const accountId = business.stripe && business.stripe.accountId;
+    const chargesEnabled = !!(business.stripe && business.stripe.chargesEnabled);
+
+    if (!looksLikeNonEmptyString(accountId) || !chargesEnabled) {
+      payoutUpdate[sellerId] = {
+        status: "pending_account",
+        reason: !accountId ? "no_connect_account" : "charges_disabled",
+        grossCents,
+        feeCents,
+        netCents,
+        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+      };
+      console.warn(
+        `Order ${normalizedOrderId}: seller ${sellerId} not payable via Connect ` +
+          `(${payoutUpdate[sellerId].reason}); amount kept on platform`
+      );
+      continue;
+    }
+
+    try {
+      const transfer = await stripeClient.transfers.create(
+        {
+          amount: netCents,
+          currency,
+          destination: accountId.trim(),
+          transfer_group: `order_${normalizedOrderId}`,
+          metadata: { orderId: normalizedOrderId, sellerId },
+        },
+        { idempotencyKey: `transfer_${normalizedOrderId}_${sellerId}` }
+      );
+      payoutUpdate[sellerId] = {
+        status: "transferred",
+        transferId: transfer.id,
+        destination: accountId.trim(),
+        grossCents,
+        feeCents,
+        netCents,
+        currency: currency.toUpperCase(),
+        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+      };
+      console.log(
+        `Order ${normalizedOrderId}: transferred ${netCents} ${currency} to seller ${sellerId} (fee ${feeCents})`
+      );
+    } catch (transferErr) {
+      payoutUpdate[sellerId] = {
+        status: "failed",
+        reason: transferErr?.code || "transfer_error",
+        grossCents,
+        feeCents,
+        netCents,
+        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+      };
+      console.error(
+        `Order ${normalizedOrderId}: transfer to seller ${sellerId} failed:`,
+        transferErr?.message || transferErr
+      );
+    }
+  }
+
+  if (Object.keys(payoutUpdate).length) {
+    await db.collection("orders").doc(normalizedOrderId).set(
+      {
+        payouts: payoutUpdate,
+        payoutFeeBps: feeBps,
+        payoutUpdatedAt: admin.firestore.FieldValue.serverTimestamp(),
+      },
+      { merge: true }
+    );
+  }
+}
+
 async function handlePaymentIntentSucceeded(paymentIntent) {
   console.log("Processing payment_intent.succeeded:", paymentIntent.id);
 
@@ -4316,6 +4572,379 @@ async function handlePaymentIntentSucceeded(paymentIntent) {
     });
   }
 }
+
+/**
+ * Recherche une commande racine (/orders) par PaymentIntent Stripe.
+ * Utilisé par les échecs, remboursements et litiges (pas de metadata garantie).
+ */
+async function findRootOrderByPaymentIntentId(paymentIntentId) {
+  if (!looksLikeNonEmptyString(paymentIntentId)) return null;
+  const pid = paymentIntentId.trim();
+  const snap = await db
+    .collection("orders")
+    .where("stripe.paymentIntentId", "==", pid)
+    .limit(1)
+    .get();
+  if (!snap.empty) return snap.docs[0];
+
+  // Repli: certaines commandes media stockent l'id à plat.
+  const legacy = await db
+    .collection("orders")
+    .where("stripePaymentIntentId", "==", pid)
+    .limit(1)
+    .get();
+  return legacy.empty ? null : legacy.docs[0];
+}
+
+/**
+ * Traite payment_intent.payment_failed: marque la commande en échec.
+ * Aucun stock n'a été décrémenté (commande encore "pending"), rien à restaurer.
+ */
+async function handlePaymentIntentFailed(paymentIntent) {
+  console.log("Processing payment_intent.payment_failed:", paymentIntent.id);
+
+  const uid = paymentIntent.metadata?.uid;
+  const orderId =
+    paymentIntent.metadata?.orderId || paymentIntent.metadata?.storeOrderId;
+  const lastError = paymentIntent.last_payment_error || {};
+  const failure = {
+    status: "payment_failed",
+    stripe: {
+      paymentIntentId: paymentIntent.id,
+      status: paymentIntent.status || "requires_payment_method",
+      lastError: looksLikeNonEmptyString(lastError.message)
+        ? lastError.message
+        : (lastError.code || null),
+    },
+    updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+  };
+
+  let rootRef = null;
+  if (looksLikeNonEmptyString(orderId)) {
+    rootRef = db.collection("orders").doc(orderId.trim());
+    if (!(await rootRef.get()).exists) rootRef = null;
+  }
+  if (!rootRef) {
+    const found = await findRootOrderByPaymentIntentId(paymentIntent.id);
+    rootRef = found ? found.ref : null;
+  }
+  if (!rootRef) {
+    console.warn("payment_intent.payment_failed: no matching order", paymentIntent.id);
+    return;
+  }
+
+  await rootRef.set(failure, { merge: true });
+
+  const resolvedOrderId = rootRef.id;
+  const resolvedUid = looksLikeNonEmptyString(uid)
+    ? uid.trim()
+    : (((await rootRef.get()).data() || {}).userId || "");
+  if (looksLikeNonEmptyString(resolvedUid)) {
+    await db
+      .collection("users")
+      .doc(resolvedUid)
+      .collection("orders")
+      .doc(resolvedOrderId)
+      .set(failure, { merge: true })
+      .catch(() => null);
+  }
+  console.log(`Order ${resolvedOrderId} marked payment_failed`);
+}
+
+/**
+ * Traite charge.refunded: met la commande en refunded / partially_refunded.
+ * Sur remboursement TOTAL, on remet le stock des articles (compensation du
+ * décrément effectué à la confirmation du paiement).
+ */
+async function handleChargeRefunded(charge) {
+  console.log("Processing charge.refunded:", charge.id);
+
+  const paymentIntentId =
+    typeof charge.payment_intent === "string" ? charge.payment_intent : null;
+  const found = await findRootOrderByPaymentIntentId(paymentIntentId);
+  if (!found) {
+    console.warn("charge.refunded: no matching order for PI", paymentIntentId);
+    return;
+  }
+
+  const rootRef = found.ref;
+  const rootOrder = found.data() || {};
+  const amountRefunded = toSafeInt(charge.amount_refunded, 0);
+  const amountTotal = toSafeInt(charge.amount, 0);
+  const fullyRefunded = amountTotal > 0 && amountRefunded >= amountTotal;
+  const nextStatus = fullyRefunded ? "refunded" : "partially_refunded";
+
+  const refundData = {
+    status: nextStatus,
+    refundedAt: admin.firestore.FieldValue.serverTimestamp(),
+    refund: {
+      amountRefundedCents: amountRefunded,
+      amountTotalCents: amountTotal,
+      fully: fullyRefunded,
+      chargeId: charge.id,
+    },
+    updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+  };
+
+  await rootRef.set(refundData, { merge: true });
+
+  const uid = rootOrder.userId || rootOrder.buyerId;
+  if (looksLikeNonEmptyString(uid)) {
+    await db
+      .collection("users")
+      .doc(uid)
+      .collection("orders")
+      .doc(rootRef.id)
+      .set(refundData, { merge: true })
+      .catch(() => null);
+  }
+
+  if (fullyRefunded) {
+    try {
+      await reverseStorexOrderTransfers(rootRef.id, rootOrder);
+    } catch (revErr) {
+      console.error(
+        `charge.refunded: failed to reverse Connect transfers for order ${rootRef.id}:`,
+        revErr
+      );
+    }
+    try {
+      await restockStorexRootOrder(rootOrder);
+    } catch (restockErr) {
+      console.error(
+        `charge.refunded: failed to restock order ${rootRef.id}:`,
+        restockErr
+      );
+    }
+  }
+  console.log(`Order ${rootRef.id} marked ${nextStatus}`);
+}
+
+/**
+ * Annule les virements Connect déjà versés aux vendeurs (remboursement total).
+ * Récupère les fonds depuis les comptes vendeurs vers la plateforme.
+ * Idempotent via la clé d'idempotence Stripe et le statut "reversed" enregistré.
+ */
+async function reverseStorexOrderTransfers(orderId, rootOrder) {
+  const payouts =
+    rootOrder?.payouts && typeof rootOrder.payouts === "object"
+      ? rootOrder.payouts
+      : {};
+  const sellerIds = Object.keys(payouts);
+  if (!sellerIds.length) return;
+
+  const stripeClient = getStripe();
+  const update = {};
+
+  for (const sellerId of sellerIds) {
+    const payout = payouts[sellerId] || {};
+    if (payout.status !== "transferred" || !looksLikeNonEmptyString(payout.transferId)) {
+      continue;
+    }
+    try {
+      const reversal = await stripeClient.transfers.createReversal(
+        payout.transferId.trim(),
+        {
+          amount: toSafeInt(payout.netCents, 0) || undefined,
+          metadata: { orderId, sellerId },
+        },
+        { idempotencyKey: `reverse_${orderId}_${sellerId}` }
+      );
+      update[`payouts.${sellerId}.status`] = "reversed";
+      update[`payouts.${sellerId}.reversalId`] = reversal.id;
+      update[`payouts.${sellerId}.reversedAt`] =
+        admin.firestore.FieldValue.serverTimestamp();
+      console.log(`Order ${orderId}: reversed transfer to seller ${sellerId}`);
+    } catch (err) {
+      console.error(
+        `Order ${orderId}: reversal for seller ${sellerId} failed:`,
+        err?.message || err
+      );
+    }
+  }
+
+  if (Object.keys(update).length) {
+    await db.collection("orders").doc(orderId).update(update).catch(() => null);
+  }
+}
+
+/**
+ * Traite charge.dispute.created: marque la commande en litige (chargeback).
+ */
+async function handleChargeDisputeCreated(dispute) {
+  console.log("Processing charge.dispute.created:", dispute.id);
+
+  const paymentIntentId =
+    typeof dispute.payment_intent === "string" ? dispute.payment_intent : null;
+  const found = await findRootOrderByPaymentIntentId(paymentIntentId);
+  if (!found) {
+    console.warn("charge.dispute.created: no matching order for PI", paymentIntentId);
+    return;
+  }
+
+  const disputeData = {
+    status: "disputed",
+    dispute: {
+      disputeId: dispute.id,
+      reason: dispute.reason || null,
+      amountCents: toSafeInt(dispute.amount, 0),
+      stripeStatus: dispute.status || null,
+      createdAt: admin.firestore.FieldValue.serverTimestamp(),
+    },
+    updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+  };
+
+  await found.ref.set(disputeData, { merge: true });
+
+  const uid = (found.data() || {}).userId || (found.data() || {}).buyerId;
+  if (looksLikeNonEmptyString(uid)) {
+    await db
+      .collection("users")
+      .doc(uid)
+      .collection("orders")
+      .doc(found.ref.id)
+      .set(disputeData, { merge: true })
+      .catch(() => null);
+  }
+  console.log(`Order ${found.ref.id} marked disputed`);
+}
+
+/**
+ * Réincrémente le stock des articles d'une commande (remboursement total).
+ * Symétrique de decrementStorexStockForRootOrder.
+ */
+async function restockStorexRootOrder(rootOrder) {
+  const items = Array.isArray(rootOrder?.items) ? rootOrder.items : [];
+  const products = items
+    .filter((item) => item.productId && typeof item.productId === "string")
+    .map((item) => ({
+      productId: item.productId,
+      quantity: Number(item.quantity || 1),
+    }))
+    .filter((p) => p.quantity > 0);
+  if (!products.length) return;
+
+  await db.runTransaction(async (transaction) => {
+    const refs = {};
+    const docs = {};
+    for (const { productId } of products) {
+      const rootRef = db.collection("products").doc(productId);
+      refs[productId] = rootRef;
+      docs[productId] = (await transaction.get(rootRef)).data() || null;
+
+      if (rootOrder.shopId) {
+        const shopRef = db
+          .collection("shops")
+          .doc(rootOrder.shopId)
+          .collection("products")
+          .doc(productId);
+        const shopSnap = await transaction.get(shopRef);
+        refs[`${productId}_shop`] = shopRef;
+        if (shopSnap.exists) docs[`${productId}_shop`] = shopSnap.data();
+      }
+    }
+
+    for (const { productId, quantity } of products) {
+      const product = docs[productId];
+      if (!product) continue;
+      const newStock = Number(product.stock || 0) + quantity;
+      const updateData = {
+        stock: newStock,
+        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+      };
+      const alertQty = Number(product.alertQty || 0);
+      if (alertQty > 0) {
+        updateData.stockStatus = newStock <= alertQty ? "low_stock" : "in_stock";
+      }
+      transaction.update(refs[productId], updateData);
+      if (refs[`${productId}_shop`]) {
+        transaction.update(refs[`${productId}_shop`], updateData);
+      }
+    }
+  });
+}
+
+/**
+ * refundStorexOrder (callable, admin) — rembourse une commande via Stripe.
+ * Le webhook charge.refunded finalisera le statut et le restock.
+ */
+exports.refundStorexOrder = onCall(
+  {
+    region: "us-east1",
+    secrets: [STRIPE_SECRET_KEY],
+  },
+  async (request) => {
+    if (!request.auth) {
+      throw new HttpsError("unauthenticated", "Authentication required");
+    }
+
+    const uid = request.auth.uid;
+    const userSnap = await db.collection("users").doc(uid).get();
+    const userData = userSnap.exists ? (userSnap.data() || {}) : {};
+    const role = normalizeLowerString(userData.role || request.auth.token?.role || "");
+    const isAdmin =
+      request.auth.token?.admin === true ||
+      userData.isAdmin === true ||
+      role === "admin" ||
+      role === "superadmin" ||
+      role === "super-admin";
+    if (!isAdmin) {
+      throw new HttpsError("permission-denied", "Admin access required");
+    }
+
+    const data = request.data || {};
+    const orderId = looksLikeNonEmptyString(data.orderId) ? data.orderId.trim() : "";
+    if (!orderId) {
+      throw new HttpsError("invalid-argument", "orderId required");
+    }
+    const amountCents = toSafeInt(data.amountCents, 0); // 0 = remboursement total
+
+    const rootSnap = await db.collection("orders").doc(orderId).get();
+    if (!rootSnap.exists) {
+      throw new HttpsError("not-found", "Order not found");
+    }
+    const rootOrder = rootSnap.data() || {};
+    const paymentIntentId =
+      (rootOrder.stripe && rootOrder.stripe.paymentIntentId) ||
+      rootOrder.stripePaymentIntentId ||
+      null;
+    if (!looksLikeNonEmptyString(paymentIntentId)) {
+      throw new HttpsError(
+        "failed-precondition",
+        "No Stripe paymentIntent on this order"
+      );
+    }
+
+    const stripeClient = getStripe();
+    const refundParams = {
+      payment_intent: paymentIntentId.trim(),
+      metadata: { orderId, refundedBy: uid },
+    };
+    if (amountCents > 0) refundParams.amount = amountCents;
+
+    const refund = await stripeClient.refunds.create(refundParams, {
+      idempotencyKey: `refund_${orderId}_${amountCents || "full"}`,
+    });
+
+    await db.collection("orders").doc(orderId).set(
+      {
+        refund: {
+          lastRefundId: refund.id,
+          requestedBy: uid,
+          requestedAmountCents: amountCents,
+        },
+        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+      },
+      { merge: true }
+    );
+
+    return {
+      refundId: refund.id,
+      status: refund.status,
+      amountCents: toSafeInt(refund.amount, amountCents),
+    };
+  }
+);
 
 /**
  * Traite l'événement account.updated

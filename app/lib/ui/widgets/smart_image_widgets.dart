@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import '../../models/image_asset.dart';
-import 'rainbow_loading_indicator.dart';
 
 /// Widget d'affichage intelligent d'image avec variantes adaptatives
 class SmartImage extends StatelessWidget {
@@ -39,19 +38,39 @@ class SmartImage extends StatelessWidget {
             ? variants.getUrl(preferredSize!)
             : variants.getResponsiveUrl(screenWidth);
 
+        // Décodage dimensionné à la boîte d'affichage (mémoire réduite, fluidité).
+        final dpr = MediaQuery.maybeOf(context)?.devicePixelRatio ?? 2.0;
+        final double? boxWidth =
+            (width != null && width!.isFinite) ? width : (screenWidth.isFinite ? screenWidth : null);
+        final int? decodeWidth =
+            (boxWidth != null && boxWidth > 0) ? (boxWidth * dpr).round() : null;
+
         Widget imageWidget = Image.network(
           url,
           fit: fit,
           width: width,
           height: height,
+          cacheWidth: decodeWidth,
+          gaplessPlayback: true,
+          filterQuality: FilterQuality.low,
+          // Fondu léger à l'apparition; cache-hit affiché immédiatement.
+          frameBuilder: (context, child, frame, wasSync) {
+            if (wasSync) return child;
+            return AnimatedOpacity(
+              opacity: frame == null ? 0 : 1,
+              duration: const Duration(milliseconds: 200),
+              curve: Curves.easeOut,
+              child: child,
+            );
+          },
           loadingBuilder: (context, child, loadingProgress) {
             if (loadingProgress == null) return child;
+            // Placeholder bon marché (aplat) au lieu d'un spinner animé coûteux.
             return placeholder ??
-                const Center(
-                  child: RainbowLoadingIndicator(
-                    size: 50,
-                    showLabel: false,
-                  ),
+                Container(
+                  width: width,
+                  height: height,
+                  color: const Color(0x11000000),
                 );
           },
           errorBuilder: (context, error, stack) {

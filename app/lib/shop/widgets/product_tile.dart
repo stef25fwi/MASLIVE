@@ -369,10 +369,26 @@ class _NetworkImageWithSkeletonState extends State<_NetworkImageWithSkeleton>
       );
     }
 
+    // Décodage dimensionné à la tuile (mémoire réduite, scroll fluide).
+    final dpr = MediaQuery.maybeOf(context)?.devicePixelRatio ?? 2.0;
+    final int decodeWidth = (240 * dpr).round();
+
     return Image.network(
       widget.url,
       fit: BoxFit.cover,
       alignment: Alignment.topCenter,
+      cacheWidth: decodeWidth,
+      gaplessPlayback: true,
+      filterQuality: FilterQuality.low,
+      frameBuilder: (context, child, frame, wasSync) {
+        if (wasSync) return child;
+        return AnimatedOpacity(
+          opacity: frame == null ? 0 : 1,
+          duration: const Duration(milliseconds: 200),
+          curve: Curves.easeOut,
+          child: child,
+        );
+      },
       loadingBuilder: (context, child, loadingProgress) {
         if (loadingProgress == null) return child;
 

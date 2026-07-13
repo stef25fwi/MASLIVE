@@ -112,9 +112,42 @@ class _StorageImageState extends State<StorageImage> {
             color: Colors.grey),
       );
 
+  /// Placeholder très léger (aucune animation coûteuse): un aplat gris qui peint
+  /// instantanément pendant le téléchargement. L'image apparaît ensuite en fondu.
+  Widget _loadingPlaceholder() =>
+      widget.placeholder ??
+      Container(
+        width: widget.width,
+        height: widget.height,
+        color: const Color(0x11000000),
+      );
+
+  /// Fondu à l'apparition (décodage). Un cache-hit s'affiche sans animation.
+  Widget _fadeIn(
+      BuildContext context, Widget child, int? frame, bool wasSync) {
+    if (wasSync) return child;
+    return AnimatedOpacity(
+      opacity: frame == null ? 0 : 1,
+      duration: const Duration(milliseconds: 200),
+      curve: Curves.easeOut,
+      child: child,
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final url = (_resolvedUrl ?? '').trim();
+
+    // Décodage dimensionné à la taille utile: empreinte mémoire réduite,
+    // moins d'évictions dans l'ImageCache -> listes/grilles fluides.
+    final dpr = MediaQuery.maybeOf(context)?.devicePixelRatio ?? 2.0;
+    int? decodeWidth = widget.cacheWidth;
+    if (decodeWidth == null &&
+        widget.width != null &&
+        widget.width!.isFinite &&
+        widget.width! > 0) {
+      decodeWidth = (widget.width! * dpr).round();
+    }
 
     Widget child;
     if (url.isEmpty) {
@@ -127,7 +160,7 @@ class _StorageImageState extends State<StorageImage> {
         filterQuality: widget.filterQuality,
         width: widget.width,
         height: widget.height,
-        cacheWidth: widget.cacheWidth,
+        cacheWidth: decodeWidth,
         cacheHeight: widget.cacheHeight,
         errorBuilder: (context, error, stack) => _fallback(),
       );
@@ -139,18 +172,14 @@ class _StorageImageState extends State<StorageImage> {
         filterQuality: widget.filterQuality,
         width: widget.width,
         height: widget.height,
-        cacheWidth: widget.cacheWidth,
+        cacheWidth: decodeWidth,
         cacheHeight: widget.cacheHeight,
+        // Évite le flash blanc quand l'URL change (réutilise l'ancienne frame).
+        gaplessPlayback: true,
+        frameBuilder: _fadeIn,
         loadingBuilder: (context, c, progress) {
           if (progress == null) return c;
-          return widget.placeholder ??
-              const Center(
-                child: SizedBox(
-                  width: 22,
-                  height: 22,
-                  child: CircularProgressIndicator(strokeWidth: 2),
-                ),
-              );
+          return _loadingPlaceholder();
         },
         errorBuilder: (context, error, stack) => _fallback(),
       );
