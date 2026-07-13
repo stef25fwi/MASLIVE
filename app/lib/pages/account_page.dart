@@ -126,7 +126,11 @@ class _AccountUiPageState extends State<AccountUiPage> {
                   else if (profile == null)
                     SliverFillRemaining(
                       hasScrollBody: false,
-                      child: _SignedOutBlock(onRetry: _refresh),
+                      child: _SignedOutBlock(
+                        onLogin: () =>
+                            Navigator.of(context).pushNamed('/login'),
+                        onRetry: _refresh,
+                      ),
                     )
                   else ...[
                     SliverToBoxAdapter(
@@ -589,8 +593,9 @@ class _CapabilitySummaryCard extends StatelessWidget {
 }
 
 class _SignedOutBlock extends StatelessWidget {
-  const _SignedOutBlock({required this.onRetry});
+  const _SignedOutBlock({required this.onLogin, required this.onRetry});
 
+  final VoidCallback onLogin;
   final Future<void> Function() onRetry;
 
   @override
@@ -611,8 +616,14 @@ class _SignedOutBlock extends StatelessWidget {
             textAlign: TextAlign.center,
             style: TextStyle(fontWeight: FontWeight.w800),
           ),
-          const SizedBox(height: 16),
-          OutlinedButton.icon(
+          const SizedBox(height: 20),
+          FilledButton.icon(
+            onPressed: onLogin,
+            icon: const Icon(Icons.login_rounded),
+            label: const Text('Se connecter'),
+          ),
+          const SizedBox(height: 8),
+          TextButton.icon(
             onPressed: onRetry,
             icon: const Icon(Icons.refresh),
             label: const Text('Réessayer'),
