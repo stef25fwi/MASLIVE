@@ -33,7 +33,7 @@ jobs:
 
       - name: Apply MapMarket preload patch
         if: github.actor != 'github-actions[bot]'
-        working-directory: .
+        working-directory: ${{ github.workspace }}
         run: |
           python3 scripts/patch-preload-mapmarket-catalog.py
           dart format app/lib/services/market_map_service.dart app/lib/pages/default_map_page.dart
