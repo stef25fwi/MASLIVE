@@ -1,0 +1,83 @@
+name: Apply MASLIVE Namespace Cleanup
+
+on:
+  push:
+    branches:
+      - fix/remove-presto-contamination
+
+permissions:
+  contents: write
+
+jobs:
+  cleanup:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: fix/remove-presto-contamination
+          token: ${{ secrets.GITHUB_TOKEN }}
+      - name: Replace foreign namespace marker
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          path = Path('app/lib/features/bloom_art/presentation/pages/bloom_art_je_me_lance_form_page.dart')
+          text = path.read_text()
+          old = "'source': 'bloom_art_ilipresto_parcours_personnalise',"
+          new = "'source': 'bloom_art_maslive_parcours_personnalise',"
+          if old not in text:
+              raise SystemExit('foreign Bloom Art source marker not found')
+          path.write_text(text.replace(old, new, 1))
+          PY
+      - name: Add namespace regression test
+        run: |
+          cat > functions/test/maslive_namespace_isolation.test.js <<'EOF'
+          'use strict';
+
+          const fs = require('node:fs');
+          const path = require('node:path');
+          const test = require('node:test');
+          const assert = require('node:assert/strict');
+
+          const root = path.resolve(__dirname, '../..');
+          const foreignBrand = ['ili', 'presto'].join('');
+          const obsoleteWidget = ['presto', '_bottom_nav.dart'].join('');
+
+          test('MASLIVE reste isole des noms et comptes de test d autres produits', () => {
+            const seed = fs.readFileSync(
+              path.join(root, 'functions/scripts/seed-test-profile-accounts.js'),
+              'utf8',
+            );
+            const docs = fs.readFileSync(
+              path.join(root, 'docs/TEST_PROFILE_ACCOUNTS.md'),
+              'utf8',
+            );
+            const bloom = fs.readFileSync(
+              path.join(
+                root,
+                'app/lib/features/bloom_art/presentation/pages/bloom_art_je_me_lance_form_page.dart',
+              ),
+              'utf8',
+            );
+
+            assert.equal(seed.toLowerCase().includes(foreignBrand), false);
+            assert.equal(docs.toLowerCase().includes(foreignBrand), false);
+            assert.equal(bloom.toLowerCase().includes(foreignBrand), false);
+            assert.equal(
+              fs.existsSync(path.join(root, 'app/lib/widgets', obsoleteWidget)),
+              false,
+            );
+          });
+          EOF
+      - name: Remove temporary workflow
+        run: rm -f .github/workflows/apply-remove-presto-contamination.yml
+      - name: Commit cleanup
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          if git diff --cached --quiet; then
+            exit 0
+          fi
+          git commit -m "fix: isole completement le namespace MASLIVE"
+          git push origin HEAD:fix/remove-presto-contamination
