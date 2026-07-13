@@ -3,6 +3,7 @@ import 'dart:math' as math;
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'package:pointer_interceptor/pointer_interceptor.dart';
 
 import '../models/market_circuit_models.dart';
 import '../ui/map/maslive_map.dart';
@@ -80,6 +81,7 @@ class _ParkingZoneDrawerPageState extends State<ParkingZoneDrawerPage> {
 
   String? _error;
   bool _saving = false;
+  bool _styleSheetOpen = false;
 
   @override
   void dispose() {
@@ -143,7 +145,8 @@ class _ParkingZoneDrawerPageState extends State<ParkingZoneDrawerPage> {
     final dLng = (b.lng - a.lng) * math.pi / 180;
     final sinLat = math.sin(dLat / 2);
     final sinLng = math.sin(dLng / 2);
-    final h = sinLat * sinLat + math.cos(lat1) * math.cos(lat2) * sinLng * sinLng;
+    final h =
+        sinLat * sinLat + math.cos(lat1) * math.cos(lat2) * sinLng * sinLng;
     return 2 * r * math.asin(math.min(1.0, math.sqrt(h)));
   }
 
@@ -257,7 +260,9 @@ class _ParkingZoneDrawerPageState extends State<ParkingZoneDrawerPage> {
         },
         'geometry': {
           'type': 'LineString',
-          'coordinates': [for (final p in pts) [p.lng, p.lat]],
+          'coordinates': [
+            for (final p in pts) [p.lng, p.lat],
+          ],
         },
       });
     }
@@ -325,6 +330,7 @@ class _ParkingZoneDrawerPageState extends State<ParkingZoneDrawerPage> {
   // ─── Vertex management ────────────────────────────────────────────────────
 
   void _onMapTap(MapPoint pt) {
+    if (_styleSheetOpen || _saving) return;
     setState(() {
       _points = [..._points, (lng: pt.lng, lat: pt.lat)];
       _error = null;
@@ -354,7 +360,8 @@ class _ParkingZoneDrawerPageState extends State<ParkingZoneDrawerPage> {
       return;
     }
 
-    final fillHex = _normalizeHex(_fillColorCtrl.text) ?? _normalizeHex(_fillColorHex);
+    final fillHex =
+        _normalizeHex(_fillColorCtrl.text) ?? _normalizeHex(_fillColorHex);
     if (fillHex == null) {
       setState(() => _error = 'Couleur invalide (ex: $_kDefaultFillHex).');
       return;
@@ -366,7 +373,9 @@ class _ParkingZoneDrawerPageState extends State<ParkingZoneDrawerPage> {
 
     final centroid = _centroid(_points);
     final id = DateTime.now().millisecondsSinceEpoch.toString();
-    final name = _nameCtrl.text.trim().isEmpty ? 'Zone parking' : _nameCtrl.text.trim();
+    final name = _nameCtrl.text.trim().isEmpty
+        ? 'Zone parking'
+        : _nameCtrl.text.trim();
 
     final poi = MarketMapPOI(
       id: id,
@@ -378,7 +387,9 @@ class _ParkingZoneDrawerPageState extends State<ParkingZoneDrawerPage> {
       isVisible: true,
       metadata: {
         _kVehiclesKey: _vehicleTypes.toList()..sort(),
-        'perimeter': [for (final p in _points) {'lng': p.lng, 'lat': p.lat}],
+        'perimeter': [
+          for (final p in _points) {'lng': p.lng, 'lat': p.lat},
+        ],
         _kStyleKey: {
           'fillColor': fillHex,
           'colorSaturation': _colorSaturation.clamp(0.0, 1.0),
@@ -459,30 +470,48 @@ class _ParkingZoneDrawerPageState extends State<ParkingZoneDrawerPage> {
     _refreshPreview();
   }
 
-  void _openStyleSheet() {
-    showModalBottomSheet<void>(
-      context: context,
-      isScrollControlled: true,
-      useSafeArea: true,
-      builder: (ctx) => _StyleSheet(
-        nameCtrl: _nameCtrl,
-        fillColorCtrl: _fillColorCtrl,
-        strokeColorCtrl: _strokeColorCtrl,
-        vehicleTypes: _vehicleTypes,
-        strokeFollowsFill: _strokeFollowsFill,
-        colorSaturation: _colorSaturation,
-        fillOpacity: _fillOpacity,
-        strokeWidth: _strokeWidth,
-        strokeDash: _strokeDash,
-        pattern: _pattern,
-        patternOpacity: _patternOpacity,
-        pointCount: _points.length,
-        error: _error,
-        saving: _saving,
-        onStyleChanged: _onStyleChanged,
-        onSave: _save,
-      ),
-    ).then((_) => setState(() {}));
+  Future<void> _openStyleSheet() async {
+    if (_styleSheetOpen) return;
+    setState(() => _styleSheetOpen = true);
+
+    try {
+      await showModalBottomSheet<void>(
+        context: context,
+        isScrollControlled: true,
+        useSafeArea: true,
+        builder: (ctx) => PointerInterceptor(
+          child: Material(
+            color: Colors.transparent,
+            child: GestureDetector(
+              behavior: HitTestBehavior.opaque,
+              onTap: () {},
+              child: _StyleSheet(
+                nameCtrl: _nameCtrl,
+                fillColorCtrl: _fillColorCtrl,
+                strokeColorCtrl: _strokeColorCtrl,
+                vehicleTypes: _vehicleTypes,
+                strokeFollowsFill: _strokeFollowsFill,
+                colorSaturation: _colorSaturation,
+                fillOpacity: _fillOpacity,
+                strokeWidth: _strokeWidth,
+                strokeDash: _strokeDash,
+                pattern: _pattern,
+                patternOpacity: _patternOpacity,
+                pointCount: _points.length,
+                error: _error,
+                saving: _saving,
+                onStyleChanged: _onStyleChanged,
+                onSave: _save,
+              ),
+            ),
+          ),
+        ),
+      );
+    } finally {
+      if (mounted) {
+        setState(() => _styleSheetOpen = false);
+      }
+    }
   }
 
   // ─── Build ────────────────────────────────────────────────────────────────
@@ -522,7 +551,10 @@ class _ParkingZoneDrawerPageState extends State<ParkingZoneDrawerPage> {
               color: Colors.black87,
               borderRadius: BorderRadius.circular(10),
               child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 14,
+                  vertical: 10,
+                ),
                 child: Text(
                   _points.isEmpty
                       ? 'Appuyez sur la carte pour placer les premiers points de la zone.'
@@ -549,7 +581,10 @@ class _ParkingZoneDrawerPageState extends State<ParkingZoneDrawerPage> {
                     if (_error != null)
                       Container(
                         margin: const EdgeInsets.only(bottom: 8),
-                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 12,
+                          vertical: 8,
+                        ),
                         decoration: BoxDecoration(
                           color: Colors.red.shade50,
                           borderRadius: BorderRadius.circular(8),
@@ -557,7 +592,10 @@ class _ParkingZoneDrawerPageState extends State<ParkingZoneDrawerPage> {
                         ),
                         child: Text(
                           _error!,
-                          style: TextStyle(color: Colors.red.shade700, fontSize: 13),
+                          style: TextStyle(
+                            color: Colors.red.shade700,
+                            fontSize: 13,
+                          ),
                         ),
                       ),
                     Row(
@@ -592,18 +630,19 @@ class _ParkingZoneDrawerPageState extends State<ParkingZoneDrawerPage> {
 // the sheet. Style changes are propagated to the parent via [onStyleChanged]
 // for live map preview.
 
-typedef _StyleChangedCallback = void Function({
-  String? fillColorHex,
-  String? strokeColorHex,
-  bool? strokeFollowsFill,
-  double? colorSaturation,
-  double? fillOpacity,
-  double? strokeWidth,
-  String? strokeDash,
-  String? pattern,
-  double? patternOpacity,
-  Set<String>? vehicleTypes,
-});
+typedef _StyleChangedCallback =
+    void Function({
+      String? fillColorHex,
+      String? strokeColorHex,
+      bool? strokeFollowsFill,
+      double? colorSaturation,
+      double? fillOpacity,
+      double? strokeWidth,
+      String? strokeDash,
+      String? pattern,
+      double? patternOpacity,
+      Set<String>? vehicleTypes,
+    });
 
 class _StyleSheet extends StatefulWidget {
   const _StyleSheet({
@@ -720,11 +759,28 @@ class _StyleSheetState extends State<_StyleSheet> {
       children: [
         Row(
           children: [
-            Expanded(child: Text(label, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13))),
-            Text(displayValue, style: const TextStyle(fontSize: 12, color: Colors.grey)),
+            Expanded(
+              child: Text(
+                label,
+                style: const TextStyle(
+                  fontWeight: FontWeight.w600,
+                  fontSize: 13,
+                ),
+              ),
+            ),
+            Text(
+              displayValue,
+              style: const TextStyle(fontSize: 12, color: Colors.grey),
+            ),
           ],
         ),
-        Slider.adaptive(value: value, min: min, max: max, divisions: divisions, onChanged: onChanged),
+        Slider.adaptive(
+          value: value,
+          min: min,
+          max: max,
+          divisions: divisions,
+          onChanged: onChanged,
+        ),
       ],
     );
   }
@@ -749,19 +805,27 @@ class _StyleSheetState extends State<_StyleSheet> {
                   width: 36,
                   height: 4,
                   margin: const EdgeInsets.only(bottom: 16),
-                  decoration: BoxDecoration(color: Colors.grey.shade300, borderRadius: BorderRadius.circular(2)),
+                  decoration: BoxDecoration(
+                    color: Colors.grey.shade300,
+                    borderRadius: BorderRadius.circular(2),
+                  ),
                 ),
               ),
 
               Text(
                 'Nouvelle zone parking • ${widget.pointCount} points',
-                style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w800),
+                style: Theme.of(
+                  context,
+                ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w800),
               ),
               const SizedBox(height: 16),
 
               TextField(
                 controller: widget.nameCtrl,
-                decoration: const InputDecoration(labelText: 'Nom', border: OutlineInputBorder()),
+                decoration: const InputDecoration(
+                  labelText: 'Nom',
+                  border: OutlineInputBorder(),
+                ),
               ),
               const SizedBox(height: 12),
 
@@ -771,8 +835,12 @@ class _StyleSheetState extends State<_StyleSheet> {
               ),
               const SizedBox(height: 16),
 
-              Text('Types affichés sur la zone',
-                  style: Theme.of(context).textTheme.bodySmall?.copyWith(fontWeight: FontWeight.w800)),
+              Text(
+                'Types affichés sur la zone',
+                style: Theme.of(
+                  context,
+                ).textTheme.bodySmall?.copyWith(fontWeight: FontWeight.w800),
+              ),
               const SizedBox(height: 8),
               Wrap(
                 spacing: 10,
@@ -781,22 +849,44 @@ class _StyleSheetState extends State<_StyleSheet> {
                   FilterChip(
                     selected: _vehicleTypes.contains('car'),
                     onSelected: (_) => _toggleVehicle('car'),
-                    avatar: Icon(Icons.directions_car_filled_rounded, size: 18,
-                        color: _vehicleTypes.contains('car') ? Colors.white : MasliveTokens.textSoft),
-                    label: Text('Voiture',
-                        style: TextStyle(fontWeight: FontWeight.w700,
-                            color: _vehicleTypes.contains('car') ? Colors.white : MasliveTokens.text)),
+                    avatar: Icon(
+                      Icons.directions_car_filled_rounded,
+                      size: 18,
+                      color: _vehicleTypes.contains('car')
+                          ? Colors.white
+                          : MasliveTokens.textSoft,
+                    ),
+                    label: Text(
+                      'Voiture',
+                      style: TextStyle(
+                        fontWeight: FontWeight.w700,
+                        color: _vehicleTypes.contains('car')
+                            ? Colors.white
+                            : MasliveTokens.text,
+                      ),
+                    ),
                     selectedColor: MasliveTokens.primary,
                     checkmarkColor: Colors.white,
                   ),
                   FilterChip(
                     selected: _vehicleTypes.contains('moto'),
                     onSelected: (_) => _toggleVehicle('moto'),
-                    avatar: Icon(Icons.two_wheeler_rounded, size: 18,
-                        color: _vehicleTypes.contains('moto') ? Colors.white : MasliveTokens.textSoft),
-                    label: Text('Moto',
-                        style: TextStyle(fontWeight: FontWeight.w700,
-                            color: _vehicleTypes.contains('moto') ? Colors.white : MasliveTokens.text)),
+                    avatar: Icon(
+                      Icons.two_wheeler_rounded,
+                      size: 18,
+                      color: _vehicleTypes.contains('moto')
+                          ? Colors.white
+                          : MasliveTokens.textSoft,
+                    ),
+                    label: Text(
+                      'Moto',
+                      style: TextStyle(
+                        fontWeight: FontWeight.w700,
+                        color: _vehicleTypes.contains('moto')
+                            ? Colors.white
+                            : MasliveTokens.text,
+                      ),
+                    ),
                     selectedColor: MasliveTokens.primary,
                     checkmarkColor: Colors.white,
                   ),
@@ -827,13 +917,18 @@ class _StyleSheetState extends State<_StyleSheet> {
                   setState(() => _strokeFollowsFill = v);
                   if (v) {
                     widget.strokeColorCtrl.text = widget.fillColorCtrl.text;
-                    widget.onStyleChanged(strokeFollowsFill: true, strokeColorHex: widget.fillColorCtrl.text);
+                    widget.onStyleChanged(
+                      strokeFollowsFill: true,
+                      strokeColorHex: widget.fillColorCtrl.text,
+                    );
                   } else {
                     widget.onStyleChanged(strokeFollowsFill: false);
                   }
                 },
                 title: const Text('Contour suit le fond'),
-                subtitle: const Text('Désactivez pour choisir une couleur de contour séparée.'),
+                subtitle: const Text(
+                  'Désactivez pour choisir une couleur de contour séparée.',
+                ),
               ),
               const SizedBox(height: 8),
 
@@ -844,7 +939,9 @@ class _StyleSheetState extends State<_StyleSheet> {
                 decoration: InputDecoration(
                   labelText: 'Couleur contour (hex, ex: #FFFFFF)',
                   border: const OutlineInputBorder(),
-                  helperText: _strokeFollowsFill ? 'Le contour reprend la couleur du fond.' : null,
+                  helperText: _strokeFollowsFill
+                      ? 'Le contour reprend la couleur du fond.'
+                      : null,
                 ),
               ),
               const SizedBox(height: 12),
@@ -852,7 +949,9 @@ class _StyleSheetState extends State<_StyleSheet> {
               _slider(
                 label: 'Couleurs (saturation)',
                 value: _colorSaturation,
-                min: 0, max: 1, divisions: 20,
+                min: 0,
+                max: 1,
+                divisions: 20,
                 displayValue: '${(100 * _colorSaturation).round()}%',
                 onChanged: (v) {
                   setState(() => _colorSaturation = v);
@@ -864,7 +963,9 @@ class _StyleSheetState extends State<_StyleSheet> {
               _slider(
                 label: 'Fond (opacité)',
                 value: _fillOpacity,
-                min: 0, max: 1, divisions: 20,
+                min: 0,
+                max: 1,
+                divisions: 20,
                 displayValue: '${(100 * _fillOpacity).round()}%',
                 onChanged: (v) {
                   setState(() => _fillOpacity = v);
@@ -876,7 +977,9 @@ class _StyleSheetState extends State<_StyleSheet> {
               _slider(
                 label: 'Contour (largeur)',
                 value: _strokeWidth,
-                min: 1, max: 10, divisions: 18,
+                min: 1,
+                max: 10,
+                divisions: 18,
                 displayValue: _strokeWidth.toStringAsFixed(1),
                 onChanged: (v) {
                   setState(() => _strokeWidth = v);
@@ -886,15 +989,24 @@ class _StyleSheetState extends State<_StyleSheet> {
               const SizedBox(height: 12),
 
               InputDecorator(
-                decoration: const InputDecoration(labelText: 'Texture (contour)', border: OutlineInputBorder()),
+                decoration: const InputDecoration(
+                  labelText: 'Texture (contour)',
+                  border: OutlineInputBorder(),
+                ),
                 child: DropdownButtonHideUnderline(
                   child: DropdownButton<String>(
                     value: _strokeDash,
                     isExpanded: true,
                     items: const [
                       DropdownMenuItem(value: 'solid', child: Text('Plein')),
-                      DropdownMenuItem(value: 'dashed', child: Text('Pointillé')),
-                      DropdownMenuItem(value: 'dotted', child: Text('Pointillé fin')),
+                      DropdownMenuItem(
+                        value: 'dashed',
+                        child: Text('Pointillé'),
+                      ),
+                      DropdownMenuItem(
+                        value: 'dotted',
+                        child: Text('Pointillé fin'),
+                      ),
                     ],
                     onChanged: (v) {
                       if (v == null) return;
@@ -907,7 +1019,10 @@ class _StyleSheetState extends State<_StyleSheet> {
               const SizedBox(height: 12),
 
               InputDecorator(
-                decoration: const InputDecoration(labelText: 'Texture intérieure (pattern)', border: OutlineInputBorder()),
+                decoration: const InputDecoration(
+                  labelText: 'Texture intérieure (pattern)',
+                  border: OutlineInputBorder(),
+                ),
                 child: DropdownButtonHideUnderline(
                   child: DropdownButton<String>(
                     value: _pattern,
@@ -915,7 +1030,10 @@ class _StyleSheetState extends State<_StyleSheet> {
                     items: const [
                       DropdownMenuItem(value: 'none', child: Text('Aucune')),
                       DropdownMenuItem(value: 'diag', child: Text('Diagonale')),
-                      DropdownMenuItem(value: 'cross', child: Text('Croisillons')),
+                      DropdownMenuItem(
+                        value: 'cross',
+                        child: Text('Croisillons'),
+                      ),
                       DropdownMenuItem(value: 'dots', child: Text('Points')),
                     ],
                     onChanged: (v) {
@@ -931,7 +1049,9 @@ class _StyleSheetState extends State<_StyleSheet> {
               _slider(
                 label: 'Texture intérieure (opacité)',
                 value: _patternOpacity,
-                min: 0, max: 1, divisions: 20,
+                min: 0,
+                max: 1,
+                divisions: 20,
                 displayValue: '${(100 * _patternOpacity).round()}%',
                 onChanged: _pattern == 'none'
                     ? (_) {}
@@ -943,8 +1063,14 @@ class _StyleSheetState extends State<_StyleSheet> {
 
               if (widget.error != null) ...[
                 const SizedBox(height: 10),
-                Text(widget.error!,
-                    style: const TextStyle(color: Colors.redAccent, fontSize: 12, fontWeight: FontWeight.w700)),
+                Text(
+                  widget.error!,
+                  style: const TextStyle(
+                    color: Colors.redAccent,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
               ],
 
               const SizedBox(height: 16),
@@ -961,7 +1087,11 @@ class _StyleSheetState extends State<_StyleSheet> {
                     child: FilledButton.tonal(
                       onPressed: widget.saving ? null : () => widget.onSave(),
                       child: widget.saving
-                          ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2))
+                          ? const SizedBox(
+                              width: 18,
+                              height: 18,
+                              child: CircularProgressIndicator(strokeWidth: 2),
+                            )
                           : const Text('Créer la zone'),
                     ),
                   ),
