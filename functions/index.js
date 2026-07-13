@@ -1114,7 +1114,7 @@ exports.createStorexPaymentIntent = onCall(
       // transfer_group permet de relier les reversements vendeurs (Connect)
       // effectués après paiement à cette commande (voir settleStorexOrderTransfers).
       transfer_group: `order_${storeOrder.orderId}`,
-      metadata: { uid, orderId: storeOrder.orderId, kind: "storex_checkout" },
+      metadata: { uid, orderId: storeOrder.orderId },
     },
     { idempotencyKey: storeOrder.orderId }
   );
