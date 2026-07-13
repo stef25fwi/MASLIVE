@@ -6,6 +6,12 @@ const args = new Set(process.argv.slice(2));
 const confirmed = args.has('--confirm-test-data');
 const allowLiveProject = process.env.ALLOW_TEST_PROFILE_SEED === 'true';
 const password = process.env.TEST_PROFILE_PASSWORD;
+const emailPrefix = (process.env.TEST_PROFILE_EMAIL_PREFIX || 'maslive')
+  .trim()
+  .toLowerCase();
+const emailDomain = (process.env.TEST_PROFILE_EMAIL_DOMAIN || 'mail.fr')
+  .trim()
+  .toLowerCase();
 
 if (!confirmed) {
   console.error('Ajoute --confirm-test-data pour confirmer la création des comptes de test.');
@@ -14,6 +20,16 @@ if (!confirmed) {
 
 if (!password || password.length < 12) {
   console.error('TEST_PROFILE_PASSWORD est requis et doit contenir au moins 12 caractères.');
+  process.exit(1);
+}
+
+if (!/^[a-z0-9._-]+$/.test(emailPrefix)) {
+  console.error('TEST_PROFILE_EMAIL_PREFIX contient des caractères non autorisés.');
+  process.exit(1);
+}
+
+if (!/^[a-z0-9.-]+\.[a-z]{2,}$/.test(emailDomain)) {
+  console.error('TEST_PROFILE_EMAIL_DOMAIN est invalide.');
   process.exit(1);
 }
 
@@ -94,6 +110,10 @@ const profiles = [
   },
 ];
 
+function testEmail(index) {
+  return `${emailPrefix}${index}@${emailDomain}`;
+}
+
 async function upsertAuthUser(email, displayName) {
   try {
     const existing = await auth.getUserByEmail(email);
@@ -116,7 +136,7 @@ async function upsertAuthUser(email, displayName) {
 }
 
 async function seedProfile(profile) {
-  const email = `ilipresto${profile.index}@mail.fr`;
+  const email = testEmail(profile.index);
   const displayName = `Test ${profile.label}`;
   const user = await upsertAuthUser(email, displayName);
 
@@ -201,8 +221,7 @@ async function seedProfile(profile) {
   }
 
   if (profile.tracker) {
-    const adminEmail = 'ilipresto5@mail.fr';
-    const groupAdminUser = await auth.getUserByEmail(adminEmail);
+    const groupAdminUser = await auth.getUserByEmail(testEmail(5));
     batch.set(
       db.collection('group_trackers').doc(user.uid),
       {
@@ -241,6 +260,7 @@ async function main() {
   created.sort((a, b) => a.email.localeCompare(b.email, 'fr', { numeric: true }));
   console.table(created);
   console.log(`Mot de passe commun : variable TEST_PROFILE_PASSWORD (${password.length} caractères).`);
+  console.log(`Préfixe e-mail de test : ${emailPrefix}.`);
   console.log(`Groupe de test Admin/Tracker : ${testGroupId}.`);
 }
 

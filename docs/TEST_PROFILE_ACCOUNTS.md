@@ -4,21 +4,28 @@ Le script `functions/scripts/seed-test-profile-accounts.js` crée ou met à jour
 
 | N° | Profil | E-mail |
 |---:|---|---|
-| 1 | Utilisateur | `ilipresto1@mail.fr` |
-| 2 | Artisan d’art / Bloom Art | `ilipresto2@mail.fr` |
-| 3 | Créateur digital | `ilipresto3@mail.fr` |
-| 4 | Tracker Groupe | `ilipresto4@mail.fr` |
-| 5 | Admin Groupe | `ilipresto5@mail.fr` |
-| 6 | Admin MASLIVE | `ilipresto6@mail.fr` |
-| 7 | SuperAdmin | `ilipresto7@mail.fr` |
+| 1 | Utilisateur | `maslive1@mail.fr` |
+| 2 | Artisan d’art / Bloom Art | `maslive2@mail.fr` |
+| 3 | Créateur digital | `maslive3@mail.fr` |
+| 4 | Tracker Groupe | `maslive4@mail.fr` |
+| 5 | Admin Groupe | `maslive5@mail.fr` |
+| 6 | Admin MASLIVE | `maslive6@mail.fr` |
+| 7 | SuperAdmin | `maslive7@mail.fr` |
 
 Le Tracker et l’Admin Groupe utilisent le groupe de test `900001`.
+
+Le préfixe et le domaine sont configurables avec :
+
+```bash
+export TEST_PROFILE_EMAIL_PREFIX='maslive'
+export TEST_PROFILE_EMAIL_DOMAIN='mail.fr'
+```
 
 ## Exécution sur les émulateurs
 
 ```bash
 cd functions
-export TEST_PROFILE_PASSWORD='IliprestoTest1!'
+export TEST_PROFILE_PASSWORD='MasliveTest1!'
 export FIREBASE_AUTH_EMULATOR_HOST='127.0.0.1:9099'
 export FIRESTORE_EMULATOR_HOST='127.0.0.1:8080'
 npm run seed:test-profiles
@@ -30,7 +37,7 @@ Cette opération crée de vrais comptes Firebase Auth et de vrais documents Fire
 
 ```bash
 cd functions
-export TEST_PROFILE_PASSWORD='IliprestoTest1!'
+export TEST_PROFILE_PASSWORD='MasliveTest1!'
 export ALLOW_TEST_PROFILE_SEED='true'
 npm run seed:test-profiles
 ```
