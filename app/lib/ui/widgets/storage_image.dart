@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 
 import '../../utils/storage_url_cache.dart';
@@ -114,7 +115,7 @@ class _StorageImageState extends State<StorageImage> {
       );
 
   /// Placeholder très léger (aucune animation coûteuse): un aplat gris qui peint
-  /// instantanément pendant le téléchargement. L'image apparaît ensuite en fondu.
+  /// instantanément pendant le téléchargement.
   Widget _loadingPlaceholder() =>
       widget.placeholder ??
       Container(
@@ -123,31 +124,24 @@ class _StorageImageState extends State<StorageImage> {
         color: const Color(0x11000000),
       );
 
-  /// Fondu à l'apparition (décodage). Un cache-hit s'affiche sans animation.
-  Widget _fadeIn(
-      BuildContext context, Widget child, int? frame, bool wasSync) {
-    if (wasSync) return child;
-    return AnimatedOpacity(
-      opacity: frame == null ? 0 : 1,
-      duration: const Duration(milliseconds: 200),
-      curve: Curves.easeOut,
-      child: child,
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
     final url = (_resolvedUrl ?? '').trim();
 
-    // Décodage dimensionné à la taille utile: empreinte mémoire réduite,
-    // moins d'évictions dans l'ImageCache -> listes/grilles fluides.
-    final dpr = MediaQuery.maybeOf(context)?.devicePixelRatio ?? 2.0;
-    int? decodeWidth = widget.cacheWidth;
-    if (decodeWidth == null &&
-        widget.width != null &&
-        widget.width!.isFinite &&
-        widget.width! > 0) {
-      decodeWidth = (widget.width! * dpr).round();
+    // Décodage dimensionné à la taille utile — NATIF UNIQUEMENT.
+    // Sur web, ResizeImage change la clé de cache (re-décodages) et le
+    // redimensionnement s'exécute sur le thread UI (pas d'isolate) -> jank et
+    // flash blanc à l'ouverture des pages. On laisse le moteur/navigateur gérer.
+    int? decodeWidth;
+    if (!kIsWeb) {
+      final dpr = MediaQuery.maybeOf(context)?.devicePixelRatio ?? 2.0;
+      decodeWidth = widget.cacheWidth;
+      if (decodeWidth == null &&
+          widget.width != null &&
+          widget.width!.isFinite &&
+          widget.width! > 0) {
+        decodeWidth = (widget.width! * dpr).round();
+      }
     }
 
     Widget child;
@@ -174,10 +168,11 @@ class _StorageImageState extends State<StorageImage> {
         width: widget.width,
         height: widget.height,
         cacheWidth: decodeWidth,
-        cacheHeight: widget.cacheHeight,
+        cacheHeight: kIsWeb ? null : widget.cacheHeight,
         // Évite le flash blanc quand l'URL change (réutilise l'ancienne frame).
+        // Pas de fondu: l'image doit peindre dès la première frame décodée,
+        // sans délai d'animation (le fondu créait un voile blanc perceptible).
         gaplessPlayback: true,
-        frameBuilder: _fadeIn,
         loadingBuilder: (context, c, progress) {
           if (progress == null) return c;
           return _loadingPlaceholder();

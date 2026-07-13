@@ -264,9 +264,11 @@ Future<void> main() async {
 
     // Cache image mémoire plus généreux: moins d'évictions / re-décodages en
     // scroll -> listes et grilles plus fluides, images réaffichées instantanément.
+    // Sur web on reste modéré: trop de bitmaps décodés met la mémoire du
+    // navigateur sous pression (pauses GC -> jank aux transitions de page).
     PaintingBinding.instance.imageCache
-      ..maximumSizeBytes = 256 << 20 // 256 Mo
-      ..maximumSize = 2000;
+      ..maximumSizeBytes = kIsWeb ? (128 << 20) : (256 << 20)
+      ..maximumSize = kIsWeb ? 1000 : 2000;
 
     // Précharge (disque -> mémoire) les résolutions gs://->downloadURL connues
     // pour un affichage immédiat sans aller-retour réseau au démarrage à froid.

@@ -1,4 +1,5 @@
 import 'dart:ui';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 
 /// ===============================
@@ -369,9 +370,13 @@ class _NetworkImageWithSkeletonState extends State<_NetworkImageWithSkeleton>
       );
     }
 
-    // Décodage dimensionné à la tuile (mémoire réduite, scroll fluide).
-    final dpr = MediaQuery.maybeOf(context)?.devicePixelRatio ?? 2.0;
-    final int decodeWidth = (240 * dpr).round();
+    // Décodage dimensionné à la tuile — natif uniquement (sur web, ResizeImage
+    // change la clé de cache et décode sur le thread UI -> jank/flash blanc).
+    int? decodeWidth;
+    if (!kIsWeb) {
+      final dpr = MediaQuery.maybeOf(context)?.devicePixelRatio ?? 2.0;
+      decodeWidth = (240 * dpr).round();
+    }
 
     return Image.network(
       widget.url,
@@ -380,15 +385,6 @@ class _NetworkImageWithSkeletonState extends State<_NetworkImageWithSkeleton>
       cacheWidth: decodeWidth,
       gaplessPlayback: true,
       filterQuality: FilterQuality.medium,
-      frameBuilder: (context, child, frame, wasSync) {
-        if (wasSync) return child;
-        return AnimatedOpacity(
-          opacity: frame == null ? 0 : 1,
-          duration: const Duration(milliseconds: 200),
-          curve: Curves.easeOut,
-          child: child,
-        );
-      },
       loadingBuilder: (context, child, loadingProgress) {
         if (loadingProgress == null) return child;
 
