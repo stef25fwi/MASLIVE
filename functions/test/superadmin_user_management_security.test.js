@@ -33,7 +33,7 @@ test("les opérations critiques conservent leurs garde-fous", () => {
   assert.doesNotMatch(moduleSource, /qrPayloadForGroup\([^)]*password/);
 });
 
-test("le module exporte recherche création modification régénération et suppression", () => {
+test("le module expose toutes les opérations et reste branché dans index", () => {
   for (const name of [
     "searchManagedUsers",
     "createManagedUser",
@@ -42,8 +42,9 @@ test("le module exporte recherche création modification régénération et supp
     "deleteManagedUser",
   ]) {
     assert.match(moduleSource, new RegExp(name));
-    assert.match(indexSource, new RegExp(name));
   }
+  assert.match(indexSource, /createSuperAdminUserManagementHandlers/);
+  assert.match(indexSource, /Object\.assign\(exports, superAdminUserManagement\)/);
 });
 
 test("la déconnexion Firebase est prioritaire sur la session Google", () => {
