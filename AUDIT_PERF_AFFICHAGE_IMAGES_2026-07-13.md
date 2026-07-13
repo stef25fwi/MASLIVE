@@ -150,8 +150,31 @@ fourni pour précharger le 1er écran d'autres pages (ex. grille boutique).
 - Conservés : cache disque des URLs `gs://`, `gaplessPlayback`,
   `FilterQuality.medium`, precache des galeries.
 
-**Piste structurelle (hors périmètre de ce correctif)** : le flash résiduel à
-la (re)création des pages — y compris la ré-initialisation du canvas Mapbox —
-vient du `pushReplacementNamed` par onglet. Le vrai correctif serait de rester
-dans l'`AppShell` (IndexedStack, pages gardées en vie) au lieu de remplacer la
-route à chaque clic de la bottom bar.
+**Piste structurelle** : voir § 7 — implémentée dans la 4e itération.
+
+---
+
+## 7. Correctif structurel (4e itération) — retour au shell vivant
+
+**Constat** : `UserFacingShellPage` garde déjà ses onglets en vie (cache
+`_tabCache` + carte Mapbox conservée sous la pile) — les clics d'onglet **à
+l'intérieur** du shell sont instantanés. Le flash résiduel venait exclusivement
+des bottom bars **hors shell** (détail produit, checkout, routes `/boutique`…)
+dont chaque clic faisait `pushReplacementNamed('/user-shell')` → reconstruction
+complète d'un shell neuf (carte re-initialisée, onglets à froid).
+
+**Correctif** :
+- `UserFacingShellPage.switchToExistingShell(context, tab)` : si un shell
+  vivant est présent dans la pile de navigation, `popUntil` vers sa route puis
+  bascule d'onglet (`_selectTab`, logique commune avec la bar du shell) —
+  retour **instantané**, pages et carte conservées.
+- La bottom bar tente ce chemin avant son repli `pushReplacementNamed`
+  (conservé pour le tout premier accès, quand aucun shell n'existe).
+- **Pont léger `user_facing_shell_switch.dart`** : la bar (eager) n'importe pas
+  la page shell (bibliothèque **différée**) — sinon le shell et ses 4 onglets
+  seraient embarqués dans le bundle JS initial. Le shell installe un callback
+  global à sa création et le retire à sa destruction.
+
+**Effet** : après le premier affichage du shell, tous les clics Boutique /
+Média / Home / Profil depuis n'importe quelle page sont sans reconstruction —
+plus de flash blanc, carte Mapbox comprise.

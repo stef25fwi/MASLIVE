@@ -7,17 +7,50 @@ import 'default_map_page.dart';
 import 'login_page.dart';
 import 'storex_shop_page.dart';
 import 'user_facing_bottom_bar.dart';
+import 'user_facing_shell_switch.dart';
 
 class UserFacingShellPage extends StatefulWidget {
   const UserFacingShellPage({super.key, this.initialTab});
 
   final Object? initialTab;
 
+  /// Bascule l'onglet du shell déjà présent dans la pile de navigation, en
+  /// dépilant les pages posées au-dessus (détail produit, checkout, …).
+  ///
+  /// Objectif anti-flash: le shell garde ses onglets (et la carte Mapbox)
+  /// vivants; y revenir est instantané, alors que `pushReplacementNamed`
+  /// reconstruit tout à froid (flash blanc). Renvoie false s'il n'existe pas
+  /// de shell vivant atteignable depuis ce context — l'appelant garde alors
+  /// son repli navigation classique.
+  static bool switchToExistingShell(
+    BuildContext context,
+    UserFacingBottomBarTab tab,
+  ) {
+    final state = _UserFacingShellPageState._active;
+    if (state == null || !state.mounted) return false;
+
+    final shellRoute = state._route;
+    if (shellRoute == null || !shellRoute.isActive) return false;
+
+    final navigator = Navigator.maybeOf(context);
+    if (navigator == null || shellRoute.navigator != navigator) return false;
+
+    navigator.popUntil((route) => route == shellRoute);
+    state._selectTab(tab);
+    return true;
+  }
+
   @override
   State<UserFacingShellPage> createState() => _UserFacingShellPageState();
 }
 
 class _UserFacingShellPageState extends State<UserFacingShellPage> {
+  /// Shell actuellement vivant (au plus un: la navigation par onglets ne
+  /// crée jamais deux shells empilés).
+  static _UserFacingShellPageState? _active;
+
+  ModalRoute<Object?>? _route;
+
   late UserFacingBottomBarTab _currentTab;
   Map<String, dynamic> _mediaArgs = const <String, dynamic>{};
   final ValueNotifier<int> _homeActionsMenuSignal = ValueNotifier<int>(0);
@@ -28,8 +61,37 @@ class _UserFacingShellPageState extends State<UserFacingShellPage> {
   @override
   void initState() {
     super.initState();
+    _active = this;
+    // Publie le basculement d'onglet pour la bottom bar des pages hors shell
+    // (via le pont léger, sans que la bar importe cette bibliothèque différée).
+    activeShellTabSwitcher = UserFacingShellPage.switchToExistingShell;
     _currentTab = _resolveTab(widget.initialTab);
     _mediaArgs = _resolveMediaArgs(widget.initialTab);
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _route = ModalRoute.of(context);
+  }
+
+  /// Sélection d'onglet commune (bar du shell et retours depuis les pages
+  /// posées au-dessus via [UserFacingShellPage.switchToExistingShell]).
+  void _selectTab(UserFacingBottomBarTab tab) {
+    if (!mounted) return;
+
+    if (tab == UserFacingBottomBarTab.explorer) {
+      if (_currentTab == UserFacingBottomBarTab.explorer) return;
+      setState(() => _currentTab = UserFacingBottomBarTab.explorer);
+      _homeActionsMenuSignal.value++;
+      return;
+    }
+
+    if (_currentTab == UserFacingBottomBarTab.explorer) {
+      _homeActionsMenuCloseSignal.value++;
+    }
+    if (tab == _currentTab) return;
+    setState(() => _currentTab = tab);
   }
 
   @override
@@ -46,6 +108,10 @@ class _UserFacingShellPageState extends State<UserFacingShellPage> {
 
   @override
   void dispose() {
+    if (identical(_active, this)) {
+      _active = null;
+      activeShellTabSwitcher = null;
+    }
     _homeActionsMenuSignal.dispose();
     _homeActionsMenuCloseSignal.dispose();
     super.dispose();
@@ -210,14 +276,7 @@ class _UserFacingShellPageState extends State<UserFacingShellPage> {
               setState(() => _currentTab = UserFacingBottomBarTab.explorer);
               _homeActionsMenuSignal.value++;
             },
-            onTabSelected: (tab) {
-              if (_currentTab == UserFacingBottomBarTab.explorer &&
-                  tab != UserFacingBottomBarTab.explorer) {
-                _homeActionsMenuCloseSignal.value++;
-              }
-              if (tab == _currentTab) return;
-              setState(() => _currentTab = tab);
-            },
+            onTabSelected: _selectTab,
           ),
         );
       },
