@@ -379,7 +379,7 @@ class _NetworkImageWithSkeletonState extends State<_NetworkImageWithSkeleton>
       alignment: Alignment.topCenter,
       cacheWidth: decodeWidth,
       gaplessPlayback: true,
-      filterQuality: FilterQuality.low,
+      filterQuality: FilterQuality.medium,
       frameBuilder: (context, child, frame, wasSync) {
         if (wasSync) return child;
         return AnimatedOpacity(

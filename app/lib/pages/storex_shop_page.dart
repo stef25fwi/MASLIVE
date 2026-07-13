@@ -2243,7 +2243,7 @@ class _ImgRaw extends StatelessWidget {
         height: double.infinity,
         cacheWidth: (screenW * dpr).round(),
         gaplessPlayback: true,
-        filterQuality: FilterQuality.low,
+        filterQuality: FilterQuality.medium,
         frameBuilder: (context, child, frame, wasSync) {
           if (wasSync) return child;
           return AnimatedOpacity(
