@@ -43,17 +43,165 @@ class VisibleCircuitsIndex {
   }
 }
 
+class MarketMapCatalogSnapshot {
+  const MarketMapCatalogSnapshot({
+    required this.countries,
+    required this.eventsByCountry,
+    required this.circuitsByEvent,
+    required this.visibleIndex,
+  });
+
+  final List<MarketCountry> countries;
+  final Map<String, List<MarketEvent>> eventsByCountry;
+  final Map<String, List<MarketCircuit>> circuitsByEvent;
+  final VisibleCircuitsIndex visibleIndex;
+
+  List<MarketEvent>? eventsForCountry(String countryId) {
+    return eventsByCountry[countryId];
+  }
+
+  List<MarketCircuit>? circuitsForEvent({
+    required String countryId,
+    required String eventId,
+  }) {
+    return circuitsByEvent[_catalogEventKey(countryId, eventId)];
+  }
+}
+
+String _catalogEventKey(String countryId, String eventId) {
+  return '$countryId|$eventId';
+}
+
 class MarketMapService {
   MarketMapService({FirebaseFirestore? firestore})
     : _db = firestore ?? FirebaseFirestore.instance;
 
   final FirebaseFirestore _db;
+  MarketMapCatalogSnapshot? _preloadedCatalog;
+  Future<MarketMapCatalogSnapshot>? _preloadFuture;
 
   CollectionReference<Map<String, dynamic>> get _countriesCol =>
       _db.collection('marketMap');
 
   bool _circuitIsVisible(Map<String, dynamic> data) {
     return (data['isVisible'] as bool?) ?? (data['visible'] as bool?) ?? false;
+  }
+
+  Stream<T> _withPreloadedValue<T>(T initialValue, Stream<T> liveStream) {
+    late final StreamController<T> controller;
+    StreamSubscription<T>? sub;
+
+    controller = StreamController<T>(
+      onListen: () {
+        controller.add(initialValue);
+        sub = liveStream.listen(
+          controller.add,
+          onError: controller.addError,
+          onDone: controller.close,
+        );
+      },
+      onCancel: () async {
+        await sub?.cancel();
+      },
+    );
+
+    return controller.stream;
+  }
+
+  MarketMapCatalogSnapshot? get preloadedSelectorCatalog => _preloadedCatalog;
+
+  Future<MarketMapCatalogSnapshot> preloadSelectorCatalog({
+    bool forceRefresh = false,
+  }) {
+    if (!forceRefresh) {
+      final cached = _preloadedCatalog;
+      if (cached != null) return Future.value(cached);
+      final running = _preloadFuture;
+      if (running != null) return running;
+    }
+
+    final future = _loadSelectorCatalog();
+    _preloadFuture = future;
+    return future.whenComplete(() {
+      if (identical(_preloadFuture, future)) {
+        _preloadFuture = null;
+      }
+    });
+  }
+
+  Future<MarketMapCatalogSnapshot> _loadSelectorCatalog() async {
+    final countriesSnap = await _countriesCol.orderBy('name').get();
+    final countries = countriesSnap.docs.map(MarketCountry.fromDoc).toList();
+
+    final eventsByCountry = <String, List<MarketEvent>>{};
+    final circuitsByEvent = <String, List<MarketCircuit>>{};
+    final visibleCountryIds = <String>{};
+    final visibleEventIdsByCountry = <String, Set<String>>{};
+
+    await Future.wait(
+      countries.map((country) async {
+        try {
+          final eventsSnap = await _countriesCol
+              .doc(country.id)
+              .collection('events')
+              .orderBy('startDate', descending: true)
+              .orderBy('name')
+              .get();
+          final events = eventsSnap.docs
+              .map((doc) => MarketEvent.fromDoc(doc, countryId: country.id))
+              .toList();
+          eventsByCountry[country.id] = events;
+
+          await Future.wait(
+            events.map((event) async {
+              try {
+                final circuitsSnap = await _countriesCol
+                    .doc(country.id)
+                    .collection('events')
+                    .doc(event.id)
+                    .collection('circuits')
+                    .orderBy('updatedAt', descending: true)
+                    .orderBy('name')
+                    .get();
+                final circuits = circuitsSnap.docs
+                    .map((doc) => MarketCircuit.fromDoc(doc))
+                    .toList();
+                circuitsByEvent[_catalogEventKey(country.id, event.id)] =
+                    circuits;
+
+                final hasVisiblePublished = circuits.any(
+                  (c) => c.isVisible == true && c.status == 'published',
+                );
+                if (hasVisiblePublished) {
+                  visibleCountryIds.add(country.id);
+                  (visibleEventIdsByCountry[country.id] ??= <String>{}).add(
+                    event.id,
+                  );
+                }
+              } on FirebaseException catch (error) {
+                if (error.code == 'permission-denied') return;
+                rethrow;
+              }
+            }),
+          );
+        } on FirebaseException catch (error) {
+          if (error.code == 'permission-denied') return;
+          rethrow;
+        }
+      }),
+    );
+
+    final snapshot = MarketMapCatalogSnapshot(
+      countries: countries,
+      eventsByCountry: eventsByCountry,
+      circuitsByEvent: circuitsByEvent,
+      visibleIndex: VisibleCircuitsIndex(
+        countryIds: visibleCountryIds,
+        eventIdsByCountry: visibleEventIdsByCountry,
+      ),
+    );
+    _preloadedCatalog = snapshot;
+    return snapshot;
   }
 
   /// Index (runtime) des circuits publiés et visibles.
@@ -106,7 +254,9 @@ class MarketMapService {
       },
     );
 
-    return controller.stream;
+    final cached = _preloadedCatalog?.visibleIndex;
+    final live = controller.stream;
+    return cached == null ? live : _withPreloadedValue(cached, live);
   }
 
   VisibleCircuitsIndex _visibleIndexFromCircuitsGroupSnapshot(
@@ -166,8 +316,10 @@ class MarketMapService {
     late final StreamController<VisibleCircuitsIndex> controller;
 
     StreamSubscription<QuerySnapshot<Map<String, dynamic>>>? countriesSub;
-    final eventsSubs = <String, StreamSubscription<QuerySnapshot<Map<String, dynamic>>>>{};
-    final circuitsSubs = <String, StreamSubscription<QuerySnapshot<Map<String, dynamic>>>>{};
+    final eventsSubs =
+        <String, StreamSubscription<QuerySnapshot<Map<String, dynamic>>>>{};
+    final circuitsSubs =
+        <String, StreamSubscription<QuerySnapshot<Map<String, dynamic>>>>{};
 
     // Cache: pour chaque (country,event) => hasVisible
     final hasVisibleByEvent = <String, bool>{};
@@ -195,11 +347,14 @@ class MarketMapService {
       );
     }
 
-    void trackEventCircuits({required String countryId, required String eventId}) {
+    void trackEventCircuits({
+      required String countryId,
+      required String eventId,
+    }) {
       final key = '$countryId|$eventId';
       if (circuitsSubs.containsKey(key)) return;
 
-        final sub = _countriesCol
+      final sub = _countriesCol
           .doc(countryId)
           .collection('events')
           .doc(eventId)
@@ -215,7 +370,8 @@ class MarketMapService {
             },
             onError: (error, stackTrace) {
               // En cas de permission, on considère qu'il n'y a pas de circuits visibles.
-              if (error is FirebaseException && error.code == 'permission-denied') {
+              if (error is FirebaseException &&
+                  error.code == 'permission-denied') {
                 hasVisibleByEvent[key] = false;
                 emit();
                 return;
@@ -227,7 +383,10 @@ class MarketMapService {
       circuitsSubs[key] = sub;
     }
 
-    void untrackEventCircuits({required String countryId, required String eventId}) {
+    void untrackEventCircuits({
+      required String countryId,
+      required String eventId,
+    }) {
       final key = '$countryId|$eventId';
       hasVisibleByEvent.remove(key);
       circuitsSubs.remove(key)?.cancel();
@@ -268,7 +427,8 @@ class MarketMapService {
               emit();
             },
             onError: (error, stackTrace) {
-              if (error is FirebaseException && error.code == 'permission-denied') {
+              if (error is FirebaseException &&
+                  error.code == 'permission-denied') {
                 // Un pays inaccessible => on le retire de l'index.
                 final toRemove = <String>[];
                 for (final key in hasVisibleByEvent.keys) {
@@ -305,31 +465,30 @@ class MarketMapService {
 
     controller = StreamController<VisibleCircuitsIndex>(
       onListen: () {
-        controller.add(const VisibleCircuitsIndex(
-          countryIds: <String>{},
-          eventIdsByCountry: <String, Set<String>>{},
-        ));
-
-        countriesSub = _countriesCol.snapshots().listen(
-          (snap) {
-            final countryIds = <String>{for (final d in snap.docs) d.id};
-
-            for (final id in countryIds) {
-              trackCountryEvents(id);
-            }
-
-            final toRemove = <String>[];
-            for (final existing in eventsSubs.keys) {
-              if (!countryIds.contains(existing)) toRemove.add(existing);
-            }
-            for (final id in toRemove) {
-              untrackCountry(id);
-            }
-
-            emit();
-          },
-          onError: controller.addError,
+        controller.add(
+          const VisibleCircuitsIndex(
+            countryIds: <String>{},
+            eventIdsByCountry: <String, Set<String>>{},
+          ),
         );
+
+        countriesSub = _countriesCol.snapshots().listen((snap) {
+          final countryIds = <String>{for (final d in snap.docs) d.id};
+
+          for (final id in countryIds) {
+            trackCountryEvents(id);
+          }
+
+          final toRemove = <String>[];
+          for (final existing in eventsSubs.keys) {
+            if (!countryIds.contains(existing)) toRemove.add(existing);
+          }
+          for (final id in toRemove) {
+            untrackCountry(id);
+          }
+
+          emit();
+        }, onError: controller.addError);
       },
       onCancel: () async {
         await countriesSub?.cancel();
@@ -346,14 +505,16 @@ class MarketMapService {
   }
 
   Stream<List<MarketCountry>> watchCountries() {
-    return _countriesCol
+    final live = _countriesCol
         .orderBy('name')
         .snapshots()
         .map((snapshot) => snapshot.docs.map(MarketCountry.fromDoc).toList());
+    final cached = _preloadedCatalog?.countries;
+    return cached == null ? live : _withPreloadedValue(cached, live);
   }
 
   Stream<List<MarketEvent>> watchEvents({required String countryId}) {
-    return _countriesCol
+    final live = _countriesCol
         .doc(countryId)
         .collection('events')
         .orderBy('startDate', descending: true)
@@ -364,13 +525,15 @@ class MarketMapService {
               .map((doc) => MarketEvent.fromDoc(doc, countryId: countryId))
               .toList(),
         );
+    final cached = _preloadedCatalog?.eventsForCountry(countryId);
+    return cached == null ? live : _withPreloadedValue(cached, live);
   }
 
   Stream<List<MarketCircuit>> watchCircuits({
     required String countryId,
     required String eventId,
   }) {
-    return _countriesCol
+    final live = _countriesCol
         .doc(countryId)
         .collection('events')
         .doc(eventId)
@@ -382,6 +545,11 @@ class MarketMapService {
           (snapshot) =>
               snapshot.docs.map((doc) => MarketCircuit.fromDoc(doc)).toList(),
         );
+    final cached = _preloadedCatalog?.circuitsForEvent(
+      countryId: countryId,
+      eventId: eventId,
+    );
+    return cached == null ? live : _withPreloadedValue(cached, live);
   }
 
   Stream<List<MarketLayer>> watchLayers({
