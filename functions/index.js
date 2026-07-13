@@ -22,6 +22,7 @@ const createMediaMarketplaceMedia = require("./src/media-marketplace-media");
 const createPoiImageWebpHandlers = require("./src/poi-image-webp");
 const createRestaurantLiveTablesHandlers = require("./src/restaurant-live-tables");
 const createBloomArtHandlers = require("./src/bloom-art");
+const createSuperAdminUserManagementHandlers = require("./src/superadmin-user-management");
 
 const STRIPE_SECRET_KEY = defineSecret("STRIPE_SECRET_KEY");
 const STRIPE_WEBHOOK_SECRET = defineSecret("STRIPE_WEBHOOK_SECRET");
@@ -4918,4 +4919,13 @@ exports.initSuperadminArticles = onCall({ region: "us-east1" }, async (request) 
 const groupTracking = require("./group_tracking");
 exports.calculateGroupAveragePosition = groupTracking.calculateGroupAveragePosition;
 exports.publishGroupAverageToCircuit = groupTracking.publishGroupAverageToCircuit;
+
+const superAdminUserManagement = createSuperAdminUserManagementHandlers({
+  admin,
+  db,
+  onCall,
+  HttpsError,
+  logger,
+});
+Object.assign(exports, superAdminUserManagement);
 

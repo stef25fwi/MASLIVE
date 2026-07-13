@@ -25,6 +25,7 @@ class AccountUiPage extends StatefulWidget {
 
 class _AccountUiPageState extends State<AccountUiPage> {
   late Future<ProfileCapabilities?> _profileFuture;
+  bool _isSigningOut = false;
 
   @override
   void initState() {
@@ -48,17 +49,17 @@ class _AccountUiPageState extends State<AccountUiPage> {
 
   void _navigateTo(BuildContext context, _AccountTileData tile) {
     if (tile.route == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('${tile.title} indisponible')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('${tile.title} indisponible')));
       return;
     }
     try {
       Navigator.pushNamed(context, tile.route!, arguments: tile.arguments);
     } catch (_) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('${tile.title} indisponible')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('${tile.title} indisponible')));
     }
   }
 
@@ -72,11 +73,15 @@ class _AccountUiPageState extends State<AccountUiPage> {
         final profile = snapshot.data;
         final isLoading = snapshot.connectionState == ConnectionState.waiting;
         final isAdmin = profile?.can(Capability.accessAdminPanel) ?? false;
-        final tiles = profile == null ? <_AccountTileData>[] : _buildTiles(context, profile, l10n);
+        final tiles = profile == null
+            ? <_AccountTileData>[]
+            : _buildTiles(context, profile, l10n);
 
         return Scaffold(
           bottomNavigationBar: widget.showBottomBar
-              ? const UserFacingBottomBar(currentTab: UserFacingBottomBarTab.profile)
+              ? const UserFacingBottomBar(
+                  currentTab: UserFacingBottomBarTab.profile,
+                )
               : null,
           body: HoneycombBackground(
             child: RefreshIndicator(
@@ -97,11 +102,16 @@ class _AccountUiPageState extends State<AccountUiPage> {
                       trailing: Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          if (isAdmin) const AdminDebugLogsButton(scopeLabel: 'Mon Profil'),
+                          if (isAdmin)
+                            const AdminDebugLogsButton(
+                              scopeLabel: 'Mon Profil',
+                            ),
                           if (isAdmin) const SizedBox(width: 4),
                           CartIconBadge(
                             iconColor: const Color(0xFF111827),
-                            backgroundColor: Colors.white.withValues(alpha: 0.16),
+                            backgroundColor: Colors.white.withValues(
+                              alpha: 0.16,
+                            ),
                             borderColor: Colors.white.withValues(alpha: 0.22),
                           ),
                         ],
@@ -134,7 +144,10 @@ class _AccountUiPageState extends State<AccountUiPage> {
                     if (profile.canSubmitCommerce)
                       const SliverToBoxAdapter(
                         child: Padding(
-                          padding: EdgeInsets.symmetric(horizontal: 10, vertical: 12),
+                          padding: EdgeInsets.symmetric(
+                            horizontal: 10,
+                            vertical: 12,
+                          ),
                           child: CommerceSectionCard(),
                         ),
                       ),
@@ -144,15 +157,22 @@ class _AccountUiPageState extends State<AccountUiPage> {
                         delegate: SliverChildBuilderDelegate((context, index) {
                           if (index < tiles.length) {
                             final tile = tiles[index];
-                            return _AccountTile(tile: tile, onTap: () => _navigateTo(context, tile));
+                            return _AccountTile(
+                              tile: tile,
+                              onTap: () => _navigateTo(context, tile),
+                            );
                           }
 
                           if (isAdmin && index == tiles.length) {
                             return Padding(
-                              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 10,
+                                vertical: 8,
+                              ),
                               child: Text(
                                 AppLocalizations.of(context)!.administration,
-                                style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                                style: Theme.of(context).textTheme.titleSmall
+                                    ?.copyWith(
                                       fontWeight: FontWeight.w800,
                                       color: MasliveTheme.textSecondary,
                                     ),
@@ -165,12 +185,16 @@ class _AccountUiPageState extends State<AccountUiPage> {
                               tile: _AccountTileData(
                                 icon: Icons.admin_panel_settings_rounded,
                                 title: AppLocalizations.of(context)!.adminSpace,
-                                subtitle: AppLocalizations.of(context)!.manageApp,
+                                subtitle: AppLocalizations.of(
+                                  context,
+                                )!.manageApp,
                               ),
                               onTap: () {
                                 Navigator.push(
                                   context,
-                                  MaterialPageRoute(builder: (_) => const AccountAndAdminPage()),
+                                  MaterialPageRoute(
+                                    builder: (_) => const AccountAndAdminPage(),
+                                  ),
                                 );
                               },
                             );
@@ -186,19 +210,53 @@ class _AccountUiPageState extends State<AccountUiPage> {
                         child: SizedBox(
                           width: double.infinity,
                           child: ElevatedButton.icon(
-                            onPressed: () async {
-                              await AuthService.instance.signOut();
-                              if (context.mounted) {
-                                Navigator.of(context).pushNamedAndRemoveUntil('/login', (route) => false);
-                              }
-                            },
-                            icon: const Icon(Icons.logout_rounded),
-                            label: Text(AppLocalizations.of(context)!.disconnect),
+                            onPressed: _isSigningOut
+                                ? null
+                                : () async {
+                                    setState(() => _isSigningOut = true);
+                                    try {
+                                      await AuthService.instance.signOut();
+                                      // Le StreamBuilder du shell remplace
+                                      // automatiquement le profil par LoginPage.
+                                    } catch (error) {
+                                      if (!context.mounted) return;
+                                      ScaffoldMessenger.of(
+                                        context,
+                                      ).showSnackBar(
+                                        SnackBar(
+                                          content: Text(
+                                            'Déconnexion impossible : $error',
+                                          ),
+                                          backgroundColor: Colors.red,
+                                        ),
+                                      );
+                                    } finally {
+                                      if (mounted) {
+                                        setState(() => _isSigningOut = false);
+                                      }
+                                    }
+                                  },
+                            icon: _isSigningOut
+                                ? const SizedBox.square(
+                                    dimension: 18,
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2,
+                                      color: Colors.white,
+                                    ),
+                                  )
+                                : const Icon(Icons.logout_rounded),
+                            label: Text(
+                              _isSigningOut
+                                  ? 'Déconnexion...'
+                                  : AppLocalizations.of(context)!.disconnect,
+                            ),
                             style: ElevatedButton.styleFrom(
                               backgroundColor: Colors.blue.shade600,
                               foregroundColor: Colors.white,
                               padding: const EdgeInsets.symmetric(vertical: 12),
-                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12),
+                              ),
                             ),
                           ),
                         ),
@@ -282,8 +340,12 @@ class _AccountUiPageState extends State<AccountUiPage> {
         1,
         _AccountTileData(
           icon: Icons.business_center_outlined,
-          title: profile.hasBusiness ? 'Compte professionnel' : 'Demander un compte Pro',
-          subtitle: profile.hasBusiness ? 'Demande + paiements Stripe' : 'Créer un espace de vente validé',
+          title: profile.hasBusiness
+              ? 'Compte professionnel'
+              : 'Demander un compte Pro',
+          subtitle: profile.hasBusiness
+              ? 'Demande + paiements Stripe'
+              : 'Créer un espace de vente validé',
           route: profile.hasBusiness ? '/business' : '/business-request',
         ),
       );
@@ -313,7 +375,8 @@ class _AccountUiPageState extends State<AccountUiPage> {
       );
     }
 
-    if (profile.hasPhotographerProfile || profile.can(Capability.manageOwnGallery)) {
+    if (profile.hasPhotographerProfile ||
+        profile.can(Capability.manageOwnGallery)) {
       tiles.insertAll(4, const <_AccountTileData>[
         _AccountTileData(
           icon: Icons.camera_alt_outlined,
@@ -347,15 +410,20 @@ class _AccountUiPageState extends State<AccountUiPage> {
         const _AccountTileData(
           icon: Icons.my_location_outlined,
           title: 'Tracker Groupe',
-          subtitle: 'Envoie GPS vers l’Admin Groupe pour calculer la position moyenne',
+          subtitle:
+              'Envoie GPS vers l’Admin Groupe pour calculer la position moyenne',
           route: '/group-tracker',
         ),
       );
     } else if (profile.can(Capability.requestGroupAdmin)) {
       tiles.add(
         _AccountTileData(
-          icon: profile.hasPendingGroupAdminRequest ? Icons.pending_actions_rounded : Icons.group_add_outlined,
-          title: profile.hasPendingGroupAdminRequest ? 'Demande Admin Groupe en attente' : 'Demander Admin Groupe',
+          icon: profile.hasPendingGroupAdminRequest
+              ? Icons.pending_actions_rounded
+              : Icons.group_add_outlined,
+          title: profile.hasPendingGroupAdminRequest
+              ? 'Demande Admin Groupe en attente'
+              : 'Demander Admin Groupe',
           subtitle: profile.hasPendingGroupAdminRequest
               ? 'Validation MASLIVE requise avant activation'
               : 'Créer un groupe de tracking après validation',
@@ -393,15 +461,20 @@ class _AccountTile extends StatelessWidget {
         title: Text(
           tile.title,
           style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                fontWeight: FontWeight.w800,
-                color: MasliveTheme.textPrimary,
-              ),
+            fontWeight: FontWeight.w800,
+            color: MasliveTheme.textPrimary,
+          ),
         ),
         subtitle: Text(
           tile.subtitle,
-          style: Theme.of(context).textTheme.bodySmall?.copyWith(color: MasliveTheme.textSecondary),
+          style: Theme.of(
+            context,
+          ).textTheme.bodySmall?.copyWith(color: MasliveTheme.textSecondary),
         ),
-        trailing: Icon(Icons.chevron_right_rounded, color: MasliveTheme.textSecondary),
+        trailing: Icon(
+          Icons.chevron_right_rounded,
+          color: MasliveTheme.textSecondary,
+        ),
         onTap: onTap,
       ),
     );
@@ -430,9 +503,15 @@ class _AvatarBlock extends StatelessWidget {
             child: CircleAvatar(
               radius: 36,
               backgroundColor: Colors.white,
-              backgroundImage: photoUrl == null || photoUrl.isEmpty ? null : NetworkImage(photoUrl),
+              backgroundImage: photoUrl == null || photoUrl.isEmpty
+                  ? null
+                  : NetworkImage(photoUrl),
               child: photoUrl == null || photoUrl.isEmpty
-                  ? const Icon(Icons.person_rounded, size: 38, color: MasliveTheme.textPrimary)
+                  ? const Icon(
+                      Icons.person_rounded,
+                      size: 38,
+                      color: MasliveTheme.textPrimary,
+                    )
                   : null,
             ),
           ),
@@ -442,18 +521,18 @@ class _AvatarBlock extends StatelessWidget {
           profile.displayName.isEmpty ? profile.email : profile.displayName,
           textAlign: TextAlign.center,
           style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                fontWeight: FontWeight.w800,
-                color: MasliveTheme.textPrimary,
-              ),
+            fontWeight: FontWeight.w800,
+            color: MasliveTheme.textPrimary,
+          ),
         ),
         const SizedBox(height: 4),
         Text(
           profile.roleLabel,
           textAlign: TextAlign.center,
           style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                color: MasliveTheme.textSecondary,
-                fontWeight: FontWeight.w600,
-              ),
+            color: MasliveTheme.textSecondary,
+            fontWeight: FontWeight.w600,
+          ),
         ),
       ],
     );
@@ -483,7 +562,10 @@ class _CapabilitySummaryCard extends StatelessWidget {
         children: [
           const Text(
             'Droits actifs',
-            style: TextStyle(fontWeight: FontWeight.w900, color: MasliveTheme.textPrimary),
+            style: TextStyle(
+              fontWeight: FontWeight.w900,
+              color: MasliveTheme.textPrimary,
+            ),
           ),
           const SizedBox(height: 8),
           Wrap(
@@ -518,7 +600,11 @@ class _SignedOutBlock extends StatelessWidget {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          const Icon(Icons.lock_outline_rounded, size: 56, color: MasliveTheme.textSecondary),
+          const Icon(
+            Icons.lock_outline_rounded,
+            size: 56,
+            color: MasliveTheme.textSecondary,
+          ),
           const SizedBox(height: 16),
           const Text(
             'Connectez-vous pour voir votre profil MASLIVE.',

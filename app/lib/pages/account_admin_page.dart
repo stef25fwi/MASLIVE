@@ -173,6 +173,30 @@ class _AccountAndAdminPageState extends State<AccountAndAdminPage> {
 
                     const SizedBox(height: 20),
 
+                    if (isSuperAdmin) ...[
+                      const _SectionTitle('Gestion SuperAdmin'),
+                      const SizedBox(height: 10),
+                      _SectionCard(
+                        title: 'Admin Groupe & Trackers',
+                        subtitle:
+                            'Créer les comptes, générer QR/code et gérer les rattachements',
+                        icon: Icons.groups_2_rounded,
+                        onTap: () => Navigator.of(
+                          context,
+                        ).pushNamed('/admin/group-accounts'),
+                      ),
+                      const SizedBox(height: 12),
+                      _SectionCard(
+                        title: 'Tous les utilisateurs',
+                        subtitle:
+                            'Rechercher, créer, modifier, désactiver ou supprimer',
+                        icon: Icons.manage_accounts_rounded,
+                        onTap: () =>
+                            Navigator.of(context).pushNamed('/admin/users'),
+                      ),
+                      const SizedBox(height: 20),
+                    ],
+
                     if (isAdmin && !isMobile) ...[
                       const _SectionTitle("Espace Admin"),
                       const SizedBox(height: 10),

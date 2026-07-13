@@ -177,18 +177,16 @@ class SuperAdminUserManagementService {
   }
 
   Future<ManagedUserMutationResult> regenerateGroupCode(String uid) async {
-    final data = await _call(
-      'regenerateManagedGroupCode',
-      <String, dynamic>{'uid': uid},
-    );
+    final data = await _call('regenerateManagedGroupCode', <String, dynamic>{
+      'uid': uid,
+    });
     return ManagedUserMutationResult.fromMap(data);
   }
 
   Future<int> deleteUser(String uid) async {
-    final data = await _call(
-      'deleteManagedUser',
-      <String, dynamic>{'uid': uid},
-    );
+    final data = await _call('deleteManagedUser', <String, dynamic>{
+      'uid': uid,
+    });
     final detached = data['detachedTrackers'];
     return detached is num ? detached.toInt() : 0;
   }

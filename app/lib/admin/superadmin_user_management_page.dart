@@ -8,10 +8,7 @@ import '../services/superadmin_user_management_service.dart';
 import 'admin_gate.dart';
 
 class SuperAdminUserManagementPage extends StatefulWidget {
-  const SuperAdminUserManagementPage({
-    super.key,
-    this.initialRole,
-  });
+  const SuperAdminUserManagementPage({super.key, this.initialRole});
 
   final String? initialRole;
 
@@ -65,7 +62,13 @@ class _SuperAdminUserManagementPageState
       setState(() {
         _users = initialRole == null
             ? result.users
-            : result.users.where((user) => user.role == initialRole).toList();
+            : result.users
+                  .where(
+                    (user) => initialRole == 'group'
+                        ? user.role == 'group' || user.role == 'tracker'
+                        : user.role == initialRole,
+                  )
+                  .toList();
         _truncated = result.truncated;
         _loading = false;
       });
@@ -191,7 +194,10 @@ class _SuperAdminUserManagementPageState
               const SizedBox(height: 12),
               Text(_error!, textAlign: TextAlign.center),
               const SizedBox(height: 12),
-              FilledButton(onPressed: _loadUsers, child: const Text('Réessayer')),
+              FilledButton(
+                onPressed: _loadUsers,
+                child: const Text('Réessayer'),
+              ),
             ],
           ),
         ),
@@ -232,7 +238,9 @@ class _SuperAdminUserManagementPageState
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        user.displayName.isEmpty ? 'Sans nom' : user.displayName,
+                        user.displayName.isEmpty
+                            ? 'Sans nom'
+                            : user.displayName,
                         style: const TextStyle(fontWeight: FontWeight.w800),
                       ),
                       Text(
@@ -260,7 +268,10 @@ class _SuperAdminUserManagementPageState
                   user.isActive ? Icons.check_circle : Icons.block,
                 ),
                 if (user.adminGroupId != null)
-                  _infoChip('Code ${user.adminGroupId}', Icons.qr_code_2_rounded),
+                  _infoChip(
+                    'Code ${user.adminGroupId}',
+                    Icons.qr_code_2_rounded,
+                  ),
                 _infoChip(
                   user.emailVerified ? 'Email vérifié' : 'Email non vérifié',
                   Icons.mark_email_read_outlined,
@@ -338,7 +349,9 @@ class _SuperAdminUserManagementPageState
     final nameController = TextEditingController(text: user?.displayName ?? '');
     final emailController = TextEditingController(text: user?.email ?? '');
     final passwordController = TextEditingController();
-    final groupController = TextEditingController(text: user?.adminGroupId ?? '');
+    final groupController = TextEditingController(
+      text: user?.adminGroupId ?? '',
+    );
     var role = user?.role ?? initialRole;
     var isActive = user?.isActive ?? true;
     var submitting = false;
@@ -361,7 +374,8 @@ class _SuperAdminUserManagementPageState
             }
             if (user == null && password.length < 12) {
               setSheetState(
-                () => formError = 'Mot de passe de 12 caractères minimum requis.',
+                () =>
+                    formError = 'Mot de passe de 12 caractères minimum requis.',
               );
               return;
             }
@@ -393,7 +407,8 @@ class _SuperAdminUserManagementPageState
                       password: password.isEmpty ? null : password,
                       adminGroupId: groupCode.isEmpty ? null : groupCode,
                     );
-              if (sheetContext.mounted) Navigator.of(sheetContext).pop(mutation);
+              if (sheetContext.mounted)
+                Navigator.of(sheetContext).pop(mutation);
             } catch (error) {
               setSheetState(() {
                 submitting = false;
@@ -418,8 +433,8 @@ class _SuperAdminUserManagementPageState
                     Text(
                       user == null ? 'Créer un compte' : 'Modifier le compte',
                       style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                            fontWeight: FontWeight.w800,
-                          ),
+                        fontWeight: FontWeight.w800,
+                      ),
                     ),
                     const SizedBox(height: 14),
                     TextField(
@@ -458,14 +473,27 @@ class _SuperAdminUserManagementPageState
                         border: OutlineInputBorder(),
                       ),
                       items: const [
-                        DropdownMenuItem(value: 'user', child: Text('Utilisateur')),
-                        DropdownMenuItem(value: 'tracker', child: Text('Tracker Groupe')),
-                        DropdownMenuItem(value: 'group', child: Text('Admin Groupe')),
-                        DropdownMenuItem(value: 'admin', child: Text('Admin MASLIVE')),
+                        DropdownMenuItem(
+                          value: 'user',
+                          child: Text('Utilisateur'),
+                        ),
+                        DropdownMenuItem(
+                          value: 'tracker',
+                          child: Text('Tracker Groupe'),
+                        ),
+                        DropdownMenuItem(
+                          value: 'group',
+                          child: Text('Admin Groupe'),
+                        ),
+                        DropdownMenuItem(
+                          value: 'admin',
+                          child: Text('Admin MASLIVE'),
+                        ),
                       ],
                       onChanged: user?.role == 'superAdmin'
                           ? null
-                          : (value) => setSheetState(() => role = value ?? 'user'),
+                          : (value) =>
+                                setSheetState(() => role = value ?? 'user'),
                     ),
                     if (role == 'tracker') ...[
                       const SizedBox(height: 10),
@@ -473,7 +501,9 @@ class _SuperAdminUserManagementPageState
                         controller: groupController,
                         keyboardType: TextInputType.number,
                         maxLength: 6,
-                        inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                        inputFormatters: [
+                          FilteringTextInputFormatter.digitsOnly,
+                        ],
                         decoration: const InputDecoration(
                           labelText: 'Code Admin Groupe',
                           border: OutlineInputBorder(),
@@ -502,7 +532,10 @@ class _SuperAdminUserManagementPageState
                     ],
                     if (formError != null) ...[
                       const SizedBox(height: 8),
-                      Text(formError!, style: const TextStyle(color: Colors.red)),
+                      Text(
+                        formError!,
+                        style: const TextStyle(color: Colors.red),
+                      ),
                     ],
                     const SizedBox(height: 16),
                     SizedBox(
@@ -512,15 +545,17 @@ class _SuperAdminUserManagementPageState
                         icon: submitting
                             ? const SizedBox.square(
                                 dimension: 18,
-                                child: CircularProgressIndicator(strokeWidth: 2),
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                ),
                               )
                             : const Icon(Icons.save_rounded),
                         label: Text(
                           submitting
                               ? 'Enregistrement...'
                               : user == null
-                                  ? 'Créer le compte'
-                                  : 'Enregistrer',
+                              ? 'Créer le compte'
+                              : 'Enregistrer',
                         ),
                       ),
                     ),
@@ -647,7 +682,8 @@ class _SuperAdminUserManagementPageState
     required String code,
     String? qrPayload,
   }) async {
-    final payload = qrPayload ??
+    final payload =
+        qrPayload ??
         '{"type":"maslive_group","code":"$code","groupName":"$displayName"}';
     await showDialog<void>(
       context: context,

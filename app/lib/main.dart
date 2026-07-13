@@ -22,6 +22,7 @@ import 'admin/marketmap_debug_page.dart' deferred as adm_market_debug;
 import 'admin/mapmarket_projects_page.dart' deferred as adm_mapmarket;
 import 'admin/role_management_page.dart' deferred as adm_roles;
 import 'admin/super_admin_space.dart' deferred as adm_super;
+import 'admin/superadmin_user_management_page.dart' deferred as adm_user_mgmt;
 import 'commerce_module_single_file.dart' deferred as commerce;
 import 'features/bloom_art/presentation/pages/bloom_art_pages.dart'
     deferred as bloom_art;
@@ -174,7 +175,11 @@ void _installStartupErrorHandling() {
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  const Icon(Icons.error_outline, size: 48, color: Colors.redAccent),
+                  const Icon(
+                    Icons.error_outline,
+                    size: 48,
+                    color: Colors.redAccent,
+                  ),
                   const SizedBox(height: 10),
                   const Text(
                     'Erreur de demarrage MASLIVE',
@@ -185,7 +190,10 @@ void _installStartupErrorHandling() {
                   SelectableText(
                     message,
                     textAlign: TextAlign.center,
-                    style: const TextStyle(fontFamily: 'monospace', fontSize: 12),
+                    style: const TextStyle(
+                      fontFamily: 'monospace',
+                      fontSize: 12,
+                    ),
                   ),
                   const SizedBox(height: 14),
                   Row(
@@ -194,7 +202,9 @@ void _installStartupErrorHandling() {
                       OutlinedButton.icon(
                         onPressed: () {
                           Clipboard.setData(
-                            ClipboardData(text: '$message\n\n=== LOGS ===\n$logs'),
+                            ClipboardData(
+                              text: '$message\n\n=== LOGS ===\n$logs',
+                            ),
                           );
                         },
                         icon: const Icon(Icons.copy, size: 16),
@@ -207,7 +217,10 @@ void _installStartupErrorHandling() {
                     alignment: Alignment.centerLeft,
                     child: Text(
                       'Logs (requêtes / appels arrière-plan) :',
-                      style: TextStyle(fontWeight: FontWeight.w600, fontSize: 12),
+                      style: TextStyle(
+                        fontWeight: FontWeight.w600,
+                        fontSize: 12,
+                      ),
                     ),
                   ),
                   const SizedBox(height: 6),
@@ -538,10 +551,7 @@ class _BootstrapRootState extends State<_BootstrapRoot> {
       // Firestore pendant l'init → crash de démarrage sur web (voir _coreReady).
       return const MaterialApp(
         debugShowCheckedModeBanner: false,
-        home: Scaffold(
-          backgroundColor: Colors.white,
-          body: SizedBox.expand(),
-        ),
+        home: Scaffold(backgroundColor: Colors.white, body: SizedBox.expand()),
       );
     }
     return MasLiveApp(session: _session);
@@ -684,6 +694,16 @@ Route<dynamic>? _onGenerateRoute(RouteSettings settings) {
         load: user_shell.loadLibrary,
         build: () => user_shell.UserFacingShellPage(
           initialTab: <String, dynamic>{'tab': 'profile'},
+        ),
+      );
+      break;
+    case '/admin/users':
+    case '/admin/group-accounts':
+      final initialRole = name == '/admin/group-accounts' ? 'group' : null;
+      page = _DeferredLoader(
+        load: adm_user_mgmt.loadLibrary,
+        build: () => adm_user_mgmt.SuperAdminUserManagementPage(
+          initialRole: initialRole,
         ),
       );
       break;
