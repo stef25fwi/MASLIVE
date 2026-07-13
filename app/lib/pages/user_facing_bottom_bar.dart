@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 
 import '../ui/widgets/maslive_standard_bottom_bar.dart';
 
+// Ordre UX commun : Boutique, Media, Home, Explorer, Profil.
 enum UserFacingBottomBarTab { boutique, media, home, explorer, profile }
 
 class UserFacingBottomBar extends StatelessWidget {
