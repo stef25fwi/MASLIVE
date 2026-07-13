@@ -1351,7 +1351,7 @@ class _PoiEditPopupState extends State<PoiEditPopup> {
                               try {
                                 await _uploadSelectedImageIfNeeded();
                               } catch (e) {
-                                if (!mounted) return;
+                                if (!context.mounted) return;
                                 TopSnackBar.showMessage(
                                   context,
                                   '❌ ${_extractErrorMessage(e)}',

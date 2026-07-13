@@ -179,9 +179,7 @@ class _ProductManagementPageState extends State<ProductManagementPage> {
                             }
                             final products = snap.data!;
                             if (products.isEmpty) {
-                              return const Center(
-                                child: Text('Aucun produit'),
-                              );
+                              return const Center(child: Text('Aucun produit'));
                             }
 
                             final w = MediaQuery.of(context).size.width;
@@ -241,8 +239,10 @@ class _ProductManagementPageState extends State<ProductManagementPage> {
                                       product: products[i],
                                     ),
                                   ),
-                                  onDuplicate: () =>
-                                      c.duplicate(products[i], keepImages: true),
+                                  onDuplicate: () => c.duplicate(
+                                    products[i],
+                                    keepImages: true,
+                                  ),
                                   onToggleActive: () =>
                                       c.toggleActive(products[i]),
                                   onDelete: () async {
@@ -831,10 +831,7 @@ class _ProductEditDialogState extends State<ProductEditDialog> {
                         Row(
                           children: [
                             Expanded(
-                              child: _field(
-                                label: 'SKU',
-                                controller: skuCtrl,
-                              ),
+                              child: _field(label: 'SKU', controller: skuCtrl),
                             ),
                             const SizedBox(width: 10),
                             Expanded(
@@ -1016,8 +1013,7 @@ class ProductImagesEditorDialog extends StatefulWidget {
       _ProductImagesEditorDialogState();
 }
 
-class _ProductImagesEditorDialogState
-    extends State<ProductImagesEditorDialog> {
+class _ProductImagesEditorDialogState extends State<ProductImagesEditorDialog> {
   late Product product;
   final picker = ImagePicker();
 
@@ -1091,9 +1087,8 @@ class _ProductImagesEditorDialogState
                   child: ReorderableListView.builder(
                     scrollDirection: Axis.horizontal,
                     itemCount: imgs.length,
-                    onReorder: (oldIndex, newIndex) async {
+                    onReorderItem: (oldIndex, newIndex) async {
                       final list = List<ProductImage>.from(imgs);
-                      if (newIndex > oldIndex) newIndex -= 1;
                       final item = list.removeAt(oldIndex);
                       list.insert(newIndex, item);
                       await widget.controller.reorderImages(product, list);

@@ -4,11 +4,7 @@ on:
   pull_request:
     branches: [main]
   push:
-    branches: [main, fix/flutter-analyze-zero-diagnostics]
-
-permissions:
-  contents: write
-  actions: read
+    branches: [main]
 
 jobs:
   flutter-quality:
@@ -21,30 +17,12 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
-        with:
-          ref: fix/flutter-analyze-zero-diagnostics
-          token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Setup Flutter
         uses: subosito/flutter-action@v2
         with:
           flutter-version: "3.44.4"
           cache: true
-
-      - name: Apply analyzer cleanup patch
-        if: github.actor != 'github-actions[bot]'
-        working-directory: ${{ github.workspace }}
-        run: |
-          python3 scripts/fix-flutter-analyze-diagnostics.py
-          dart format app/lib/admin/poi_edit_popup.dart app/lib/admin/poi_marketmap_wizard_page.dart app/lib/features/commerce/presentation/pages/product_management_page.dart
-          git rm -f scripts/fix-flutter-analyze-diagnostics.py
-          git fetch origin main --depth=1
-          git checkout origin/main -- .github/workflows/quality-gates.yml
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add app/lib/admin/poi_edit_popup.dart app/lib/admin/poi_marketmap_wizard_page.dart app/lib/features/commerce/presentation/pages/product_management_page.dart .github/workflows/quality-gates.yml
-          git commit -m "fix: nettoie les diagnostics Flutter analyze"
-          git push origin HEAD:fix/flutter-analyze-zero-diagnostics
 
       - name: Install Flutter dependencies
         run: flutter pub get

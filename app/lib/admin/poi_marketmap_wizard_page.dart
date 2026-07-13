@@ -1362,8 +1362,9 @@ class _LayerPoisPageState extends State<_LayerPoisPage> {
     String? asString(dynamic v) => v is String ? v : (v?.toString());
     double asDouble(dynamic v, double fallback) {
       if (v is num) return v.toDouble();
-      if (v is String)
+      if (v is String) {
         return double.tryParse(v.trim().replaceAll(',', '.')) ?? fallback;
+      }
       return fallback;
     }
 
