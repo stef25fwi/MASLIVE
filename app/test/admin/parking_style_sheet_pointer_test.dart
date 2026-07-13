@@ -10,6 +10,7 @@ void main() {
 
     expect(source, contains('PointerInterceptor('));
     expect(source, contains('HitTestBehavior.opaque'));
+    expect(source, contains('onTap: () {}'));
     expect(source, contains('if (_styleSheetOpen || _saving) return;'));
     expect(source, contains('setState(() => _styleSheetOpen = true)'));
     expect(source, contains('setState(() => _styleSheetOpen = false)'));
