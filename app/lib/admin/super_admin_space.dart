@@ -33,21 +33,19 @@ class _SuperAdminSpaceState extends State<SuperAdminSpace> {
   int _pendingApprovals = 0;
   Map<String, int> _usersByRole = {};
 
-  static const List<({String label, String url})> _startupMapStylePresets = <({
-    String label,
-    String url,
-  })>[
-    (label: 'Effacer', url: ''),
-    (label: 'Streets', url: 'mapbox://styles/mapbox/streets-v12'),
-    (label: 'Outdoors', url: 'mapbox://styles/mapbox/outdoors-v12'),
-    (
-      label: 'Satellite',
-      url: 'mapbox://styles/mapbox/satellite-streets-v12',
-    ),
-    (label: 'Light', url: 'mapbox://styles/mapbox/light-v11'),
-    (label: 'Dark', url: 'mapbox://styles/mapbox/dark-v11'),
-    (label: 'Perso', url: kMasliveProMapboxStyleUrl),
-  ];
+  static const List<({String label, String url})> _startupMapStylePresets =
+      <({String label, String url})>[
+        (label: 'Effacer', url: ''),
+        (label: 'Streets', url: 'mapbox://styles/mapbox/streets-v12'),
+        (label: 'Outdoors', url: 'mapbox://styles/mapbox/outdoors-v12'),
+        (
+          label: 'Satellite',
+          url: 'mapbox://styles/mapbox/satellite-streets-v12',
+        ),
+        (label: 'Light', url: 'mapbox://styles/mapbox/light-v11'),
+        (label: 'Dark', url: 'mapbox://styles/mapbox/dark-v11'),
+        (label: 'Perso', url: kMasliveProMapboxStyleUrl),
+      ];
 
   @override
   void initState() {
@@ -65,10 +63,7 @@ class _SuperAdminSpaceState extends State<SuperAdminSpace> {
     setState(() => _isLoading = true);
     try {
       final user = await _authService.getCurrentAppUser();
-      await Future.wait<void>([
-        _loadStats(),
-        _loadStartupMapStyle(),
-      ]);
+      await Future.wait<void>([_loadStats(), _loadStartupMapStyle()]);
       setState(() {
         _currentUser = user;
         _isLoading = false;
@@ -135,10 +130,7 @@ class _SuperAdminSpaceState extends State<SuperAdminSpace> {
       setState(() => _isSavingStartupMapStyle = false);
       TopSnackBar.show(
         context,
-        SnackBar(
-          content: Text('❌ Erreur: $e'),
-          backgroundColor: Colors.red,
-        ),
+        SnackBar(content: Text('❌ Erreur: $e'), backgroundColor: Colors.red),
       );
     }
   }
@@ -274,18 +266,12 @@ class _SuperAdminSpaceState extends State<SuperAdminSpace> {
           const SizedBox(height: 8),
           Text(
             'Bienvenue ${_currentUser?.displayName ?? 'Admin'}',
-            style: const TextStyle(
-              color: Colors.white70,
-              fontSize: 16,
-            ),
+            style: const TextStyle(color: Colors.white70, fontSize: 16),
           ),
           const SizedBox(height: 4),
           Text(
             _currentUser?.email ?? '',
-            style: const TextStyle(
-              color: Colors.white60,
-              fontSize: 14,
-            ),
+            style: const TextStyle(color: Colors.white60, fontSize: 14),
           ),
         ],
       ),
@@ -298,10 +284,7 @@ class _SuperAdminSpaceState extends State<SuperAdminSpace> {
       children: [
         const Text(
           'Statistiques',
-          style: TextStyle(
-            fontSize: 20,
-            fontWeight: FontWeight.bold,
-          ),
+          style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
         ),
         const SizedBox(height: 12),
         Row(
@@ -331,7 +314,8 @@ class _SuperAdminSpaceState extends State<SuperAdminSpace> {
             Expanded(
               child: _buildStatCard(
                 'Admins',
-                ((_usersByRole['admin'] ?? 0) + (_usersByRole['superAdmin'] ?? 0))
+                ((_usersByRole['admin'] ?? 0) +
+                        (_usersByRole['superAdmin'] ?? 0))
                     .toString(),
                 Icons.verified_user,
                 Colors.orange,
@@ -353,7 +337,11 @@ class _SuperAdminSpaceState extends State<SuperAdminSpace> {
   }
 
   Widget _buildStatCard(
-      String label, String value, IconData icon, Color color) {
+    String label,
+    String value,
+    IconData icon,
+    Color color,
+  ) {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
@@ -385,13 +373,7 @@ class _SuperAdminSpaceState extends State<SuperAdminSpace> {
             ],
           ),
           const SizedBox(height: 8),
-          Text(
-            label,
-            style: TextStyle(
-              fontSize: 14,
-              color: Colors.grey[600],
-            ),
-          ),
+          Text(label, style: TextStyle(fontSize: 14, color: Colors.grey[600])),
         ],
       ),
     );
@@ -403,10 +385,7 @@ class _SuperAdminSpaceState extends State<SuperAdminSpace> {
       children: [
         const Text(
           'Actions rapides',
-          style: TextStyle(
-            fontSize: 20,
-            fontWeight: FontWeight.bold,
-          ),
+          style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
         ),
         const SizedBox(height: 12),
         GridView.count(
@@ -424,9 +403,15 @@ class _SuperAdminSpaceState extends State<SuperAdminSpace> {
               () => Navigator.pushNamed(context, '/admin/users'),
             ),
             _buildActionCard(
+              'Admin Groupe & Trackers',
+              Icons.groups_2_outlined,
+              Colors.indigo,
+              () => Navigator.pushNamed(context, '/admin/group-accounts'),
+            ),
+            _buildActionCard(
               'Gérer Rôles',
               Icons.admin_panel_settings,
-                Colors.blue,
+              Colors.blue,
               () => Navigator.pushNamed(context, '/admin/roles'),
             ),
             _buildActionCard(
@@ -496,10 +481,7 @@ class _SuperAdminSpaceState extends State<SuperAdminSpace> {
       children: [
         const Text(
           'Gestion Système',
-          style: TextStyle(
-            fontSize: 20,
-            fontWeight: FontWeight.bold,
-          ),
+          style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
         ),
         const SizedBox(height: 12),
         _buildManagementTile(
@@ -565,10 +547,7 @@ class _SuperAdminSpaceState extends State<SuperAdminSpace> {
                   color: const Color(0xFF0EA5E9).withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(10),
                 ),
-                child: const Icon(
-                  Icons.map_outlined,
-                  color: Color(0xFF0EA5E9),
-                ),
+                child: const Icon(Icons.map_outlined, color: Color(0xFF0EA5E9)),
               ),
               const SizedBox(width: 12),
               const Expanded(
@@ -597,9 +576,12 @@ class _SuperAdminSpaceState extends State<SuperAdminSpace> {
             spacing: 8,
             runSpacing: 8,
             children: _startupMapStylePresets.map((preset) {
-              final normalizedPreset = tryNormalizeMapboxStyleUrl(preset.url) ?? '';
-              final isSelected = (normalizedPreset.isEmpty && selectedStyle.isEmpty) ||
-                  (normalizedPreset.isNotEmpty && normalizedPreset == selectedStyle);
+              final normalizedPreset =
+                  tryNormalizeMapboxStyleUrl(preset.url) ?? '';
+              final isSelected =
+                  (normalizedPreset.isEmpty && selectedStyle.isEmpty) ||
+                  (normalizedPreset.isNotEmpty &&
+                      normalizedPreset == selectedStyle);
               return InkWell(
                 onTap: () => _applyStartupMapStylePreset(preset.url),
                 borderRadius: BorderRadius.circular(999),
@@ -658,7 +640,9 @@ class _SuperAdminSpaceState extends State<SuperAdminSpace> {
               const SizedBox(width: 12),
               Expanded(
                 child: ElevatedButton.icon(
-                  onPressed: _isSavingStartupMapStyle ? null : _saveStartupMapStyle,
+                  onPressed: _isSavingStartupMapStyle
+                      ? null
+                      : _saveStartupMapStyle,
                   style: ElevatedButton.styleFrom(
                     backgroundColor: const Color(0xFF0EA5E9),
                     foregroundColor: Colors.white,
@@ -674,7 +658,9 @@ class _SuperAdminSpaceState extends State<SuperAdminSpace> {
                         )
                       : const Icon(Icons.save_outlined),
                   label: Text(
-                    _isSavingStartupMapStyle ? 'Enregistrement...' : 'Enregistrer',
+                    _isSavingStartupMapStyle
+                        ? 'Enregistrement...'
+                        : 'Enregistrer',
                   ),
                 ),
               ),
@@ -713,10 +699,7 @@ class _SuperAdminSpaceState extends State<SuperAdminSpace> {
           ),
           child: Icon(icon, color: color),
         ),
-        title: Text(
-          title,
-          style: const TextStyle(fontWeight: FontWeight.w600),
-        ),
+        title: Text(title, style: const TextStyle(fontWeight: FontWeight.w600)),
         subtitle: Text(subtitle),
         trailing: const Icon(Icons.chevron_right),
         onTap: onTap,
@@ -733,13 +716,11 @@ class _SuperAdminSpaceState extends State<SuperAdminSpace> {
           children: [
             const Text(
               'Catégories d\'utilisateurs',
-              style: TextStyle(
-                fontSize: 20,
-                fontWeight: FontWeight.bold,
-              ),
+              style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
             ),
             TextButton.icon(
-              onPressed: () => Navigator.pushNamed(context, '/admin/categories'),
+              onPressed: () =>
+                  Navigator.pushNamed(context, '/admin/categories'),
               icon: const Icon(Icons.arrow_forward),
               label: const Text('Voir tout'),
             ),
@@ -769,7 +750,9 @@ class _SuperAdminSpaceState extends State<SuperAdminSpace> {
             final categories = snapshot.data!.take(5).toList();
 
             return Column(
-              children: categories.map((cat) => _buildCategoryTile(cat)).toList(),
+              children: categories
+                  .map((cat) => _buildCategoryTile(cat))
+                  .toList(),
             );
           },
         ),
@@ -818,8 +801,8 @@ class _SuperAdminSpaceState extends State<SuperAdminSpace> {
             style: const TextStyle(fontSize: 11),
           ),
           backgroundColor: category.requiresApproval
-            ? Colors.orange.withValues(alpha: 0.2)
-            : Colors.green.withValues(alpha: 0.2),
+              ? Colors.orange.withValues(alpha: 0.2)
+              : Colors.green.withValues(alpha: 0.2),
         ),
       ),
     );
@@ -874,9 +857,9 @@ class _SuperAdminSpaceState extends State<SuperAdminSpace> {
       // Appeler la fonction Cloud
       // Note: Vous devrez implémenter l'appel à la fonction Cloud ici
       if (!mounted) return;
-      
+
       Navigator.pop(context);
-      
+
       TopSnackBar.show(
         context,
         const SnackBar(
@@ -884,17 +867,14 @@ class _SuperAdminSpaceState extends State<SuperAdminSpace> {
           backgroundColor: Colors.green,
         ),
       );
-      
+
       await _loadData();
     } catch (e) {
       if (!mounted) return;
       Navigator.pop(context);
       TopSnackBar.show(
         context,
-        SnackBar(
-          content: Text('❌ Erreur: $e'),
-          backgroundColor: Colors.red,
-        ),
+        SnackBar(content: Text('❌ Erreur: $e'), backgroundColor: Colors.red),
       );
     }
   }
@@ -909,9 +889,9 @@ class _SuperAdminSpaceState extends State<SuperAdminSpace> {
 
       await _categoryService.initializeCategories();
       if (!mounted) return;
-      
+
       Navigator.pop(context);
-      
+
       TopSnackBar.show(
         context,
         const SnackBar(
@@ -919,17 +899,14 @@ class _SuperAdminSpaceState extends State<SuperAdminSpace> {
           backgroundColor: Colors.green,
         ),
       );
-      
+
       await _loadData();
     } catch (e) {
       if (!mounted) return;
       Navigator.pop(context);
       TopSnackBar.show(
         context,
-        SnackBar(
-          content: Text('❌ Erreur: $e'),
-          backgroundColor: Colors.red,
-        ),
+        SnackBar(content: Text('❌ Erreur: $e'), backgroundColor: Colors.red),
       );
     }
   }

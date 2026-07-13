@@ -572,19 +572,15 @@ class AuthService {
     }
   }
 
-  // Déconnexion
+  // Déconnexion : Firebase est invalidé en premier pour que l'UI réagisse
+  // immédiatement, même si le SDK Google n'est pas initialisé ou répond lentement.
   Future<void> signOut() async {
+    await _auth.signOut();
     try {
-      // Also clear Google provider session when present.
-      try {
-        await GoogleSignIn.instance.signOut();
-      } catch (_) {
-        // Ignore: user may not be signed in with Google.
-      }
-      await _auth.signOut();
-    } catch (e) {
-      // print('Erreur signOut: $e');
-      rethrow;
+      await GoogleSignIn.instance.signOut().timeout(const Duration(seconds: 2));
+    } catch (_) {
+      // La session Firebase est déjà fermée : une erreur provider ne doit pas
+      // empêcher la déconnexion visible dans l'application.
     }
   }
 
