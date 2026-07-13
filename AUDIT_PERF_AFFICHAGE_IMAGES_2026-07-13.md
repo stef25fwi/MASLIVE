@@ -120,3 +120,38 @@ fourni pour précharger le 1er écran d'autres pages (ex. grille boutique).
   élégant, jamais de blanc.
 - Swipe galerie : image suivante déjà prête.
 - Photos scalées : nettes (medium) sans surcoût perceptible.
+
+---
+
+## 6. Correctif régression web (3e itération) — flash blanc onglets
+
+**Symptôme signalé** : flash blanc au clic sur les icônes Boutique / Média
+(et carte) de la bottom bar, apparu après les passes 1–2.
+
+**Causes racines identifiées** :
+1. La navigation par onglets fait un `pushReplacementNamed('/user-shell')` —
+   la page est détruite et reconstruite à chaque clic (pré-existant).
+2. **Sur Flutter web, `cacheWidth` (`ResizeImage`) était contre-productif** :
+   il change la clé du cache image (les images déjà décodées sont re-décodées
+   à chaque navigation) et le redimensionnement s'exécute **sur le thread UI**
+   (pas d'isolate sur web) → jank pendant la construction des grilles.
+3. **Les fondus d'apparition (200–250 ms)** retardaient la peinture des images :
+   pendant l'animation, le fond blanc de la page transparaît → « flash blanc ».
+4. ImageCache 256 Mo sur web : pression mémoire navigateur (pauses GC).
+
+**Correctifs appliqués** (les gains des passes 1–2 sont conservés) :
+- `cacheWidth`/`ResizeImage` **désactivés sur web** (gating `kIsWeb` centralisé
+  dans `StorageImage`, `SmartImage`, `product_tile`, `_ImgRaw`,
+  `precacheNetworkImages`) — conservés sur natif où ils réduisent la mémoire.
+- **Suppression de tous les fondus d'apparition** : l'image peint dès sa
+  première frame décodée. Le blur-up de `SmartImage` reste, mais en **swap
+  instantané** (placeholder flou → image nette sans crossfade).
+- ImageCache web ramené à 128 Mo / 1000 entrées (natif inchangé: 256 Mo / 2000).
+- Conservés : cache disque des URLs `gs://`, `gaplessPlayback`,
+  `FilterQuality.medium`, precache des galeries.
+
+**Piste structurelle (hors périmètre de ce correctif)** : le flash résiduel à
+la (re)création des pages — y compris la ré-initialisation du canvas Mapbox —
+vient du `pushReplacementNamed` par onglet. Le vrai correctif serait de rester
+dans l'`AppShell` (IndexedStack, pages gardées en vie) au lieu de remplacer la
+route à chaque clic de la bottom bar.

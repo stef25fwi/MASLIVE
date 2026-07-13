@@ -1,11 +1,14 @@
 import 'dart:async';
 import 'dart:ui' as ui;
 
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import '../../models/image_asset.dart';
 
 /// Précharge (télécharge + décode) des images réseau pour un affichage
 /// instantané ultérieur. Best-effort: n'échoue jamais l'appelant.
+/// `cacheWidth` est ignoré sur web (ResizeImage y change la clé de cache et
+/// décode sur le thread UI).
 Future<void> precacheNetworkImages(
   BuildContext context,
   Iterable<String> urls, {
@@ -14,7 +17,7 @@ Future<void> precacheNetworkImages(
   for (final raw in urls) {
     final url = raw.trim();
     if (url.isEmpty || !url.startsWith('http')) continue;
-    final ImageProvider provider = cacheWidth != null
+    final ImageProvider provider = (!kIsWeb && cacheWidth != null)
         ? ResizeImage(NetworkImage(url), width: cacheWidth)
         : NetworkImage(url);
     unawaited(precacheImage(provider, context).catchError((_) {}));
@@ -58,15 +61,21 @@ class SmartImage extends StatelessWidget {
             ? variants.getUrl(preferredSize!)
             : variants.getResponsiveUrl(screenWidth);
 
-        // Décodage dimensionné à la boîte d'affichage (mémoire réduite, fluidité).
-        final dpr = MediaQuery.maybeOf(context)?.devicePixelRatio ?? 2.0;
-        final double? boxWidth =
-            (width != null && width!.isFinite) ? width : (screenWidth.isFinite ? screenWidth : null);
-        final int? decodeWidth =
-            (boxWidth != null && boxWidth > 0) ? (boxWidth * dpr).round() : null;
+        // Décodage dimensionné à la boîte d'affichage — NATIF UNIQUEMENT.
+        // Sur web, ResizeImage change la clé de cache (re-décodages à chaque
+        // navigation) et redimensionne sur le thread UI -> jank/flash blanc.
+        int? decodeWidth;
+        if (!kIsWeb) {
+          final dpr = MediaQuery.maybeOf(context)?.devicePixelRatio ?? 2.0;
+          final double? boxWidth =
+              (width != null && width!.isFinite) ? width : (screenWidth.isFinite ? screenWidth : null);
+          decodeWidth =
+              (boxWidth != null && boxWidth > 0) ? (boxWidth * dpr).round() : null;
+        }
 
-        // Blur-up: aperçu miniature flou affiché instantanément, remplacé en
-        // fondu par l'image nette. Effet « premium » (perçu comme instantané).
+        // Blur-up: aperçu miniature flou affiché pendant le chargement,
+        // remplacé IMMÉDIATEMENT (sans animation) par l'image nette dès sa
+        // première frame — aucun délai ajouté, jamais de trou blanc.
         final thumbUrl = variants.getUrl(ImageSize.thumbnail);
         final bool hasBlurUp = thumbUrl.isNotEmpty && thumbUrl != url;
 
@@ -87,7 +96,7 @@ class SmartImage extends StatelessWidget {
                 fit: fit,
                 width: width,
                 height: height,
-                cacheWidth: 64,
+                cacheWidth: kIsWeb ? null : 64,
                 gaplessPlayback: true,
                 filterQuality: FilterQuality.low,
                 errorBuilder: (context, error, stack) => Container(
@@ -109,24 +118,14 @@ class SmartImage extends StatelessWidget {
           gaplessPlayback: true,
           // medium = rééchantillonnage lissé -> photos scalées nettes (qualité Top).
           filterQuality: FilterQuality.medium,
-          // frameBuilder couvre tout le pré-affichage (téléchargement + décodage):
-          // tant qu'aucune frame n'est prête -> aperçu flou; puis crossfade net.
+          // Swap instantané placeholder -> image (pas de crossfade: le fondu
+          // retardait la peinture et laissait transparaître le fond blanc).
           frameBuilder: (context, child, frame, wasSync) {
-            if (wasSync) return child;
-            return AnimatedSwitcher(
-              duration: const Duration(milliseconds: 250),
-              switchInCurve: Curves.easeOut,
-              child: frame == null
-                  ? SizedBox(
-                      key: const ValueKey('blurup'),
-                      width: width,
-                      height: height,
-                      child: lowResPlaceholder(),
-                    )
-                  : KeyedSubtree(
-                      key: const ValueKey('full'),
-                      child: child,
-                    ),
+            if (wasSync || frame != null) return child;
+            return SizedBox(
+              width: width,
+              height: height,
+              child: lowResPlaceholder(),
             );
           },
           errorBuilder: (context, error, stack) {

@@ -1,4 +1,5 @@
 import 'dart:math';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -2233,26 +2234,23 @@ class _ImgRaw extends StatelessWidget {
       );
     }
     if (u.startsWith('http')) {
-      final mq = MediaQuery.maybeOf(context);
-      final dpr = mq?.devicePixelRatio ?? 2.0;
-      final screenW = mq?.size.width ?? 400;
+      // Décodage dimensionné — natif uniquement (sur web, ResizeImage change
+      // la clé de cache et décode sur le thread UI -> jank/flash blanc).
+      int? decodeWidth;
+      if (!kIsWeb) {
+        final mq = MediaQuery.maybeOf(context);
+        final dpr = mq?.devicePixelRatio ?? 2.0;
+        final screenW = mq?.size.width ?? 400;
+        decodeWidth = (screenW * dpr).round();
+      }
       return Image.network(
         u,
         fit: fit,
         width: double.infinity,
         height: double.infinity,
-        cacheWidth: (screenW * dpr).round(),
+        cacheWidth: decodeWidth,
         gaplessPlayback: true,
         filterQuality: FilterQuality.medium,
-        frameBuilder: (context, child, frame, wasSync) {
-          if (wasSync) return child;
-          return AnimatedOpacity(
-            opacity: frame == null ? 0 : 1,
-            duration: const Duration(milliseconds: 200),
-            curve: Curves.easeOut,
-            child: child,
-          );
-        },
         errorBuilder: (context, error, stackTrace) => _fallback(),
       );
     }
