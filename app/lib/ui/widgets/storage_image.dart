@@ -19,7 +19,8 @@ class StorageImage extends StatefulWidget {
     required this.url,
     this.fit = BoxFit.cover,
     this.alignment = Alignment.center,
-    this.filterQuality = FilterQuality.low,
+    // medium = rééchantillonnage lissé -> images scalées nettes (qualité Top).
+    this.filterQuality = FilterQuality.medium,
     this.width,
     this.height,
     this.cacheWidth,

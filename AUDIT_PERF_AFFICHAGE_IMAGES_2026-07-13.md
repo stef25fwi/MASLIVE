@@ -89,3 +89,34 @@ l'instantané au 1er affichage après réinstallation. Solution standard :
 Non retenu ici car (a) le web s'appuie déjà sur le cache HTTP navigateur et
 (b) l'ajout de dépendance nécessite un `flutter pub get` à valider. Bascule
 localisée : le seul point à changer serait le `Image.network` de `StorageImage`.
+
+---
+
+## 5. Passe qualité « Top » (2e itération)
+
+Après la passe vitesse, une 2e passe cible la **qualité perçue** :
+
+### a) Blur-up premium — `SmartImage`
+La variante **thumbnail** est affichée immédiatement en **aperçu flou**
+(`ImageFiltered` blur), puis remplacée par l'image nette en **crossfade**
+(`AnimatedSwitcher`, 250 ms) dès qu'elle est décodée. Le `frameBuilder` couvre
+tout le pré-affichage (téléchargement + décodage), donc l'utilisateur voit
+toujours quelque chose de « plein cadre » — jamais de trou ni de spinner. Un
+cache-hit s'affiche net instantanément (pas d'animation).
+
+### b) Filtrage `FilterQuality.medium`
+Par défaut sur `StorageImage`, `SmartImage`, `product_tile`, `_ImgRaw`. Le
+rééchantillonnage lissé (mipmaps) rend les **photos réduites nettes** au lieu du
+rendu bloc du mode `low`, pour un coût GPU négligeable sur du contenu statique.
+
+### c) Precache des images voisines (galeries)
+`ImageGallery` et la vue plein écran préchargent les pages **adjacentes**
+(`precacheImage` sur index ±1) à l'ouverture et à chaque changement de page →
+**swipe instantané**. Un util public `precacheNetworkImages(context, urls)` est
+fourni pour précharger le 1er écran d'autres pages (ex. grille boutique).
+
+### Résultat combiné
+- Ouverture d'une fiche / galerie : aperçu net immédiat (cache) ou flou→net
+  élégant, jamais de blanc.
+- Swipe galerie : image suivante déjà prête.
+- Photos scalées : nettes (medium) sans surcoût perceptible.

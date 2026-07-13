@@ -1,5 +1,25 @@
+import 'dart:async';
+import 'dart:ui' as ui;
+
 import 'package:flutter/material.dart';
 import '../../models/image_asset.dart';
+
+/// Précharge (télécharge + décode) des images réseau pour un affichage
+/// instantané ultérieur. Best-effort: n'échoue jamais l'appelant.
+Future<void> precacheNetworkImages(
+  BuildContext context,
+  Iterable<String> urls, {
+  int? cacheWidth,
+}) async {
+  for (final raw in urls) {
+    final url = raw.trim();
+    if (url.isEmpty || !url.startsWith('http')) continue;
+    final ImageProvider provider = cacheWidth != null
+        ? ResizeImage(NetworkImage(url), width: cacheWidth)
+        : NetworkImage(url);
+    unawaited(precacheImage(provider, context).catchError((_) {}));
+  }
+}
 
 /// Widget d'affichage intelligent d'image avec variantes adaptatives
 class SmartImage extends StatelessWidget {
@@ -45,6 +65,41 @@ class SmartImage extends StatelessWidget {
         final int? decodeWidth =
             (boxWidth != null && boxWidth > 0) ? (boxWidth * dpr).round() : null;
 
+        // Blur-up: aperçu miniature flou affiché instantanément, remplacé en
+        // fondu par l'image nette. Effet « premium » (perçu comme instantané).
+        final thumbUrl = variants.getUrl(ImageSize.thumbnail);
+        final bool hasBlurUp = thumbUrl.isNotEmpty && thumbUrl != url;
+
+        Widget lowResPlaceholder() {
+          if (placeholder != null) return placeholder!;
+          if (!hasBlurUp) {
+            return Container(
+              width: width,
+              height: height,
+              color: const Color(0x11000000),
+            );
+          }
+          return ClipRect(
+            child: ImageFiltered(
+              imageFilter: ui.ImageFilter.blur(sigmaX: 14, sigmaY: 14),
+              child: Image.network(
+                thumbUrl,
+                fit: fit,
+                width: width,
+                height: height,
+                cacheWidth: 64,
+                gaplessPlayback: true,
+                filterQuality: FilterQuality.low,
+                errorBuilder: (context, error, stack) => Container(
+                  width: width,
+                  height: height,
+                  color: const Color(0x11000000),
+                ),
+              ),
+            ),
+          );
+        }
+
         Widget imageWidget = Image.network(
           url,
           fit: fit,
@@ -52,26 +107,27 @@ class SmartImage extends StatelessWidget {
           height: height,
           cacheWidth: decodeWidth,
           gaplessPlayback: true,
-          filterQuality: FilterQuality.low,
-          // Fondu léger à l'apparition; cache-hit affiché immédiatement.
+          // medium = rééchantillonnage lissé -> photos scalées nettes (qualité Top).
+          filterQuality: FilterQuality.medium,
+          // frameBuilder couvre tout le pré-affichage (téléchargement + décodage):
+          // tant qu'aucune frame n'est prête -> aperçu flou; puis crossfade net.
           frameBuilder: (context, child, frame, wasSync) {
             if (wasSync) return child;
-            return AnimatedOpacity(
-              opacity: frame == null ? 0 : 1,
-              duration: const Duration(milliseconds: 200),
-              curve: Curves.easeOut,
-              child: child,
+            return AnimatedSwitcher(
+              duration: const Duration(milliseconds: 250),
+              switchInCurve: Curves.easeOut,
+              child: frame == null
+                  ? SizedBox(
+                      key: const ValueKey('blurup'),
+                      width: width,
+                      height: height,
+                      child: lowResPlaceholder(),
+                    )
+                  : KeyedSubtree(
+                      key: const ValueKey('full'),
+                      child: child,
+                    ),
             );
-          },
-          loadingBuilder: (context, child, loadingProgress) {
-            if (loadingProgress == null) return child;
-            // Placeholder bon marché (aplat) au lieu d'un spinner animé coûteux.
-            return placeholder ??
-                Container(
-                  width: width,
-                  height: height,
-                  color: const Color(0x11000000),
-                );
           },
           errorBuilder: (context, error, stack) {
             return errorWidget ??
@@ -188,9 +244,26 @@ class _ImageGalleryState extends State<ImageGallery> {
   }
 
   @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _precacheNeighbors(_currentIndex);
+  }
+
+  @override
   void dispose() {
     _pageController.dispose();
     super.dispose();
+  }
+
+  /// Précharge les images adjacentes -> swipe instantané.
+  void _precacheNeighbors(int index) {
+    final images = widget.collection.images;
+    for (final i in [index - 1, index + 1]) {
+      if (i < 0 || i >= images.length) continue;
+      final url = images[i].variants.getUrl(ImageSize.large);
+      if (url.trim().isEmpty || !url.startsWith('http')) continue;
+      unawaited(precacheImage(NetworkImage(url), context).catchError((_) {}));
+    }
   }
 
   @override
@@ -219,6 +292,7 @@ class _ImageGalleryState extends State<ImageGallery> {
               setState(() {
                 _currentIndex = index;
               });
+              _precacheNeighbors(index);
             },
             itemBuilder: (context, index) {
               final image = images[index];
@@ -358,9 +432,26 @@ class _FullscreenGalleryState extends State<_FullscreenGallery> {
   }
 
   @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _precacheNeighbors(_currentIndex);
+  }
+
+  @override
   void dispose() {
     _pageController.dispose();
     super.dispose();
+  }
+
+  /// Précharge les images plein écran adjacentes -> swipe instantané.
+  void _precacheNeighbors(int index) {
+    final images = widget.collection.images;
+    for (final i in [index - 1, index + 1]) {
+      if (i < 0 || i >= images.length) continue;
+      final url = images[i].variants.getUrl(ImageSize.xlarge);
+      if (url.trim().isEmpty || !url.startsWith('http')) continue;
+      unawaited(precacheImage(NetworkImage(url), context).catchError((_) {}));
+    }
   }
 
   @override
@@ -384,6 +475,7 @@ class _FullscreenGalleryState extends State<_FullscreenGallery> {
           setState(() {
             _currentIndex = index;
           });
+          _precacheNeighbors(index);
         },
         itemBuilder: (context, index) {
           final image = images[index];
