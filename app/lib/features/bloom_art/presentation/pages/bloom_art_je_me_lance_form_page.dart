@@ -126,7 +126,7 @@ class _BloomArtJeMeLanceFormPageState
     final activityLabel = BloomArtCreationType.labelOf(_creationType);
     return <String, dynamic>{
       'savedAt': DateTime.now().toIso8601String(),
-      'source': 'bloom_art_ilipresto_parcours_personnalise',
+      'source': 'bloom_art_maslive_parcours_personnalise',
       'projectLabel': 'Galerie Bloom Art — $activityLabel',
       'region': _region,
       'currentStatus': _currentStatus,
