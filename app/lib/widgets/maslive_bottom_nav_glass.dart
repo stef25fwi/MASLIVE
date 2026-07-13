@@ -16,8 +16,8 @@ class MasliveBottomNavGlass extends StatelessWidget {
   });
 
   static const barHeight = 68.0;
-  static const _icons = <IconData>[
-    Icons.near_me_rounded,
+  static const _icons = <IconData?>[
+    null, // Icône Carte MASLIVE dessinée sur mesure.
     Icons.search_rounded,
     Icons.movie_creation_outlined,
     Icons.person_rounded,
@@ -169,7 +169,7 @@ class _Indicator extends StatelessWidget {
 }
 
 class _NavIcon extends StatelessWidget {
-  final IconData icon;
+  final IconData? icon;
   final bool selected;
   final VoidCallback onTap;
 
@@ -183,6 +183,7 @@ class _NavIcon extends StatelessWidget {
   Widget build(BuildContext context) {
     final activeColor = const Color(0xFF111827);
     final idleColor = const Color(0xFF7A8699);
+    final iconColor = selected ? activeColor : idleColor;
 
     return InkResponse(
       onTap: onTap,
@@ -194,14 +195,84 @@ class _NavIcon extends StatelessWidget {
         child: AnimatedOpacity(
           duration: const Duration(milliseconds: 160),
           opacity: selected ? 1 : 0.75,
-          child: Icon(
-            icon,
-            color: selected ? activeColor : idleColor,
-            size: 26,
-          ),
+          child: icon == null
+              ? CustomPaint(
+                  size: const Size(30, 30),
+                  painter: _MasliveMapPinIconPainter(color: iconColor),
+                )
+              : Icon(
+                  icon,
+                  color: iconColor,
+                  size: 26,
+                ),
         ),
       ),
     );
+  }
+}
+
+class _MasliveMapPinIconPainter extends CustomPainter {
+  final Color color;
+
+  const _MasliveMapPinIconPainter({required this.color});
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final scaleX = size.width / 30;
+    final scaleY = size.height / 30;
+    canvas.save();
+    canvas.scale(scaleX, scaleY);
+
+    final stroke = Paint()
+      ..color = color
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 2.4
+      ..strokeCap = StrokeCap.round
+      ..strokeJoin = StrokeJoin.round;
+
+    final fill = Paint()
+      ..color = color
+      ..style = PaintingStyle.fill;
+
+    // Carte pliée : trois volets, lisible en très petite taille.
+    final mapPath = Path()
+      ..moveTo(3.5, 13.0)
+      ..lineTo(8.6, 10.8)
+      ..lineTo(13.7, 13.0)
+      ..lineTo(21.5, 10.8)
+      ..lineTo(26.5, 13.0)
+      ..lineTo(26.5, 25.0)
+      ..lineTo(21.5, 22.8)
+      ..lineTo(13.7, 25.0)
+      ..lineTo(8.6, 22.8)
+      ..lineTo(3.5, 25.0)
+      ..close();
+    canvas.drawPath(mapPath, stroke);
+
+    canvas.drawLine(const Offset(8.6, 10.8), const Offset(8.6, 22.8), stroke);
+    canvas.drawLine(const Offset(21.5, 10.8), const Offset(21.5, 22.8), stroke);
+
+    // Épingle pleine au-dessus de la carte.
+    final pinPath = Path()
+      ..moveTo(15.0, 4.0)
+      ..cubicTo(11.6, 4.0, 9.4, 6.4, 9.4, 9.2)
+      ..cubicTo(9.4, 12.8, 13.3, 16.2, 15.0, 18.7)
+      ..cubicTo(16.7, 16.2, 20.6, 12.8, 20.6, 9.2)
+      ..cubicTo(20.6, 6.4, 18.4, 4.0, 15.0, 4.0)
+      ..close();
+    canvas.drawPath(pinPath, fill);
+
+    final hole = Paint()
+      ..color = Colors.white
+      ..style = PaintingStyle.fill;
+    canvas.drawCircle(const Offset(15.0, 9.2), 2.15, hole);
+
+    canvas.restore();
+  }
+
+  @override
+  bool shouldRepaint(covariant _MasliveMapPinIconPainter oldDelegate) {
+    return oldDelegate.color != color;
   }
 }
 
