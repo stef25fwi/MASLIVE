@@ -211,7 +211,7 @@ class _SuperAdminUserManagementPageState
       child: ListView.separated(
         padding: const EdgeInsets.fromLTRB(12, 4, 12, 100),
         itemCount: _users.length,
-        separatorBuilder: (_, __) => const SizedBox(height: 8),
+        separatorBuilder: (context, index) => const SizedBox(height: 8),
         itemBuilder: (context, index) => _buildUserCard(_users[index]),
       ),
     );
@@ -407,8 +407,9 @@ class _SuperAdminUserManagementPageState
                       password: password.isEmpty ? null : password,
                       adminGroupId: groupCode.isEmpty ? null : groupCode,
                     );
-              if (sheetContext.mounted)
+              if (sheetContext.mounted) {
                 Navigator.of(sheetContext).pop(mutation);
+              }
             } catch (error) {
               setSheetState(() {
                 submitting = false;
@@ -467,7 +468,7 @@ class _SuperAdminUserManagementPageState
                     ),
                     const SizedBox(height: 10),
                     DropdownButtonFormField<String>(
-                      value: role == 'superAdmin' ? 'user' : role,
+                      initialValue: role == 'superAdmin' ? 'user' : role,
                       decoration: const InputDecoration(
                         labelText: 'Profil',
                         border: OutlineInputBorder(),
