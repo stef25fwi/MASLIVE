@@ -212,3 +212,60 @@ chaque sortie.
 **Effet** : les contrôles de carte ne sont visibles que sur les pages Home/
 Explorer ; ils disparaissent instantanément dès qu'un autre onglet passe au
 premier plan, sans détruire la carte (le retour reste instantané, cf. § 7).
+
+---
+
+## 9. Audit chargement web instantané (6e itération) — page blanche au 1er tap
+
+**Symptôme signalé** : en web, clic sur certaines icônes de la bottom bar
+(Boutique/Média/Profil) → délai d'attente avec **page blanche** avant
+affichage du contenu. Perçu comme un bug.
+
+### Diagnostic du pipeline de chargement
+
+Flutter web découpe le bundle en **chunks JS différés** (`deferred as` dans
+`main.dart`). `UserFacingShellPage` — qui héberge Boutique/Média/Home/
+Explorer/Profil — est **un seul gros chunk** (`user_shell`), non téléchargé
+tant qu'aucune route ne l'a demandé. Deux problèmes cumulés :
+
+1. **Préchauffe trop tardive et conditionnelle.** Un mécanisme de préchauffe
+   existait déjà (`services/deferred_route_prefetch.dart`,
+   `prefetchLikelyDeferredRoutes()`), mais il n'était déclenché que depuis
+   `splash_wrapper_page.dart`, **après que la carte Mapbox soit prête** et le
+   splash masqué (+ 120 ms). Sur un réseau lent, Mapbox peut mettre plusieurs
+   secondes à charger — la préchauffe du chunk `user_shell` ne démarrait donc
+   pas plus tôt, alors qu'elle n'a **aucune dépendance** avec la carte.
+2. **Aucun retour visuel pendant le téléchargement.** `_DeferredLoader` (dans
+   `main.dart`) affichait un `SizedBox.expand()` **totalement blanc/transparent**
+   tant que le chunk n'était pas prêt — par design, pour éviter un flash de
+   spinner sur les cas rapides. Mais si la préchauffe n'avait pas terminé (cas
+   ci-dessus), l'utilisateur voyait un vrai blanc indéfini, lu comme un plantage.
+
+Vérifié en complément : `StorexShopPage` affiche déjà des
+`CircularProgressIndicator` pendant le chargement Firestore — le problème
+n'est donc pas le contenu métier, mais bien le téléchargement du chunk JS
+lui-même.
+
+### Correctif
+
+- **`main.dart`** : `prefetchLikelyDeferredRoutes()` est maintenant appelé dès
+  le tout début de `_bootstrapInBackground()` (web uniquement), **avant**
+  `Firebase.initializeApp` — en parallèle de l'init Firebase/Stripe/Mapbox, et
+  totalement indépendant de la carte/splash. Le téléchargement du chunk
+  `user_shell` (+ `cart`, `favorites`) démarre donc dès le premier instant de
+  l'app, lui laissant largement le temps de se terminer avant que l'utilisateur
+  n'atteigne la bottom bar (masquée tant que le splash n'a pas disparu).
+  L'appel existant depuis le splash est conservé comme filet de sécurité
+  (idempotent, sans coût).
+- **`_DeferredLoader`** : remplace le blanc indéfini par
+  `_DeferredLoadingFallback` — reste transparent pendant une courte grâce
+  (220 ms, aucun flash sur le cas normal/rapide) puis affiche un indicateur de
+  chargement discret si le téléchargement traîne réellement (réseau lent).
+  Plus jamais de blanc qui se lit comme un bug, même sur le pire des cas.
+
+### Effet attendu
+
+- Réseau normal : le chunk `user_shell` est déjà en cache au moment du 1er tap
+  → ouverture instantanée (0 délai perceptible) sur Boutique/Média/Profil.
+- Réseau lent (rare) : un spinner discret apparaît après 220 ms au lieu d'un
+  écran blanc — perçu comme un chargement normal, pas comme un bug.

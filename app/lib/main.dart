@@ -84,6 +84,7 @@ import 'route_style_pro/ui/route_style_wizard_pro_page.dart'
 import 'providers/cart_provider.dart';
 import 'services/cart_checkout_service.dart';
 import 'services/cart_service.dart';
+import 'services/deferred_route_prefetch.dart';
 import 'services/language_service.dart';
 import 'services/localization_service.dart' show LocalizationService;
 import 'services/mapbox_token_service.dart';
@@ -329,6 +330,16 @@ class _BootstrapRootState extends State<_BootstrapRoot> {
 
   Future<void> _bootstrapInBackground() async {
     StartupTrace.log('BOOT', 'background bootstrap start');
+
+    // Démarre le téléchargement des chunks JS différés (shell utilisateur:
+    // Boutique/Média/Home/Profil, panier, favoris) le plus tôt possible,
+    // en parallèle de Firebase/Mapbox — sans attendre que le splash disparaisse.
+    // Objectif: le chunk soit déjà en cache quand l'utilisateur atteint la
+    // bottom bar, au lieu de le découvrir vide au premier tap (voir
+    // deferred_route_prefetch.dart et le _DeferredLoader de main.dart).
+    if (kIsWeb) {
+      prefetchLikelyDeferredRoutes();
+    }
 
     final firebaseReady = await _initializeFirebase();
 
@@ -1281,11 +1292,57 @@ class _DeferredLoader extends StatelessWidget {
         if (snap.connectionState == ConnectionState.done && !snap.hasError) {
           return _buildPage();
         }
-        // Pas de spinner animé à l'ouverture: un placeholder transparent laisse
-        // le fond de l'app visible le temps (bref) du chargement du chunk, sans
-        // "flash" de loader. La page s'affiche dès qu'elle est prête.
-        return const SizedBox.expand();
+        // Le chunk est en principe déjà en cache (préchargé dès le boot, voir
+        // deferred_route_prefetch.dart): ce chemin ne s'exécute normalement
+        // que le temps de quelques millisecondes. `_DeferredLoadingFallback`
+        // reste transparent pendant une courte grâce (pas de flash de loader
+        // sur le cas rapide/normal) puis affiche un indicateur discret si le
+        // téléchargement traîne réellement (réseau lent) — jamais un blanc
+        // indéfini qui se lit comme un bug.
+        return const _DeferredLoadingFallback();
       },
+    );
+  }
+}
+
+class _DeferredLoadingFallback extends StatefulWidget {
+  const _DeferredLoadingFallback();
+
+  @override
+  State<_DeferredLoadingFallback> createState() =>
+      _DeferredLoadingFallbackState();
+}
+
+class _DeferredLoadingFallbackState extends State<_DeferredLoadingFallback> {
+  static const Duration _gracePeriod = Duration(milliseconds: 220);
+  bool _showIndicator = false;
+  Timer? _timer;
+
+  @override
+  void initState() {
+    super.initState();
+    _timer = Timer(_gracePeriod, () {
+      if (mounted) setState(() => _showIndicator = true);
+    });
+  }
+
+  @override
+  void dispose() {
+    _timer?.cancel();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (!_showIndicator) return const SizedBox.expand();
+    return const SizedBox.expand(
+      child: Center(
+        child: SizedBox(
+          width: 28,
+          height: 28,
+          child: CircularProgressIndicator(strokeWidth: 2.4),
+        ),
+      ),
     );
   }
 }
