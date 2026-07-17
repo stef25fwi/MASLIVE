@@ -3,16 +3,15 @@ import 'package:flutter/material.dart';
 
 import '../../../../shop/widgets/storex_page_header.dart';
 import '../../data/models/bloom_art_item.dart';
+import '../../data/models/bloom_art_seller_profile.dart';
 import '../../data/repositories/bloom_art_repository.dart';
 import '../widgets/bloom_art_item_card.dart';
 import 'bloom_art_profile_choice_sheet.dart';
 
-// ─── Couleurs partagées (miroir de la boutique) ────────────────────────────
-
 class _Ui {
   const _Ui._();
-  static const Color pageBg    = Color(0xFFF7F8FC);
-  static const Color textMain  = Color(0xFF101828);
+  static const Color pageBg = Color(0xFFF7F8FC);
+  static const Color textMain = Color(0xFF101828);
   static const Color textMuted = Color(0xFF667085);
   static const LinearGradient rainbowGradient = LinearGradient(
     colors: [Color(0xFFFFE36A), Color(0xFFFF7BC5), Color(0xFF7CE0FF)],
@@ -25,6 +24,7 @@ class BloomArtHomePage extends StatelessWidget {
   BloomArtHomePage({super.key});
 
   final BloomArtRepository _repository = BloomArtRepository();
+  final GlobalKey _gallerySectionKey = GlobalKey();
 
   Future<void> _handleSellPressed(BuildContext context) async {
     final user = FirebaseAuth.instance.currentUser;
@@ -45,7 +45,24 @@ class BloomArtHomePage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final user = FirebaseAuth.instance.currentUser;
+    final sellerProfileStream = user == null
+        ? Stream<BloomArtSellerProfile?>.value(null)
+        : _repository.watchSellerProfile(user.uid);
 
+    return StreamBuilder<BloomArtSellerProfile?>(
+      stream: sellerProfileStream,
+      builder: (context, profileSnapshot) {
+        final isArtCreator = profileSnapshot.data?.isArtisanArt == true;
+        return _buildGallery(context, user, isArtCreator);
+      },
+    );
+  }
+
+  Widget _buildGallery(
+    BuildContext context,
+    User? user,
+    bool isArtCreator,
+  ) {
     return Scaffold(
       backgroundColor: _Ui.pageBg,
       appBar: AppBar(
@@ -59,7 +76,7 @@ class BloomArtHomePage extends StatelessWidget {
         centerTitle: true,
         title: const StorexPageHeaderTitle(subtitle: 'GALERIE BLOOMOOD ART'),
         actions: <Widget>[
-          if (user != null)
+          if (isArtCreator)
             IconButton(
               tooltip: 'Espace vendeur',
               onPressed: () =>
@@ -83,7 +100,6 @@ class BloomArtHomePage extends StatelessWidget {
               return CustomScrollView(
                 physics: const BouncingScrollPhysics(),
                 slivers: <Widget>[
-                  // ── Bandeau hero + chips ──────────────────────────────
                   SliverPadding(
                     padding: const EdgeInsets.fromLTRB(10, 14, 10, 0),
                     sliver: SliverToBoxAdapter(
@@ -91,7 +107,19 @@ class BloomArtHomePage extends StatelessWidget {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: <Widget>[
                           _BloomArtHeroBanner(
+                            isArtCreator: isArtCreator,
                             onSellPressed: () => _handleSellPressed(context),
+                            onExplorePressed: () {
+                              final targetContext =
+                                  _gallerySectionKey.currentContext;
+                              if (targetContext != null) {
+                                Scrollable.ensureVisible(
+                                  targetContext,
+                                  duration: const Duration(milliseconds: 450),
+                                  curve: Curves.easeOutCubic,
+                                );
+                              }
+                            },
                           ),
                           const SizedBox(height: 18),
                           SizedBox(
@@ -99,18 +127,30 @@ class BloomArtHomePage extends StatelessWidget {
                             child: ListView(
                               scrollDirection: Axis.horizontal,
                               physics: const BouncingScrollPhysics(),
-                              children: const <Widget>[
-                                _BloomArtChip(label: 'PRIX PRIVE'),
-                                SizedBox(width: 12),
-                                _BloomArtChip(label: 'OFFRES NEGOCIEES'),
-                                SizedBox(width: 12),
-                                _BloomArtChip(label: 'CHECKOUT STRIPE'),
+                              children: <Widget>[
+                                _BloomArtChip(
+                                  label: isArtCreator
+                                      ? 'PRIX PRIVE'
+                                      : 'ŒUVRES UNIQUES',
+                                ),
+                                const SizedBox(width: 12),
+                                _BloomArtChip(
+                                  label: isArtCreator
+                                      ? 'OFFRES NEGOCIEES'
+                                      : 'FAITES UNE OFFRE',
+                                ),
+                                const SizedBox(width: 12),
+                                _BloomArtChip(
+                                  label: isArtCreator
+                                      ? 'CHECKOUT STRIPE'
+                                      : 'PAIEMENT EN PLUSIEURS FOIS',
+                                ),
                               ],
                             ),
                           ),
                           const SizedBox(height: 26),
-                          // ── Titre section ─────────────────────────────
                           Row(
+                            key: _gallerySectionKey,
                             children: <Widget>[
                               const Text(
                                 'PIECES DISPONIBLES',
@@ -123,7 +163,7 @@ class BloomArtHomePage extends StatelessWidget {
                                 ),
                               ),
                               const Spacer(),
-                              if (user != null)
+                              if (isArtCreator)
                                 GestureDetector(
                                   onTap: () => _handleSellPressed(context),
                                   child: const Text(
@@ -143,12 +183,12 @@ class BloomArtHomePage extends StatelessWidget {
                       ),
                     ),
                   ),
-
-                  // ── Etats du stream ───────────────────────────────────
                   if (snapshot.connectionState == ConnectionState.waiting)
                     const SliverFillRemaining(
                       hasScrollBody: false,
-                      child: Center(child: CircularProgressIndicator(strokeWidth: 2)),
+                      child: Center(
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      ),
                     )
                   else if (snapshot.hasError)
                     SliverFillRemaining(
@@ -165,15 +205,17 @@ class BloomArtHomePage extends StatelessWidget {
                       ),
                     )
                   else if (items.isEmpty)
-                    const SliverFillRemaining(
+                    SliverFillRemaining(
                       hasScrollBody: false,
                       child: Center(
                         child: Padding(
-                          padding: EdgeInsets.all(24),
+                          padding: const EdgeInsets.all(24),
                           child: Text(
-                            'Aucune piece n\'est encore publiee.\nRevenez bientot ou deposez la premiere creation.',
+                            isArtCreator
+                                ? 'Aucune pièce n’est encore publiée.\nDéposez la première création.'
+                                : 'Aucune œuvre n’est disponible pour le moment.\nRevenez bientôt pour découvrir de nouvelles créations.',
                             textAlign: TextAlign.center,
-                            style: TextStyle(
+                            style: const TextStyle(
                               color: _Ui.textMuted,
                               height: 1.45,
                             ),
@@ -185,11 +227,13 @@ class BloomArtHomePage extends StatelessWidget {
                     SliverPadding(
                       padding: const EdgeInsets.fromLTRB(10, 0, 10, 28),
                       sliver: SliverGrid.builder(
-                        gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                        gridDelegate:
+                            SliverGridDelegateWithFixedCrossAxisCount(
                           crossAxisCount: crossAxisCount,
                           crossAxisSpacing: 14,
                           mainAxisSpacing: 14,
-                          childAspectRatio: crossAxisCount >= 2 ? 0.52 : 0.74,
+                          childAspectRatio:
+                              crossAxisCount >= 2 ? 0.52 : 0.74,
                         ),
                         itemCount: items.length,
                         itemBuilder: (context, index) {
@@ -213,11 +257,16 @@ class BloomArtHomePage extends StatelessWidget {
   }
 }
 
-// ─── Hero banner ─────────────────────────────────────────────────────────────
-
 class _BloomArtHeroBanner extends StatelessWidget {
-  const _BloomArtHeroBanner({required this.onSellPressed});
+  const _BloomArtHeroBanner({
+    required this.isArtCreator,
+    required this.onSellPressed,
+    required this.onExplorePressed,
+  });
+
+  final bool isArtCreator;
   final VoidCallback onSellPressed;
+  final VoidCallback onExplorePressed;
 
   @override
   Widget build(BuildContext context) {
@@ -234,7 +283,6 @@ class _BloomArtHeroBanner extends StatelessWidget {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: <Widget>[
-            // ── Zone logo sur fond blanc ───────────────────────────────
             Container(
               color: Colors.white,
               height: 216,
@@ -245,17 +293,18 @@ class _BloomArtHeroBanner extends StatelessWidget {
                 height: 200,
               ),
             ),
-            // ── Zone texte + bouton sous le logo ──────────────────────
             Container(
               color: _Ui.textMain,
               padding: const EdgeInsets.fromLTRB(10, 14, 10, 16),
               child: Row(
                 crossAxisAlignment: CrossAxisAlignment.center,
                 children: <Widget>[
-                  const Expanded(
+                  Expanded(
                     child: Text(
-                      'Exposez une création, recevez des offres',
-                      style: TextStyle(
+                      isArtCreator
+                          ? 'Exposez une création, recevez des offres'
+                          : 'Achetez une œuvre, faites une offre et réglez en plusieurs fois',
+                      style: const TextStyle(
                         color: Colors.white,
                         fontWeight: FontWeight.w600,
                         fontSize: 14,
@@ -265,9 +314,15 @@ class _BloomArtHeroBanner extends StatelessWidget {
                   ),
                   const SizedBox(width: 12),
                   FilledButton.icon(
-                    onPressed: onSellPressed,
-                    icon: const Icon(Icons.add_circle_outline, size: 18),
-                    label: const Text('Déposer'),
+                    onPressed:
+                        isArtCreator ? onSellPressed : onExplorePressed,
+                    icon: Icon(
+                      isArtCreator
+                          ? Icons.add_circle_outline
+                          : Icons.collections_outlined,
+                      size: 18,
+                    ),
+                    label: Text(isArtCreator ? 'Déposer' : 'Découvrir'),
                     style: FilledButton.styleFrom(
                       backgroundColor: Colors.white,
                       foregroundColor: _Ui.textMain,
@@ -285,8 +340,6 @@ class _BloomArtHeroBanner extends StatelessWidget {
     );
   }
 }
-
-// ─── Chip categorie (style boutique) ─────────────────────────────────────────
 
 class _BloomArtChip extends StatelessWidget {
   const _BloomArtChip({required this.label});
