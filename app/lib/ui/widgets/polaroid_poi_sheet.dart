@@ -544,7 +544,7 @@ class _PolaroidGrainPainter extends CustomPainter {
 class _PhotoFallback extends StatelessWidget {
   const _PhotoFallback();
 
-  static const String _defaultPoiImageAsset = 'assets/images/icon-point.webp';
+  static const String _defaultPoiImageAsset = 'assets/images/maslivelogo.png';
 
   @override
   Widget build(BuildContext context) {
@@ -555,8 +555,8 @@ class _PhotoFallback extends StatelessWidget {
       child: Center(
         child: Image.asset(
           _defaultPoiImageAsset,
-          width: 72,
-          height: 72,
+          width: 96,
+          height: 96,
           fit: BoxFit.contain,
           errorBuilder: (context, error, stackTrace) {
             return const Icon(

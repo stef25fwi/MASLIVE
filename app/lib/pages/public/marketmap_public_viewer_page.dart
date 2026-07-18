@@ -1280,7 +1280,7 @@ class _MarketMapPublicViewerPageState extends State<MarketMapPublicViewerPage>
       type: poi.type,
       meta: poi.metadata,
       rootPopupEnabled: poi.popupEnabledRoot,
-      requireImage: true,
+      requireImage: false,
       hasImage: hasImage,
     );
     if (!popupEnabled) return;
