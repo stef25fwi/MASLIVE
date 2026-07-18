@@ -143,7 +143,12 @@ class _HomeMapPage3DState extends State<HomeMapPage3D>
   static const String _kCircuitSelectionKey = 'maslive_market_circuit_selection_v1';
   static const double _userMarkerIconSize = 1.5;
   static const Duration _cameraAnimationDuration = Duration(milliseconds: 800);
-  static const double _defaultZoom = 13.0;
+  // Zoom "vue d'ensemble" à l'ouverture de Home, avant que l'utilisateur ne
+  // sélectionne sa carte/circuit : ~60-70km de portée visible (archipel
+  // Guadeloupe entier) à ~16.25°N. zoom 15.5 (_userZoom, niveau rue) était
+  // utilisé par erreur dès que le GPS était prêt, donnant un zoom bien trop
+  // serré au premier affichage.
+  static const double _defaultZoom = 9.5;
   static const double _userZoom = 15.5;
   static const double _defaultPitch = 45.0;
   static const double _minZoom3dBuildings = 14.5;
@@ -3363,11 +3368,13 @@ class _HomeMapPage3DState extends State<HomeMapPage3D>
           if (coords is List && coords.length >= 2) {
             final lng = (coords[0] as num).toDouble();
             final lat = (coords[1] as num).toDouble();
-            // zoom +1.5 (ajuste)
+            // Zoom rapproché pour séparer les POIs du cluster (indépendant
+            // de _defaultZoom, qui est désormais la vue d'ensemble large de
+            // Home et non un niveau "ville").
             await map.easeTo(
               CameraOptions(
                 center: Point(coordinates: Position(lng, lat)),
-                zoom: (_defaultZoom + 2.0),
+                zoom: 15.0,
               ),
               MapAnimationOptions(duration: 450),
             );
@@ -4005,7 +4012,11 @@ class _HomeMapPage3DState extends State<HomeMapPage3D>
                               center: Point(
                                 coordinates: _userPos ?? _fallbackCenter,
                               ),
-                              zoom: _userPos != null ? _userZoom : _defaultZoom,
+                              // Toujours démarrer sur la vue d'ensemble
+                              // (_defaultZoom), que le GPS soit déjà prêt ou
+                              // non : le zoom rue (_userZoom) reste réservé
+                              // au bouton "me recentrer" / mode suivi.
+                              zoom: _defaultZoom,
                               pitch: _defaultPitch,
                               bearing: 0.0,
                             ),
