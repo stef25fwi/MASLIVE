@@ -1,6 +1,9 @@
+import 'dart:async';
+
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 
+import '../../../../services/french_geo_lookup_service.dart';
 import '../../data/models/bloom_art_seller_profile.dart';
 import '../../data/repositories/bloom_art_repository.dart';
 import '../../services/bloom_art_business_verification_service.dart';
@@ -20,6 +23,9 @@ class _BloomArtArtistCreatorFormPageState
   final BloomArtRepository _repository = BloomArtRepository();
   final BloomArtBusinessVerificationService _verificationService =
       const BloomArtBusinessVerificationService();
+  final FrenchGeoLookupService _geoLookupService = const FrenchGeoLookupService();
+  Timer? _postalCodeDebounce;
+  String _lastLookedUpPostalCode = '';
 
   final TextEditingController _fullNameController = TextEditingController();
   final TextEditingController _artistNameController = TextEditingController();
@@ -56,10 +62,13 @@ class _BloomArtArtistCreatorFormPageState
   void initState() {
     super.initState();
     _bootstrap();
+    _postalCodeController.addListener(_onPostalCodeChanged);
   }
 
   @override
   void dispose() {
+    _postalCodeDebounce?.cancel();
+    _postalCodeController.removeListener(_onPostalCodeChanged);
     _fullNameController.dispose();
     _artistNameController.dispose();
     _emailController.dispose();
@@ -75,6 +84,34 @@ class _BloomArtArtistCreatorFormPageState
     _businessNameController.dispose();
     _nafCodeController.dispose();
     super.dispose();
+  }
+
+  void _onPostalCodeChanged() {
+    final postalCode = _postalCodeController.text.trim();
+    _postalCodeDebounce?.cancel();
+    if (!_geoLookupService.isValidPostalCode(postalCode) ||
+        postalCode == _lastLookedUpPostalCode) {
+      return;
+    }
+    _postalCodeDebounce = Timer(const Duration(milliseconds: 400), () {
+      _autoFillCityAndRegionFromPostalCode(postalCode);
+    });
+  }
+
+  Future<void> _autoFillCityAndRegionFromPostalCode(String postalCode) async {
+    _lastLookedUpPostalCode = postalCode;
+    final match = await _geoLookupService.lookupByPostalCode(
+      postalCode,
+      preferredCity: _cityController.text,
+    );
+    if (!mounted || match.isEmpty) return;
+
+    if (match.city.isNotEmpty && _cityController.text.trim().isEmpty) {
+      _cityController.text = match.city;
+    }
+    if (match.region.isNotEmpty && _regionController.text.trim().isEmpty) {
+      _regionController.text = match.region;
+    }
   }
 
   Future<void> _bootstrap() async {
