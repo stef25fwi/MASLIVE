@@ -633,21 +633,11 @@ class _DefaultMapPageState extends State<DefaultMapPage>
       hasImage: hasImage,
     );
 
-    final hasCardData =
-        title.isNotEmpty ||
-        description.isNotEmpty ||
-        imageUrl.isNotEmpty ||
-        (poi.address ?? '').trim().isNotEmpty ||
-        _marketPoiOpeningHoursText(poi.openingHours).isNotEmpty ||
-        (poi.phone ?? '').trim().isNotEmpty ||
-        (poi.website ?? '').trim().isNotEmpty ||
-        (poi.instagram ?? '').trim().isNotEmpty ||
-        (poi.facebook ?? '').trim().isNotEmpty ||
-        (poi.whatsapp ?? '').trim().isNotEmpty ||
-        (poi.email ?? '').trim().isNotEmpty ||
-        (poi.mapsUrl ?? '').trim().isNotEmpty;
-
-    if (!popupEnabled || !hasCardData) {
+    // La fiche doit toujours pouvoir s'ouvrir au tap (avec logo par défaut si
+    // pas de photo/description) : seul popupEnabled (flag explicite ou défaut
+    // par type, ex: WC désactivé) décide, plus de condition sur le volume de
+    // données déjà renseignées.
+    if (!popupEnabled) {
       return;
     }
 
