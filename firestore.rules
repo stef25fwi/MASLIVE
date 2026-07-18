@@ -1853,19 +1853,38 @@ service cloud.firestore {
 
       allow create: if isSignedIn()
         && profileId == request.auth.uid
-        // Empêche la création directe d'un compte Stripe / statut de payout
+        // Empêche la création directe d'un compte Stripe / statut de payout /
+        // statut de vérification SIRET : seul verifyBloomArtSiret (Admin SDK)
+        // peut poser ces champs, jamais le client directement.
         && !('stripe' in request.resource.data)
-        && !('payoutStatus' in request.resource.data);
+        && !('payoutStatus' in request.resource.data)
+        && !('sellerStatus' in request.resource.data)
+        && !('businessVerificationStatus' in request.resource.data)
+        && !('businessVerificationSource' in request.resource.data)
+        && !('businessVerifiedAt' in request.resource.data)
+        && !('siret' in request.resource.data)
+        && !('siren' in request.resource.data)
+        && !('businessName' in request.resource.data)
+        && !('nafCode' in request.resource.data);
 
       // Update:
-      // - Admin master: tout (Stripe, payoutStatus, etc.)
-      // - Propriétaire: tout SAUF les champs pilotés par le backend Stripe Connect
+      // - Admin master: tout (Stripe, payoutStatus, statut de vérification, etc.)
+      // - Propriétaire: tout SAUF les champs pilotés par le backend
+      //   (Stripe Connect + vérification SIRET server-side)
       allow update: if isMasterAdmin() || (
         isSignedIn()
         && profileId == request.auth.uid
         && !request.resource.data.diff(resource.data).affectedKeys().hasAny([
           'stripe',
-          'payoutStatus'
+          'payoutStatus',
+          'sellerStatus',
+          'businessVerificationStatus',
+          'businessVerificationSource',
+          'businessVerifiedAt',
+          'siret',
+          'siren',
+          'businessName',
+          'nafCode'
         ])
       );
 

@@ -839,6 +839,7 @@ exports.createBloomArtConnectOnboardingLink =
   bloomArtHandlers.createBloomArtConnectOnboardingLink;
 exports.refreshBloomArtConnectStatus =
   bloomArtHandlers.refreshBloomArtConnectStatus;
+exports.verifyBloomArtSiret = bloomArtHandlers.verifyBloomArtSiret;
 
 function assertNumber(n, name) {
   if (typeof n !== "number" || Number.isNaN(n) || !Number.isFinite(n)) {
