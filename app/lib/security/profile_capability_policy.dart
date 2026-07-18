@@ -152,7 +152,30 @@ class ProfileCapabilityPolicy {
     String? fallbackName,
     String? fallbackPhotoUrl,
   }) async {
-    final userDoc = await _firestore.collection('users').doc(uid).get();
+    // Ces 6 lectures ne dépendent que de `uid` (pas les unes des autres) :
+    // on les lance en parallèle plutôt qu'en série pour éviter d'empiler
+    // les allers-retours réseau (c'était la cause du chargement lent de la
+    // page profil : jusqu'à 6x la latence réseau au lieu de 1x).
+    final results = await Future.wait(<Future<dynamic>>[
+      _firestore.collection('users').doc(uid).get(),
+      _firestore
+          .collection('photographers')
+          .where('ownerUid', isEqualTo: uid)
+          .limit(1)
+          .get(),
+      _firestore.collection('bloom_art_seller_profiles').doc(uid).get(),
+      _firestore.collection('group_admins').doc(uid).get(),
+      _firestore.collection('group_trackers').doc(uid).get(),
+      _firestore.collection('group_admin_requests').doc(uid).get(),
+    ]);
+
+    final userDoc = results[0] as DocumentSnapshot<Map<String, dynamic>>;
+    final photographerSnap = results[1] as QuerySnapshot<Map<String, dynamic>>;
+    final bloomArtSellerDoc = results[2] as DocumentSnapshot<Map<String, dynamic>>;
+    final groupAdminDoc = results[3] as DocumentSnapshot<Map<String, dynamic>>;
+    final trackerDoc = results[4] as DocumentSnapshot<Map<String, dynamic>>;
+    final groupRequestDoc = results[5] as DocumentSnapshot<Map<String, dynamic>>;
+
     final userData = userDoc.data() ?? <String, dynamic>{};
 
     final isAdminFlag = userData['isAdmin'] == true;
@@ -166,15 +189,8 @@ class ProfileCapabilityPolicy {
             .toSet() ??
         const <String>{};
 
-    final photographerSnap = await _firestore
-        .collection('photographers')
-        .where('ownerUid', isEqualTo: uid)
-        .limit(1)
-        .get();
     final hasPhotographerProfile = photographerSnap.docs.isNotEmpty;
 
-    final bloomArtSellerDoc =
-        await _firestore.collection('bloom_art_seller_profiles').doc(uid).get();
     final bloomArtSellerData = bloomArtSellerDoc.data();
     final bloomArtProfileType =
         (bloomArtSellerData?['profileType'] as String?)?.trim();
@@ -183,10 +199,6 @@ class ProfileCapabilityPolicy {
             bloomArtProfileType.isEmpty ||
             bloomArtProfileType == 'artisan_art' ||
             bloomArtProfileType == 'artist_creator');
-
-    final groupAdminDoc = await _firestore.collection('group_admins').doc(uid).get();
-    final trackerDoc = await _firestore.collection('group_trackers').doc(uid).get();
-    final groupRequestDoc = await _firestore.collection('group_admin_requests').doc(uid).get();
 
     final groupAdminData = groupAdminDoc.data();
     final trackerData = trackerDoc.data();
