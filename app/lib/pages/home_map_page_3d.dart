@@ -2596,31 +2596,17 @@ class _HomeMapPage3DState extends State<HomeMapPage3D>
 
     final rootPopupEnabled =
         props['popupEnabled'] ?? props['hasPopup'] ?? props['hasCard'];
-    final hasExplicitPopupFlag =
-        PoiPopupService.parseBool(meta['popupEnabled'] ?? rootPopupEnabled) != null;
-    final hasPolaroidMeta = meta.containsKey('polaroid') || meta.containsKey('image');
-    final hasAnyCardData =
-        title.isNotEmpty ||
-        desc.isNotEmpty ||
-        imageUrl.isNotEmpty ||
-        address.isNotEmpty ||
-        openingHours.isNotEmpty ||
-        phone.isNotEmpty ||
-        website.isNotEmpty ||
-        instagram.isNotEmpty ||
-        facebook.isNotEmpty ||
-        whatsapp.isNotEmpty ||
-        email.isNotEmpty ||
-        mapsUrl.isNotEmpty;
-    final hasCard = hasExplicitPopupFlag || hasPolaroidMeta || hasAnyCardData;
-    final canOpenSheet = hasCard &&
-        PoiPopupService.isPopupEnabled(
-          type: category,
-          meta: meta,
-          rootPopupEnabled: rootPopupEnabled,
-          requireImage: false,
-          hasImage: imageUrl.isNotEmpty || hasImageInMeta,
-        );
+    // La fiche doit toujours pouvoir s'ouvrir au tap (avec logo par défaut si
+    // pas de photo/description) : seul isPopupEnabled (flag explicite ou
+    // défaut par type, ex: WC désactivé) décide, plus de condition sur le
+    // volume de données déjà renseignées.
+    final canOpenSheet = PoiPopupService.isPopupEnabled(
+      type: category,
+      meta: meta,
+      rootPopupEnabled: rootPopupEnabled,
+      requireImage: false,
+      hasImage: imageUrl.isNotEmpty || hasImageInMeta,
+    );
 
     return _PoiTapCandidate(
       id: poiId,
@@ -2692,31 +2678,17 @@ class _HomeMapPage3DState extends State<HomeMapPage3D>
     final email = (d.email ?? '').toString().trim();
     final mapsUrl = (d.mapsUrl ?? d.googleMapsUrl ?? d.mapUrl ?? '').toString().trim();
 
-    final hasExplicitPopupFlag =
-        PoiPopupService.parseBool(meta['popupEnabled'] ?? rootPopupEnabled) != null;
-    final hasPolaroidMeta = meta.containsKey('polaroid') || meta.containsKey('image');
-    final hasAnyCardData =
-        title.isNotEmpty ||
-        desc.isNotEmpty ||
-        imageUrl.isNotEmpty ||
-        address.isNotEmpty ||
-        openingHours.isNotEmpty ||
-        phone.isNotEmpty ||
-        website.isNotEmpty ||
-        instagram.isNotEmpty ||
-        facebook.isNotEmpty ||
-        whatsapp.isNotEmpty ||
-        email.isNotEmpty ||
-        mapsUrl.isNotEmpty;
-    final hasCard = hasExplicitPopupFlag || hasPolaroidMeta || hasAnyCardData;
-    final canOpenSheet = hasCard &&
-        PoiPopupService.isPopupEnabled(
-          type: type,
-          meta: meta,
-          rootPopupEnabled: rootPopupEnabled,
-          requireImage: false,
-          hasImage: imageUrl.isNotEmpty || hasImageInMeta,
-        );
+    // La fiche doit toujours pouvoir s'ouvrir au tap (avec logo par défaut si
+    // pas de photo/description) : seul isPopupEnabled (flag explicite ou
+    // défaut par type, ex: WC désactivé) décide, plus de condition sur le
+    // volume de données déjà renseignées.
+    final canOpenSheet = PoiPopupService.isPopupEnabled(
+      type: type,
+      meta: meta,
+      rootPopupEnabled: rootPopupEnabled,
+      requireImage: false,
+      hasImage: imageUrl.isNotEmpty || hasImageInMeta,
+    );
 
     return _PoiTapCandidate(
       id: poi.id,
