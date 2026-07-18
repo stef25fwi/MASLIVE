@@ -269,7 +269,7 @@ class _PoiEditPopupState extends State<PoiEditPopup> {
     _popupEnabled = PoiPopupService.isPopupEnabled(
       type: widget.poi.layerType,
       meta: meta,
-      requireImage: true,
+      requireImage: false,
       hasImage: _hasAnyImage,
     );
 
@@ -616,7 +616,7 @@ class _PoiEditPopupState extends State<PoiEditPopup> {
           _popupEnabled = PoiPopupService.isPopupEnabled(
             type: widget.poi.layerType,
             meta: _initialMeta,
-            requireImage: true,
+            requireImage: false,
             hasImage: true,
           );
         }
@@ -1392,14 +1392,14 @@ class _PoiEditPopupState extends State<PoiEditPopup> {
                   const SizedBox(height: 8),
                   SwitchListTile.adaptive(
                     value: _popupEnabled,
-                    onChanged: (_isSaving || _isUploading || !_hasAnyImage)
+                    onChanged: (_isSaving || _isUploading)
                         ? null
                         : (v) => setState(() => _popupEnabled = v),
                     title: const Text('Popup'),
                     subtitle: Text(
                       _hasAnyImage
                           ? 'Le POI est cliquable et ouvre la fiche photo.'
-                          : 'Ajoute une photo pour activer la fiche photo.',
+                          : 'Le POI est cliquable et ouvre la fiche avec le logo MASLIVE par défaut.',
                     ),
                     contentPadding: EdgeInsets.zero,
                   ),
