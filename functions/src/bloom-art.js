@@ -262,6 +262,266 @@ module.exports = function createBloomArtHandlers(deps) {
     };
   }
 
+  // Vérification SIRET côté serveur — remplace l'ancien flux client-side où
+  // Flutter appelait directement recherche-entreprises.api.gouv.fr et écrivait
+  // lui-même businessVerificationStatus/sellerStatus sur Firestore (un client
+  // modifié pouvait donc s'auto-déclarer "verified"/"active" sans vrai SIRET).
+  // Désormais seul ce Cloud Function (Admin SDK, bypass les rules) peut poser
+  // ces champs ; les rules bloquent leur écriture directe côté client.
+  const SIRET_REGEXP = /^\d{14}$/;
+
+  function passesSiretLuhn(value) {
+    let sum = 0;
+    let shouldDouble = false;
+    for (let i = value.length - 1; i >= 0; i -= 1) {
+      let digit = parseInt(value[i], 10);
+      if (shouldDouble) {
+        digit *= 2;
+        if (digit > 9) digit -= 9;
+      }
+      sum += digit;
+      shouldDouble = !shouldDouble;
+    }
+    return sum % 10 === 0;
+  }
+
+  function readPath(source, path) {
+    let current = source;
+    for (const part of path.split(".")) {
+      if (current && typeof current === "object" && !Array.isArray(current)) {
+        current = current[part];
+        continue;
+      }
+      if (Array.isArray(current)) {
+        const index = Number.parseInt(part, 10);
+        if (!Number.isInteger(index) || index < 0 || index >= current.length) return undefined;
+        current = current[index];
+        continue;
+      }
+      return undefined;
+    }
+    return current;
+  }
+
+  function stringValue(source, paths) {
+    for (const path of paths) {
+      const value = readPath(source, path);
+      const str = value === null || value === undefined ? "" : String(value).trim();
+      if (str && str !== "null") return str;
+    }
+    return "";
+  }
+
+  function domRegionFallback(postalCode) {
+    if (postalCode.startsWith("971")) return "Guadeloupe";
+    if (postalCode.startsWith("972")) return "Martinique";
+    if (postalCode.startsWith("973")) return "Guyane";
+    if (postalCode.startsWith("974")) return "La Réunion";
+    if (postalCode.startsWith("976")) return "Mayotte";
+    return "";
+  }
+
+  function normalizeCityText(value) {
+    return String(value || "")
+      .trim()
+      .toLowerCase()
+      .replace(/[\s\-']+/g, " ")
+      .replace(/[éèê]/g, "e")
+      .replace(/[àâ]/g, "a")
+      .replace(/[îï]/g, "i")
+      .replace(/[ôö]/g, "o")
+      .replace(/[ùû]/g, "u")
+      .replace(/ç/g, "c");
+  }
+
+  async function resolveRegionFromPostalCode(postalCode, city) {
+    const normalizedPostalCode = cleanString(postalCode);
+    if (!normalizedPostalCode) return "";
+
+    try {
+      const url = new URL("https://geo.api.gouv.fr/communes");
+      url.searchParams.set("codePostal", normalizedPostalCode);
+      url.searchParams.set("fields", "nom,region");
+      url.searchParams.set("format", "json");
+
+      const response = await fetch(url, { headers: { accept: "application/json" } });
+      if (!response.ok) return domRegionFallback(normalizedPostalCode);
+
+      const rows = await response.json();
+      if (!Array.isArray(rows) || rows.length === 0) return domRegionFallback(normalizedPostalCode);
+
+      const normalizedCity = normalizeCityText(city);
+      let selected = null;
+      for (const row of rows) {
+        if (!row || typeof row !== "object") continue;
+        const rowCity = normalizeCityText(row.nom || "");
+        if (normalizedCity && rowCity === normalizedCity) {
+          selected = row;
+          break;
+        }
+        if (!selected) selected = row;
+      }
+
+      const region = selected && selected.region && typeof selected.region === "object"
+        ? cleanString(selected.region.nom)
+        : "";
+      return region || domRegionFallback(normalizedPostalCode);
+    } catch (_) {
+      return domRegionFallback(normalizedPostalCode);
+    }
+  }
+
+  const verifyBloomArtSiret = onCall(
+    { region: "us-east1" },
+    async (request) => {
+      const uid = assertAuthenticated(request);
+      const rawSiret = cleanString((request.data || {}).siret);
+      const siret = rawSiret.replace(/[^0-9]/g, "");
+
+      const invalid = (errorMessage) => ({
+        siret,
+        siren: "",
+        denomination: "",
+        nafCode: "",
+        address: "",
+        postalCode: "",
+        city: "",
+        region: "",
+        isValid: false,
+        errorMessage,
+      });
+
+      if (!SIRET_REGEXP.test(siret)) {
+        return invalid("Le SIRET doit contenir 14 chiffres.");
+      }
+      if (!passesSiretLuhn(siret)) {
+        return invalid("Le numéro SIRET ne respecte pas la clé de contrôle.");
+      }
+
+      let enterprise = null;
+      try {
+        const url = new URL("https://recherche-entreprises.api.gouv.fr/search");
+        url.searchParams.set("q", siret);
+        url.searchParams.set("per_page", "1");
+        const response = await fetch(url, { headers: { accept: "application/json" } });
+        if (response.ok) {
+          const decoded = await response.json();
+          const results = decoded && decoded.results;
+          if (Array.isArray(results) && results.length > 0 && typeof results[0] === "object") {
+            enterprise = results[0];
+          }
+        }
+      } catch (fetchErr) {
+        console.error("[BloomArt] verifyBloomArtSiret fetch failed:", fetchErr?.message || fetchErr);
+      }
+
+      if (!enterprise) {
+        const profileRef = db.collection(COLLECTIONS.sellerProfiles).doc(uid);
+        await profileRef.set(
+          {
+            userId: uid,
+            profileType: "artisan_art",
+            siret,
+            businessVerificationStatus: "rejected",
+            businessVerificationSource: "server_recherche_entreprises_api_gouv",
+            updatedAt: serverTimestamp(),
+          },
+          { merge: true }
+        );
+        return invalid("Aucune entreprise française trouvée pour ce SIRET.");
+      }
+
+      const returnedSiret = stringValue(enterprise, [
+        "siret",
+        "siege.siret",
+        "matching_etablissements.0.siret",
+      ]);
+      if (returnedSiret && returnedSiret.replace(/[^0-9]/g, "") !== siret) {
+        const profileRef = db.collection(COLLECTIONS.sellerProfiles).doc(uid);
+        await profileRef.set(
+          {
+            userId: uid,
+            profileType: "artisan_art",
+            siret,
+            businessVerificationStatus: "rejected",
+            businessVerificationSource: "server_recherche_entreprises_api_gouv",
+            updatedAt: serverTimestamp(),
+          },
+          { merge: true }
+        );
+        return invalid("Le résultat API ne correspond pas exactement au SIRET saisi.");
+      }
+
+      const address = stringValue(enterprise, [
+        "siege.adresse",
+        "siege.geo_adresse",
+        "matching_etablissements.0.adresse",
+        "adresse",
+      ]);
+      const postalCode = stringValue(enterprise, [
+        "siege.code_postal",
+        "matching_etablissements.0.code_postal",
+        "code_postal",
+      ]);
+      const city = stringValue(enterprise, [
+        "siege.libelle_commune",
+        "siege.commune",
+        "matching_etablissements.0.commune",
+        "commune",
+      ]);
+      const region = await resolveRegionFromPostalCode(postalCode, city);
+      const siren = stringValue(enterprise, ["siren"]) || siret.slice(0, 9);
+      const denomination = stringValue(enterprise, [
+        "nom_complet",
+        "nom_raison_sociale",
+        "denomination",
+        "siege.enseigne",
+      ]);
+      const nafCode = stringValue(enterprise, [
+        "activite_principale",
+        "naf",
+        "code_naf",
+        "siege.activite_principale",
+      ]);
+
+      const profileRef = db.collection(COLLECTIONS.sellerProfiles).doc(uid);
+      const profileSnap = await profileRef.get();
+      const profilePayload = {
+        userId: uid,
+        profileType: "artisan_art",
+        siret,
+        siren,
+        businessName: denomination,
+        nafCode,
+        businessVerificationStatus: "verified",
+        businessVerificationSource: "server_recherche_entreprises_api_gouv",
+        businessVerifiedAt: serverTimestamp(),
+        sellerStatus: "active",
+        updatedAt: serverTimestamp(),
+      };
+      if (!profileSnap.exists) profilePayload.createdAt = serverTimestamp();
+      if (address) profilePayload.address = address;
+      if (address) profilePayload.businessAddress = address;
+      if (postalCode) profilePayload.postalCode = postalCode;
+      if (city) profilePayload.city = city;
+      if (region) profilePayload.region = region;
+
+      await profileRef.set(profilePayload, { merge: true });
+
+      return {
+        siret,
+        siren,
+        denomination,
+        nafCode,
+        address,
+        postalCode,
+        city,
+        region,
+        isValid: true,
+      };
+    }
+  );
+
   const createBloomArtConnectOnboardingLink = onCall(
     { region: "us-east1", secrets: [STRIPE_SECRET_KEY] },
     async (request) => {
@@ -963,6 +1223,7 @@ module.exports = function createBloomArtHandlers(deps) {
     createBloomArtCheckout,
     createBloomArtConnectOnboardingLink,
     refreshBloomArtConnectStatus,
+    verifyBloomArtSiret,
     handleBloomArtCheckoutCompleted,
     handleBloomArtPaymentIntentSucceeded,
   };

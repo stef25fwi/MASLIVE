@@ -89,6 +89,46 @@ class BloomArtRepository {
     );
   }
 
+  /// Met à jour uniquement les champs de profil que le vendeur peut éditer
+  /// librement. N'inclut jamais stripe/payoutStatus/sellerStatus/
+  /// businessVerificationStatus/siret/siren/businessName/nafCode : ces
+  /// champs sont exclusivement pilotés par le backend (verifyBloomArtSiret,
+  /// createBloomArtConnectOnboardingLink) et bloqués côté rules pour le
+  /// client. Le document doit déjà exister (créé par verifyBloomArtSiret).
+  Future<void> updateSellerProfileEditableFields({
+    required String userId,
+    required String creationType,
+    required String fullName,
+    required String artistName,
+    required String email,
+    required String phone,
+    required String bio,
+    required String address,
+    required String city,
+    required String postalCode,
+    required String region,
+    required String country,
+  }) async {
+    await _sellerProfiles.doc(userId).set(
+      <String, dynamic>{
+        'userId': userId,
+        'creationType': creationType,
+        'fullName': fullName,
+        'artistName': artistName,
+        'email': email,
+        'phone': phone,
+        'bio': bio,
+        'address': address,
+        'city': city,
+        'postalCode': postalCode,
+        'region': region,
+        'country': country,
+        'updatedAt': Timestamp.now(),
+      },
+      SetOptions(merge: true),
+    );
+  }
+
   Future<String> createItem({
     required BloomArtItem item,
     required double referencePrice,

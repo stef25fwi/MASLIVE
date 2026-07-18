@@ -1,6 +1,10 @@
+import 'dart:async';
+
+import 'package:cloud_functions/cloud_functions.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 
+import '../../../../services/french_geo_lookup_service.dart';
 import '../../data/models/bloom_art_seller_profile.dart';
 import '../../data/repositories/bloom_art_repository.dart';
 import '../../services/bloom_art_business_verification_service.dart';
@@ -20,6 +24,9 @@ class _BloomArtArtistCreatorFormPageState
   final BloomArtRepository _repository = BloomArtRepository();
   final BloomArtBusinessVerificationService _verificationService =
       const BloomArtBusinessVerificationService();
+  final FrenchGeoLookupService _geoLookupService = const FrenchGeoLookupService();
+  Timer? _postalCodeDebounce;
+  String _lastLookedUpPostalCode = '';
 
   final TextEditingController _fullNameController = TextEditingController();
   final TextEditingController _artistNameController = TextEditingController();
@@ -43,9 +50,7 @@ class _BloomArtArtistCreatorFormPageState
   String _payoutStatus = 'pending';
   String _creationType = BloomArtCreationType.artisanatArt;
   String _businessVerificationStatus = 'not_verified';
-  String _businessVerificationSource = '';
   DateTime? _businessVerifiedAt;
-  DateTime? _createdAt;
   BloomArtBusinessVerificationResult? _verificationResult;
 
   bool get _businessVerified =>
@@ -56,10 +61,13 @@ class _BloomArtArtistCreatorFormPageState
   void initState() {
     super.initState();
     _bootstrap();
+    _postalCodeController.addListener(_onPostalCodeChanged);
   }
 
   @override
   void dispose() {
+    _postalCodeDebounce?.cancel();
+    _postalCodeController.removeListener(_onPostalCodeChanged);
     _fullNameController.dispose();
     _artistNameController.dispose();
     _emailController.dispose();
@@ -75,6 +83,34 @@ class _BloomArtArtistCreatorFormPageState
     _businessNameController.dispose();
     _nafCodeController.dispose();
     super.dispose();
+  }
+
+  void _onPostalCodeChanged() {
+    final postalCode = _postalCodeController.text.trim();
+    _postalCodeDebounce?.cancel();
+    if (!_geoLookupService.isValidPostalCode(postalCode) ||
+        postalCode == _lastLookedUpPostalCode) {
+      return;
+    }
+    _postalCodeDebounce = Timer(const Duration(milliseconds: 400), () {
+      _autoFillCityAndRegionFromPostalCode(postalCode);
+    });
+  }
+
+  Future<void> _autoFillCityAndRegionFromPostalCode(String postalCode) async {
+    _lastLookedUpPostalCode = postalCode;
+    final match = await _geoLookupService.lookupByPostalCode(
+      postalCode,
+      preferredCity: _cityController.text,
+    );
+    if (!mounted || match.isEmpty) return;
+
+    if (match.city.isNotEmpty && _cityController.text.trim().isEmpty) {
+      _cityController.text = match.city;
+    }
+    if (match.region.isNotEmpty && _regionController.text.trim().isEmpty) {
+      _regionController.text = match.region;
+    }
   }
 
   Future<void> _bootstrap() async {
@@ -96,7 +132,6 @@ class _BloomArtArtistCreatorFormPageState
     if (!mounted) return;
 
     if (profile != null) {
-      _createdAt = profile.createdAt;
       _fullNameController.text = profile.fullName;
       _artistNameController.text = profile.artistName;
       _emailController.text = profile.email;
@@ -119,7 +154,6 @@ class _BloomArtArtistCreatorFormPageState
           ? 'pending'
           : profile.payoutStatus;
       _businessVerificationStatus = profile.businessVerificationStatus;
-      _businessVerificationSource = profile.businessVerificationSource;
       _businessVerifiedAt = profile.businessVerifiedAt;
     }
 
@@ -135,14 +169,35 @@ class _BloomArtArtistCreatorFormPageState
     });
 
     try {
-      final result = await _verificationService.verifySiret(siret);
+      // Vérification effectuée côté serveur (Cloud Function verifyBloomArtSiret) :
+      // le client ne peut plus s'auto-déclarer "verified"/"active" directement,
+      // seul le backend (Admin SDK, après appel réel à l'API gouv) pose ces
+      // champs sur bloom_art_seller_profiles.
+      final callable = FirebaseFunctions.instanceFor(region: 'us-east1')
+          .httpsCallable('verifyBloomArtSiret');
+      final response = await callable.call<Map<String, dynamic>>(
+        <String, dynamic>{'siret': siret},
+      );
+      final data = response.data;
       if (!mounted) return;
+
+      final result = BloomArtBusinessVerificationResult(
+        siret: (data['siret'] ?? '').toString(),
+        siren: (data['siren'] ?? '').toString(),
+        denomination: (data['denomination'] ?? '').toString(),
+        nafCode: (data['nafCode'] ?? '').toString(),
+        address: (data['address'] ?? '').toString(),
+        postalCode: (data['postalCode'] ?? '').toString(),
+        city: (data['city'] ?? '').toString(),
+        region: (data['region'] ?? '').toString(),
+        isValid: data['isValid'] == true,
+        errorMessage: data['errorMessage']?.toString(),
+      );
 
       if (!result.isValid) {
         setState(() {
           _verificationResult = result;
           _businessVerificationStatus = 'rejected';
-          _businessVerificationSource = 'api_recherche_entreprises_api_gouv';
           _businessVerifiedAt = null;
         });
         ScaffoldMessenger.of(context).showSnackBar(
@@ -175,7 +230,6 @@ class _BloomArtArtistCreatorFormPageState
           _countryController.text = 'France';
         }
         _businessVerificationStatus = 'verified';
-        _businessVerificationSource = 'api_recherche_entreprises_api_gouv';
         _businessVerifiedAt = DateTime.now();
       });
 
@@ -204,7 +258,6 @@ class _BloomArtArtistCreatorFormPageState
     setState(() {
       _verificationResult = null;
       _businessVerificationStatus = 'not_verified';
-      _businessVerificationSource = '';
       _businessVerifiedAt = null;
       _sirenController.clear();
       _businessNameController.clear();
@@ -237,10 +290,12 @@ class _BloomArtArtistCreatorFormPageState
     });
 
     try {
-      final profile = BloomArtSellerProfile(
-        id: user.uid,
+      // N'écrit que les champs de profil éditables : sellerStatus, siret,
+      // businessVerificationStatus, stripe, etc. ont déjà été posés côté
+      // serveur par verifyBloomArtSiret et sont bloqués côté rules pour le
+      // client (voir firestore.rules match /bloom_art_seller_profiles).
+      await _repository.updateSellerProfileEditableFields(
         userId: user.uid,
-        profileType: 'artisan_art',
         creationType: _creationType,
         fullName: _fullNameController.text.trim(),
         artistName: _artistNameController.text.trim(),
@@ -252,24 +307,7 @@ class _BloomArtArtistCreatorFormPageState
         postalCode: _postalCodeController.text.trim(),
         region: _regionController.text.trim(),
         country: _countryController.text.trim().isEmpty ? 'France' : _countryController.text.trim(),
-        payoutStatus: _stripeAccountLinked ? _payoutStatus : 'pending',
-        stripeAccountLinked: _stripeAccountLinked,
-        sellerStatus: 'active',
-        siret: _siretController.text.trim(),
-        siren: _sirenController.text.trim(),
-        businessName: _businessNameController.text.trim(),
-        nafCode: _nafCodeController.text.trim(),
-        businessAddress: _addressController.text.trim(),
-        businessVerificationStatus: 'verified',
-        businessVerificationSource: _businessVerificationSource.isEmpty
-            ? 'api_recherche_entreprises_api_gouv'
-            : _businessVerificationSource,
-        businessVerifiedAt: _businessVerifiedAt ?? DateTime.now(),
-        createdAt: _createdAt ?? DateTime.now(),
-        updatedAt: DateTime.now(),
       );
-
-      await _repository.saveSellerProfile(profile);
       if (!mounted) return;
       Navigator.of(context).pushReplacementNamed('/bloom-art/dashboard');
     } catch (error) {
@@ -464,39 +502,19 @@ class _BloomArtArtistCreatorFormPageState
                     maxLines: 5,
                   ),
                   const SizedBox(height: 14),
-                  SwitchListTile.adaptive(
-                    value: _stripeAccountLinked,
-                    contentPadding: EdgeInsets.zero,
-                    title: const Text('Compte de paiement déjà relié'),
-                    subtitle: const Text(
-                      'Activez cette option uniquement si l’onboarding vendeur et les encaissements sont déjà prêts.',
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(14),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFF7F3EF),
+                      borderRadius: BorderRadius.circular(16),
                     ),
-                    onChanged: (value) {
-                      setState(() {
-                        _stripeAccountLinked = value;
-                      });
-                    },
-                  ),
-                  const SizedBox(height: 12),
-                  DropdownButtonFormField<String>(
-                    initialValue: _payoutStatus,
-                    decoration: const InputDecoration(
-                      labelText: 'Statut payout',
-                      border: OutlineInputBorder(),
-                      filled: true,
-                      fillColor: Colors.white,
+                    child: Text(
+                      _stripeAccountLinked
+                          ? 'Compte de paiement Stripe relié (statut : $_payoutStatus). Gérez-le depuis votre dashboard vendeur.'
+                          : 'Aucun compte de paiement relié pour l’instant. Vous pourrez le configurer depuis votre dashboard vendeur après création.',
+                      style: const TextStyle(color: Color(0xFF6A645E), height: 1.4),
                     ),
-                    items: const <DropdownMenuItem<String>>[
-                      DropdownMenuItem(value: 'pending', child: Text('pending')),
-                      DropdownMenuItem(value: 'ready', child: Text('ready')),
-                      DropdownMenuItem(value: 'active', child: Text('active')),
-                      DropdownMenuItem(value: 'validated', child: Text('validated')),
-                    ],
-                    onChanged: (value) {
-                      setState(() {
-                        _payoutStatus = value ?? 'pending';
-                      });
-                    },
                   ),
                   const SizedBox(height: 18),
                   BloomArtCtaButton(

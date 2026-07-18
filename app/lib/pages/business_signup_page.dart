@@ -1,8 +1,10 @@
+import 'dart:async';
 import 'dart:math' as math;
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../services/auth_service.dart';
+import '../services/french_geo_lookup_service.dart';
 import '../ui/widgets/country_autocomplete_field.dart';
 
 const List<String> masliveBusinessSectors = [
@@ -42,6 +44,10 @@ class _BusinessSignupPageState extends State<BusinessSignupPage> {
   bool _obscure = true;
   bool _loading = false;
   String? _error;
+
+  final FrenchGeoLookupService _geoLookupService = const FrenchGeoLookupService();
+  Timer? _postalCodeDebounce;
+  String _lastLookedUpPostalCode = '';
 
   // Dropdowns
   String? _legalForm;
@@ -113,7 +119,15 @@ class _BusinessSignupPageState extends State<BusinessSignupPage> {
 
 
   @override
+  void initState() {
+    super.initState();
+    _postalCodeCtrl.addListener(_onPostalCodeChanged);
+  }
+
+  @override
   void dispose() {
+    _postalCodeDebounce?.cancel();
+    _postalCodeCtrl.removeListener(_onPostalCodeChanged);
     _emailCtrl.dispose();
     _passwordCtrl.dispose();
     _companyNameCtrl.dispose();
@@ -125,6 +139,41 @@ class _BusinessSignupPageState extends State<BusinessSignupPage> {
     _firstNameCtrl.dispose();
     _lastNameCtrl.dispose();
     super.dispose();
+  }
+
+  void _onPostalCodeChanged() {
+    final postalCode = _postalCodeCtrl.text.trim();
+    _postalCodeDebounce?.cancel();
+    if (!_geoLookupService.isValidPostalCode(postalCode) ||
+        postalCode == _lastLookedUpPostalCode) {
+      return;
+    }
+    _postalCodeDebounce = Timer(const Duration(milliseconds: 400), () {
+      _autoFillCityAndRegionFromPostalCode(postalCode);
+    });
+  }
+
+  Future<void> _autoFillCityAndRegionFromPostalCode(String postalCode) async {
+    _lastLookedUpPostalCode = postalCode;
+    final match = await _geoLookupService.lookupByPostalCode(
+      postalCode,
+      preferredCity: _cityCtrl.text,
+    );
+    if (!mounted || match.isEmpty) return;
+
+    if (match.city.isNotEmpty && _cityCtrl.text.trim().isEmpty) {
+      _cityCtrl.text = match.city;
+    }
+
+    if (match.region.isNotEmpty && _region == null) {
+      final resolvedRegion = _regions.firstWhere(
+        (r) => r == match.region || r == match.region.replaceFirst('La ', ''),
+        orElse: () => '',
+      );
+      if (resolvedRegion.isNotEmpty) {
+        setState(() => _region = resolvedRegion);
+      }
+    }
   }
 
   Future<void> _submit() async {

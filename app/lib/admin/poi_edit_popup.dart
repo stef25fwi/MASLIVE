@@ -1028,9 +1028,17 @@ class _PoiEditPopupState extends State<PoiEditPopup> {
         placeholder: const Center(child: CircularProgressIndicator()),
       );
     } else {
-      image = const ColoredBox(
-        color: Colors.black12,
-        child: Center(child: Icon(Icons.photo_rounded, size: 42)),
+      // Pas de photo pour ce POI : logo MASLIVE par défaut plutôt qu'une
+      // icône générique, cohérent avec l'image effectivement enregistrée
+      // (voir _buildUpdatedPoi: imageUrl reste null si aucune photo n'est
+      // fournie — ce placeholder est uniquement visuel, pas persisté).
+      image = Image.asset(
+        'assets/images/maslivelogo.png',
+        fit: BoxFit.cover,
+        errorBuilder: (context, error, stackTrace) => const ColoredBox(
+          color: Colors.black12,
+          child: Center(child: Icon(Icons.photo_rounded, size: 42)),
+        ),
       );
     }
 
