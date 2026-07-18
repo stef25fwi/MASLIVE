@@ -7,6 +7,7 @@ module.exports = function createMediaMarketplaceStripe(deps) {
     STRIPE_SECRET_KEY,
     getStripe,
     isAllowedRedirectUrl,
+    resolveStripeConnectCountry,
   } = deps
 
   const COLLECTIONS = {
@@ -472,6 +473,295 @@ module.exports = function createMediaMarketplaceStripe(deps) {
     return true
   }
 
+  /**
+   * Reverse le netAmount de chaque ligne du payout_ledger au photographe
+   * concerné, via un transfert Stripe Connect vers son compte Express.
+   * Regroupe par photographerId (une commande peut mêler plusieurs vendeurs),
+   * idempotent via transferId déjà présent sur le ledger.
+   */
+  async function settleMediaMarketplacePayouts(orderId) {
+    if (typeof orderId !== "string" || orderId.trim().length === 0) return
+
+    const ledgerSnapshot = await db
+      .collection(COLLECTIONS.payoutLedger)
+      .where("orderId", "==", orderId)
+      .where("payoutStatus", "==", "available")
+      .get()
+    if (ledgerSnapshot.empty) return
+
+    const byPhotographer = new Map()
+    for (const doc of ledgerSnapshot.docs) {
+      const data = doc.data() || {}
+      const photographerId = typeof data.photographerId === "string" ? data.photographerId.trim() : ""
+      if (!photographerId) continue
+
+      if (!byPhotographer.has(photographerId)) {
+        byPhotographer.set(photographerId, {
+          refs: [],
+          netAmount: 0,
+          currency: normalizeCurrencyCode(data.currency, "EUR"),
+        })
+      }
+      const entry = byPhotographer.get(photographerId)
+      entry.refs.push(doc.ref)
+      entry.netAmount += clampPositiveAmount(data.netAmount)
+    }
+    if (!byPhotographer.size) return
+
+    const stripeClient = getStripe()
+
+    for (const [photographerId, entry] of byPhotographer.entries()) {
+      const netCents = amountToCents(entry.netAmount)
+      const currency = entry.currency.toLowerCase()
+
+      if (netCents <= 0) continue
+
+      const photographerSnap = await db.collection(COLLECTIONS.photographers).doc(photographerId).get()
+      const photographer = photographerSnap.exists ? (photographerSnap.data() || {}) : {}
+      const accountId = photographer.stripe && photographer.stripe.accountId
+      const chargesEnabled = !!(photographer.stripe && photographer.stripe.chargesEnabled)
+
+      if (typeof accountId !== "string" || accountId.trim().length === 0 || !chargesEnabled) {
+        const pendingBatch = db.batch()
+        for (const ref of entry.refs) {
+          pendingBatch.set(
+            ref,
+            {
+              payoutStatus: "pending_account",
+              payoutFailureReason: !accountId ? "no_connect_account" : "charges_disabled",
+              updatedAt: serverTimestamp(),
+            },
+            { merge: true }
+          )
+        }
+        await pendingBatch.commit()
+        console.warn(
+          `Media marketplace order ${orderId}: photographer ${photographerId} not payable via Connect ` +
+            `(${!accountId ? "no_connect_account" : "charges_disabled"}); amount kept on platform`
+        )
+        continue
+      }
+
+      try {
+        const transfer = await stripeClient.transfers.create(
+          {
+            amount: netCents,
+            currency,
+            destination: accountId.trim(),
+            transfer_group: `media_order_${orderId}`,
+            metadata: { orderId, photographerId },
+          },
+          { idempotencyKey: `media_payout_${orderId}_${photographerId}` }
+        )
+
+        const paidBatch = db.batch()
+        for (const ref of entry.refs) {
+          paidBatch.set(
+            ref,
+            {
+              payoutStatus: "paid",
+              transferId: transfer.id,
+              paidAt: serverTimestamp(),
+              updatedAt: serverTimestamp(),
+            },
+            { merge: true }
+          )
+        }
+        await paidBatch.commit()
+        console.log(
+          `Media marketplace order ${orderId}: transferred ${netCents} ${currency} to photographer ${photographerId}`
+        )
+      } catch (transferErr) {
+        const failedBatch = db.batch()
+        for (const ref of entry.refs) {
+          failedBatch.set(
+            ref,
+            {
+              payoutStatus: "failed",
+              payoutFailureReason: transferErr?.code || "transfer_error",
+              updatedAt: serverTimestamp(),
+            },
+            { merge: true }
+          )
+        }
+        await failedBatch.commit()
+        console.error(
+          `Media marketplace order ${orderId}: transfer to photographer ${photographerId} failed:`,
+          transferErr?.message || transferErr
+        )
+      }
+    }
+  }
+
+  const createPhotographerConnectOnboardingLink = onCall(
+    {
+      region: "us-east1",
+      cpu: 0.083,
+      memory: "256MiB",
+      timeoutSeconds: 30,
+      secrets: [STRIPE_SECRET_KEY],
+    },
+    async (request) => {
+      if (!request.auth) {
+        throw new HttpsError("unauthenticated", "Authentication required")
+      }
+
+      const uid = request.auth.uid
+      const photographerId = typeof request.data?.photographerId === "string"
+        ? request.data.photographerId.trim()
+        : ""
+      if (!photographerId) {
+        throw new HttpsError("invalid-argument", "photographerId is required")
+      }
+
+      const photographerRef = db.collection(COLLECTIONS.photographers).doc(photographerId)
+      const photographerSnap = await photographerRef.get()
+      if (!photographerSnap.exists) {
+        throw new HttpsError("not-found", "Photographer profile not found")
+      }
+
+      const photographer = photographerSnap.data() || {}
+      if (photographer.ownerUid !== uid) {
+        throw new HttpsError("permission-denied", "Not allowed")
+      }
+
+      if (photographer.status !== "approved") {
+        throw new HttpsError(
+          "failed-precondition",
+          `Photographer status must be approved (current: ${photographer.status || "unknown"})`
+        )
+      }
+
+      const stripeClient = getStripe()
+      let accountId = photographer.stripe && photographer.stripe.accountId
+
+      if (!accountId) {
+        const email = photographer.email || request.auth.token.email
+        const country = resolveStripeConnectCountry(photographer.country)
+        if (!country) {
+          throw new HttpsError(
+            "failed-precondition",
+            "Unsupported or missing photographer country for Stripe Connect"
+          )
+        }
+
+        const account = await stripeClient.accounts.create({
+          type: "express",
+          country,
+          email,
+          business_type: "individual",
+          capabilities: {
+            card_payments: { requested: true },
+            transfers: { requested: true },
+          },
+          metadata: {
+            uid,
+            photographerId,
+            kind: "photographer",
+          },
+        })
+
+        accountId = account.id
+
+        await photographerRef.set(
+          {
+            stripe: {
+              accountId,
+              accountCountry: country,
+              createdAt: serverTimestamp(),
+              updatedAt: serverTimestamp(),
+            },
+            updatedAt: serverTimestamp(),
+          },
+          { merge: true }
+        )
+      }
+
+      const baseUrl = "https://maslive.web.app/"
+      const refreshUrl = `${baseUrl}?stripeConnect=refresh&photographerId=${photographerId}`
+      const returnUrl = `${baseUrl}?stripeConnect=return&photographerId=${photographerId}`
+
+      const link = await stripeClient.accountLinks.create({
+        account: accountId,
+        refresh_url: refreshUrl,
+        return_url: returnUrl,
+        type: "account_onboarding",
+      })
+
+      return { url: link.url, accountId }
+    }
+  )
+
+  const refreshPhotographerConnectStatus = onCall(
+    {
+      region: "us-east1",
+      cpu: 0.083,
+      memory: "256MiB",
+      timeoutSeconds: 30,
+      secrets: [STRIPE_SECRET_KEY],
+    },
+    async (request) => {
+      if (!request.auth) {
+        throw new HttpsError("unauthenticated", "Authentication required")
+      }
+
+      const uid = request.auth.uid
+      const photographerId = typeof request.data?.photographerId === "string"
+        ? request.data.photographerId.trim()
+        : ""
+      if (!photographerId) {
+        throw new HttpsError("invalid-argument", "photographerId is required")
+      }
+
+      const photographerRef = db.collection(COLLECTIONS.photographers).doc(photographerId)
+      const photographerSnap = await photographerRef.get()
+      if (!photographerSnap.exists) {
+        throw new HttpsError("not-found", "Photographer profile not found")
+      }
+
+      const photographer = photographerSnap.data() || {}
+      if (photographer.ownerUid !== uid) {
+        throw new HttpsError("permission-denied", "Not allowed")
+      }
+
+      const accountId = photographer.stripe && photographer.stripe.accountId
+      if (!accountId) {
+        throw new HttpsError(
+          "failed-precondition",
+          "Stripe accountId not found for this photographer"
+        )
+      }
+
+      const stripeClient = getStripe()
+      const account = await stripeClient.accounts.retrieve(accountId)
+
+      const detailsSubmitted = !!account.details_submitted
+      const chargesEnabled = !!account.charges_enabled
+      const payoutsEnabled = !!account.payouts_enabled
+      const requirements = account.requirements || {}
+
+      await photographerRef.set(
+        {
+          stripe: {
+            accountId,
+            detailsSubmitted,
+            chargesEnabled,
+            payoutsEnabled,
+            currentlyDue: requirements.currently_due || [],
+            eventuallyDue: requirements.eventually_due || [],
+            pastDue: requirements.past_due || [],
+            currentDeadline: requirements.current_deadline || null,
+            updatedAt: serverTimestamp(),
+          },
+          updatedAt: serverTimestamp(),
+        },
+        { merge: true }
+      )
+
+      return { accountId, detailsSubmitted, chargesEnabled, payoutsEnabled }
+    }
+  )
+
   async function fulfillMarketplaceOrder(session) {
     const orderId = session?.metadata?.orderId || session?.client_reference_id
     const buyerUid = session?.metadata?.uid || session?.metadata?.userId
@@ -582,6 +872,16 @@ module.exports = function createMediaMarketplaceStripe(deps) {
     )
 
     await payoutBatch.commit()
+
+    try {
+      await settleMediaMarketplacePayouts(orderId)
+    } catch (payoutErr) {
+      console.error(
+        `Failed to settle media marketplace payouts for order ${orderId}:`,
+        payoutErr?.message || payoutErr
+      )
+    }
+
     return true
   }
 
@@ -835,6 +1135,16 @@ module.exports = function createMediaMarketplaceStripe(deps) {
     )
 
     await payoutBatch.commit()
+
+    try {
+      await settleMediaMarketplacePayouts(orderId)
+    } catch (payoutErr) {
+      console.error(
+        `Failed to settle media marketplace payouts for order ${orderId}:`,
+        payoutErr?.message || payoutErr
+      )
+    }
+
     return true
   }
 
@@ -1259,6 +1569,8 @@ module.exports = function createMediaMarketplaceStripe(deps) {
   return {
     createMediaMarketplaceCheckout,
     createPhotographerSubscriptionCheckoutSession,
+    createPhotographerConnectOnboardingLink,
+    refreshPhotographerConnectStatus,
     createMarketplaceOrderForPaymentIntent,
     fulfillMarketplaceOrderFromPaymentIntent,
     handleMarketplaceCheckoutSessionCompleted,

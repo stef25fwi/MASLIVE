@@ -766,6 +766,7 @@ const mediaMarketplaceStripe = createMediaMarketplaceStripe({
   STRIPE_SECRET_KEY,
   getStripe,
   isAllowedRedirectUrl,
+  resolveStripeConnectCountry,
 });
 const mediaMarketplaceMedia = createMediaMarketplaceMedia({
   admin,
@@ -807,6 +808,10 @@ exports.createMediaMarketplaceCheckout =
   mediaMarketplaceStripe.createMediaMarketplaceCheckout;
 exports.createPhotographerSubscriptionCheckoutSession =
   mediaMarketplaceStripe.createPhotographerSubscriptionCheckoutSession;
+exports.createPhotographerConnectOnboardingLink =
+  mediaMarketplaceStripe.createPhotographerConnectOnboardingLink;
+exports.refreshPhotographerConnectStatus =
+  mediaMarketplaceStripe.refreshPhotographerConnectStatus;
 exports.getMediaDownloadUrl = mediaMarketplaceMedia.getMediaDownloadUrl;
 exports.syncMediaPhotoOnCreate = mediaMarketplaceMedia.syncMediaPhotoOnCreate;
 exports.syncMediaPhotoOnUpdate = mediaMarketplaceMedia.syncMediaPhotoOnUpdate;
@@ -4953,6 +4958,48 @@ exports.refundStorexOrder = onCall(
 async function handleAccountUpdated(account) {
   console.log("Processing account.updated:", account.id);
 
+  const detailsSubmitted = !!account.details_submitted;
+  const chargesEnabled = !!account.charges_enabled;
+  const payoutsEnabled = !!account.payouts_enabled;
+  const requirements = account.requirements || {};
+  const stripePayload = {
+    accountId: account.id,
+    detailsSubmitted,
+    chargesEnabled,
+    payoutsEnabled,
+    currentlyDue: requirements.currently_due || [],
+    eventuallyDue: requirements.eventually_due || [],
+    pastDue: requirements.past_due || [],
+    currentDeadline: requirements.current_deadline || null,
+    updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+  };
+
+  if (normalizeLowerString(account.metadata?.kind) === "photographer") {
+    const photographerId = account.metadata?.photographerId;
+    if (!photographerId) {
+      console.warn("No photographerId in account metadata, cannot update Firestore");
+      return;
+    }
+
+    const photographerRef = db.collection("photographers").doc(photographerId);
+    const photographerSnap = await photographerRef.get();
+    if (!photographerSnap.exists) {
+      console.warn(`Photographer profile ${photographerId} not found`);
+      return;
+    }
+
+    await photographerRef.set(
+      {
+        stripe: stripePayload,
+        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+      },
+      { merge: true }
+    );
+
+    console.log(`Photographer ${photographerId} Stripe status auto-updated via webhook`);
+    return;
+  }
+
   const uid = account.metadata?.uid;
   if (!uid) {
     console.warn("No uid in account metadata, cannot update Firestore");
@@ -4967,24 +5014,9 @@ async function handleAccountUpdated(account) {
     return;
   }
 
-  const detailsSubmitted = !!account.details_submitted;
-  const chargesEnabled = !!account.charges_enabled;
-  const payoutsEnabled = !!account.payouts_enabled;
-  const requirements = account.requirements || {};
-
   await businessRef.set(
     {
-      stripe: {
-        accountId: account.id,
-        detailsSubmitted,
-        chargesEnabled,
-        payoutsEnabled,
-        currentlyDue: requirements.currently_due || [],
-        eventuallyDue: requirements.eventually_due || [],
-        pastDue: requirements.past_due || [],
-        currentDeadline: requirements.current_deadline || null,
-        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
-      },
+      stripe: stripePayload,
       updatedAt: admin.firestore.FieldValue.serverTimestamp(),
     },
     { merge: true }
