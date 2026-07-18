@@ -529,6 +529,14 @@ function isAllowedRedirectUrl(url) {
   }
 }
 
+function assertHttpsUrlOrDefault(value, fallback) {
+  if (typeof value !== "string" || value.trim().length === 0) return fallback;
+  if (!isAllowedRedirectUrl(value.trim())) {
+    throw new HttpsError("invalid-argument", "Invalid redirect URL");
+  }
+  return value.trim();
+}
+
 function isAllowedWebOrigin(origin) {
   if (typeof origin !== "string" || origin.trim().length === 0) return false;
   try {
