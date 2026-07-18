@@ -20,10 +20,31 @@ module.exports = function createBloomArtHandlers(deps) {
     STRIPE_SECRET_KEY,
     getStripe,
     isAllowedRedirectUrl,
+    resolveStripeConnectCountry,
   } = deps;
 
   const BLOOM_ART_KIND = "bloom_art";
   const AUTO_ACCEPT_THRESHOLD_PERCENT = 0.90;
+  const PLATFORM_FEE_PERCENT = 0.10;
+  // Alma (paiement en 2/3/4 fois) est un moyen de paiement natif Stripe : pas de
+  // clé API séparée, juste activé côté Dashboard Stripe. Limites Alma: EUR only,
+  // montant entre 50 et 5000 EUR. https://docs.stripe.com/payments/alma
+  const ALMA_MIN_AMOUNT = 50;
+  const ALMA_MAX_AMOUNT = 5000;
+
+  function resolveBloomArtPaymentMethodTypes(amount, currency) {
+    const types = ["card"];
+    const normalizedCurrency = String(currency || "EUR").toUpperCase();
+    const normalizedAmount = Number(amount) || 0;
+    if (
+      normalizedCurrency === "EUR" &&
+      normalizedAmount >= ALMA_MIN_AMOUNT &&
+      normalizedAmount <= ALMA_MAX_AMOUNT
+    ) {
+      types.push("alma");
+    }
+    return types;
+  }
 
   const COLLECTIONS = {
     items: "bloom_art_items",
@@ -107,6 +128,76 @@ module.exports = function createBloomArtHandlers(deps) {
     return proposedPrice >= computeAutoAcceptMin(referencePrice);
   }
 
+  function computeCommissionSplit(amount) {
+    const platformFee = Math.round(toNumber(amount, 0) * PLATFORM_FEE_PERCENT * 100) / 100;
+    const netAmount = Math.max(0, toNumber(amount, 0) - platformFee);
+    return { platformFee, netAmount };
+  }
+
+  async function getFcmTokensForUser(uid) {
+    const tokens = [];
+    try {
+      const snap = await db.collection("users").doc(uid).collection("devices").get();
+      snap.forEach((d) => {
+        const t = d.get("token");
+        if (typeof t === "string" && t.length > 10) tokens.push(t);
+      });
+    } catch (_) {}
+
+    if (tokens.length === 0) {
+      try {
+        const userSnap = await db.collection("users").doc(uid).get();
+        const data = userSnap.exists ? (userSnap.data() || {}) : {};
+        const arr = Array.isArray(data.fcmTokens) ? data.fcmTokens : [];
+        for (const t of arr) {
+          if (typeof t === "string" && t.length > 10) tokens.push(t);
+        }
+      } catch (_) {}
+    }
+
+    return Array.from(new Set(tokens));
+  }
+
+  async function notifyBloomArtSellerOffer({ sellerId, itemId, itemTitle, offerId, proposedPrice, currency, autoAccepted }) {
+    if (!looksLikeNonEmptyString(sellerId)) return;
+
+    const title = autoAccepted ? "Vente Bloom Art conclue" : "Nouvelle proposition de prix";
+    const displayPrice = `${Number(proposedPrice).toFixed(2)} ${currency || "EUR"}`;
+    const body = autoAccepted
+      ? `Offre acceptée automatiquement pour "${itemTitle || "votre création"}" — ${displayPrice}.`
+      : `Un acheteur propose ${displayPrice} pour "${itemTitle || "votre création"}". A valider manuellement.`;
+
+    try {
+      await db.collection("users").doc(sellerId).collection("inbox").add({
+        type: "bloom_art_offer",
+        title,
+        body,
+        itemId,
+        offerId,
+        createdAt: serverTimestamp(),
+        read: false,
+        actionLabel: "Voir l'offre",
+        meta: { autoAccepted: !!autoAccepted },
+      });
+    } catch (err) {
+      console.error(`[BloomArt] Failed to write inbox notification for seller ${sellerId}:`, err?.message || err);
+    }
+
+    try {
+      const tokens = await getFcmTokensForUser(sellerId);
+      if (!tokens.length) return;
+      await admin.messaging().sendEachForMulticast({
+        tokens,
+        notification: { title, body },
+        data: { type: "bloom_art_offer", itemId: itemId || "", offerId: offerId || "" },
+        android: { priority: "high", notification: { channelId: "orders" } },
+        apns: { payload: { aps: { sound: "default" } } },
+      });
+    } catch (err) {
+      console.error(`[BloomArt] Failed to push notification for seller ${sellerId}:`, err?.message || err);
+    }
+  }
+
   function assertAuthenticated(request) {
     if (!request.auth) {
       throw new HttpsError("unauthenticated", "Authentication required");
@@ -170,6 +261,134 @@ module.exports = function createBloomArtHandlers(deps) {
       businessVerificationStatus: verificationStatus,
     };
   }
+
+  const createBloomArtConnectOnboardingLink = onCall(
+    { region: "us-east1", secrets: [STRIPE_SECRET_KEY] },
+    async (request) => {
+      const uid = assertAuthenticated(request);
+
+      const profileRef = db.collection(COLLECTIONS.sellerProfiles).doc(uid);
+      const profileSnap = await profileRef.get();
+      if (!profileSnap.exists) {
+        throw new HttpsError("not-found", "Bloom Art seller profile not found");
+      }
+
+      const profile = profileSnap.data() || {};
+      if (profile.sellerStatus !== "active" || profile.businessVerificationStatus !== "verified") {
+        throw new HttpsError(
+          "failed-precondition",
+          "Seller profile must be verified (SIRET) before configuring Stripe"
+        );
+      }
+
+      const stripeClient = getStripe();
+      let accountId = profile.stripe && profile.stripe.accountId;
+
+      if (!accountId) {
+        const email = cleanString(profile.email) || request.auth.token.email;
+        const country = resolveStripeConnectCountry(profile.country);
+        if (!country) {
+          throw new HttpsError(
+            "failed-precondition",
+            "Unsupported or missing seller country for Stripe Connect"
+          );
+        }
+
+        const account = await stripeClient.accounts.create({
+          type: "express",
+          country,
+          email,
+          business_type: "individual",
+          capabilities: {
+            card_payments: { requested: true },
+            transfers: { requested: true },
+          },
+          metadata: {
+            uid,
+            kind: "bloom_art_seller",
+          },
+        });
+
+        accountId = account.id;
+
+        await profileRef.set(
+          {
+            stripe: {
+              accountId,
+              accountCountry: country,
+              createdAt: serverTimestamp(),
+              updatedAt: serverTimestamp(),
+            },
+            stripeAccountLinked: true,
+            payoutStatus: "linked",
+            updatedAt: serverTimestamp(),
+          },
+          { merge: true }
+        );
+      }
+
+      const baseUrl = "https://maslive.web.app/";
+      const refreshUrl = `${baseUrl}?stripeConnect=refresh&bloomArt=1`;
+      const returnUrl = `${baseUrl}?stripeConnect=return&bloomArt=1`;
+
+      const link = await stripeClient.accountLinks.create({
+        account: accountId,
+        refresh_url: refreshUrl,
+        return_url: returnUrl,
+        type: "account_onboarding",
+      });
+
+      return { url: link.url, accountId };
+    }
+  );
+
+  const refreshBloomArtConnectStatus = onCall(
+    { region: "us-east1", secrets: [STRIPE_SECRET_KEY] },
+    async (request) => {
+      const uid = assertAuthenticated(request);
+
+      const profileRef = db.collection(COLLECTIONS.sellerProfiles).doc(uid);
+      const profileSnap = await profileRef.get();
+      if (!profileSnap.exists) {
+        throw new HttpsError("not-found", "Bloom Art seller profile not found");
+      }
+
+      const profile = profileSnap.data() || {};
+      const accountId = profile.stripe && profile.stripe.accountId;
+      if (!accountId) {
+        throw new HttpsError("failed-precondition", "Stripe accountId not found for this seller");
+      }
+
+      const stripeClient = getStripe();
+      const account = await stripeClient.accounts.retrieve(accountId);
+
+      const detailsSubmitted = !!account.details_submitted;
+      const chargesEnabled = !!account.charges_enabled;
+      const payoutsEnabled = !!account.payouts_enabled;
+      const requirements = account.requirements || {};
+
+      await profileRef.set(
+        {
+          stripe: {
+            accountId,
+            detailsSubmitted,
+            chargesEnabled,
+            payoutsEnabled,
+            currentlyDue: requirements.currently_due || [],
+            eventuallyDue: requirements.eventually_due || [],
+            pastDue: requirements.past_due || [],
+            currentDeadline: requirements.current_deadline || null,
+            updatedAt: serverTimestamp(),
+          },
+          payoutStatus: chargesEnabled ? "active" : "pending",
+          updatedAt: serverTimestamp(),
+        },
+        { merge: true }
+      );
+
+      return { accountId, detailsSubmitted, chargesEnabled, payoutsEnabled };
+    }
+  );
 
   const createBloomArtItem = onCall(
     { region: "us-east1", secrets: [STRIPE_SECRET_KEY] },
@@ -321,6 +540,16 @@ module.exports = function createBloomArtHandlers(deps) {
         await itemRef.update({ availabilityStatus: ITEM_STATUS.reserved, updatedAt: serverTimestamp() });
       }
 
+      await notifyBloomArtSellerOffer({
+        sellerId: item.sellerId,
+        itemId,
+        itemTitle: item.title,
+        offerId: offerRef.id,
+        proposedPrice,
+        currency: item.currency,
+        autoAccepted,
+      });
+
       return {
         offerId: offerRef.id,
         status: offerPayload.status,
@@ -458,12 +687,18 @@ module.exports = function createBloomArtHandlers(deps) {
           return { orderId, offer, item, orderPayload: existingOrder, reuseExistingOrder: true };
         }
 
+        const { platformFee, netAmount } = computeCommissionSplit(offer.proposedPrice);
+
         const orderPayload = {
           itemId: offer.itemId,
           offerId,
           sellerId: offer.sellerId,
           buyerId: uid,
           finalPrice: offer.proposedPrice,
+          platformFee,
+          netAmount,
+          feePercent: PLATFORM_FEE_PERCENT,
+          payoutStatus: "pending",
           currency: item.currency || "EUR",
           checkoutSource: BLOOM_ART_KIND,
           stripeCheckoutSessionId: null,
@@ -497,6 +732,10 @@ module.exports = function createBloomArtHandlers(deps) {
         session = await stripeClient.checkout.sessions.create(
           {
             mode: "payment",
+            payment_method_types: resolveBloomArtPaymentMethodTypes(
+              result.offer.proposedPrice,
+              result.item.currency
+            ),
             line_items: [
               {
                 price_data: {
@@ -552,6 +791,81 @@ module.exports = function createBloomArtHandlers(deps) {
       return { orderId: result.orderId, checkoutUrl: session.url, stripeSessionId: session.id };
     }
   );
+
+  async function settleBloomArtPayout(orderId) {
+    if (!looksLikeNonEmptyString(orderId)) return;
+
+    const orderRef = db.collection(COLLECTIONS.orders).doc(orderId);
+    const orderSnap = await orderRef.get();
+    if (!orderSnap.exists) return;
+
+    const order = orderSnap.data() || {};
+    if (order.payoutStatus === "paid" || order.payoutStatus === "pending_account") return;
+
+    const sellerId = cleanString(order.sellerId);
+    const netAmount = toNumber(order.netAmount, 0);
+    const currency = cleanString(order.currency, "EUR").toLowerCase();
+    const netCents = amountToCents(netAmount);
+    if (!sellerId || netCents <= 0) return;
+
+    const profileSnap = await db.collection(COLLECTIONS.sellerProfiles).doc(sellerId).get();
+    const profile = profileSnap.exists ? (profileSnap.data() || {}) : {};
+    const accountId = profile.stripe && profile.stripe.accountId;
+    const chargesEnabled = !!(profile.stripe && profile.stripe.chargesEnabled);
+
+    if (typeof accountId !== "string" || accountId.trim().length === 0 || !chargesEnabled) {
+      await orderRef.set(
+        {
+          payoutStatus: "pending_account",
+          payoutFailureReason: !accountId ? "no_connect_account" : "charges_disabled",
+          updatedAt: serverTimestamp(),
+        },
+        { merge: true }
+      );
+      console.warn(
+        `[BloomArt] Order ${orderId}: seller ${sellerId} not payable via Connect ` +
+          `(${!accountId ? "no_connect_account" : "charges_disabled"}); amount kept on platform`
+      );
+      return;
+    }
+
+    const stripeClient = getStripe();
+    try {
+      const transfer = await stripeClient.transfers.create(
+        {
+          amount: netCents,
+          currency,
+          destination: accountId.trim(),
+          transfer_group: `bloom_art_order_${orderId}`,
+          metadata: { orderId, sellerId },
+        },
+        { idempotencyKey: `bloom_art_payout_${orderId}` }
+      );
+
+      await orderRef.set(
+        {
+          payoutStatus: "paid",
+          transferId: transfer.id,
+          paidOutAt: serverTimestamp(),
+          updatedAt: serverTimestamp(),
+        },
+        { merge: true }
+      );
+    } catch (transferErr) {
+      await orderRef.set(
+        {
+          payoutStatus: "failed",
+          payoutFailureReason: transferErr?.code || "transfer_error",
+          updatedAt: serverTimestamp(),
+        },
+        { merge: true }
+      );
+      console.error(
+        `[BloomArt] Order ${orderId}: transfer to seller ${sellerId} failed:`,
+        transferErr?.message || transferErr
+      );
+    }
+  }
 
   async function handleBloomArtCheckoutCompleted(session) {
     const kind = (session?.metadata?.kind || "").toLowerCase();
@@ -613,6 +927,15 @@ module.exports = function createBloomArtHandlers(deps) {
       }
     });
 
+    try {
+      await settleBloomArtPayout(orderId);
+    } catch (payoutErr) {
+      console.error(
+        `[BloomArt] Failed to settle payout for order ${orderId}:`,
+        payoutErr?.message || payoutErr
+      );
+    }
+
     return true;
   }
 
@@ -638,6 +961,8 @@ module.exports = function createBloomArtHandlers(deps) {
     acceptBloomArtOffer,
     declineBloomArtOffer,
     createBloomArtCheckout,
+    createBloomArtConnectOnboardingLink,
+    refreshBloomArtConnectStatus,
     handleBloomArtCheckoutCompleted,
     handleBloomArtPaymentIntentSucceeded,
   };

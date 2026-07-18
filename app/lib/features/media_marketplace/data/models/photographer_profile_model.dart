@@ -48,6 +48,9 @@ class PhotographerProfileModel {
   final int activeGalleryCount;
   final int activePackCount;
   final int storageUsedBytes;
+  final String? stripeAccountId;
+  final bool stripeChargesEnabled;
+  final bool stripePayoutsEnabled;
   final DateTime createdAt;
   final DateTime updatedAt;
 
@@ -75,6 +78,9 @@ class PhotographerProfileModel {
     this.activeGalleryCount = 0,
     this.activePackCount = 0,
     this.storageUsedBytes = 0,
+    this.stripeAccountId,
+    this.stripeChargesEnabled = false,
+    this.stripePayoutsEnabled = false,
     required this.createdAt,
     required this.updatedAt,
   });
@@ -107,6 +113,13 @@ class PhotographerProfileModel {
       activeGalleryCount: _profileInt(map['activeGalleryCount']),
       activePackCount: _profileInt(map['activePackCount']),
       storageUsedBytes: _profileInt(map['storageUsedBytes']),
+      stripeAccountId: (map['stripe'] is Map)
+          ? (map['stripe'] as Map)['accountId']?.toString()
+          : null,
+      stripeChargesEnabled:
+          (map['stripe'] is Map) && (map['stripe'] as Map)['chargesEnabled'] == true,
+      stripePayoutsEnabled:
+          (map['stripe'] is Map) && (map['stripe'] as Map)['payoutsEnabled'] == true,
       createdAt: TimestampMapper.fromFirestoreOrNow(map['createdAt']),
       updatedAt: TimestampMapper.fromFirestoreOrNow(map['updatedAt']),
     );

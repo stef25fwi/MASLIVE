@@ -1,5 +1,7 @@
+import 'package:cloud_functions/cloud_functions.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../../../../services/auth_service.dart';
 import '../../data/models/media_gallery_model.dart';
@@ -112,6 +114,11 @@ class _PhotographerDashboardView extends StatelessWidget {
                   _ProfileHeader(profile: profile),
                   const SizedBox(height: 16),
                   _StatsGrid(controller: controller),
+                  const SizedBox(height: 16),
+                  _StripeConnectCard(
+                    profile: profile,
+                    onRefreshed: controller.refresh,
+                  ),
                   const SizedBox(height: 16),
                   const MediaMarketplaceSectionHeader(
                     title: 'Galeries',
@@ -232,6 +239,125 @@ class _PhotographerDashboardView extends StatelessWidget {
               ),
             ],
           ),
+        ),
+      ),
+    );
+  }
+}
+
+class _StripeConnectCard extends StatefulWidget {
+  const _StripeConnectCard({required this.profile, required this.onRefreshed});
+
+  final PhotographerProfileModel profile;
+  final Future<void> Function() onRefreshed;
+
+  @override
+  State<_StripeConnectCard> createState() => _StripeConnectCardState();
+}
+
+class _StripeConnectCardState extends State<_StripeConnectCard> {
+  bool _loading = false;
+  String? _error;
+
+  FirebaseFunctions get _functions =>
+      FirebaseFunctions.instanceFor(region: 'us-east1');
+
+  Future<void> _startOrResumeOnboarding() async {
+    setState(() {
+      _loading = true;
+      _error = null;
+    });
+
+    try {
+      final callable = _functions.httpsCallable(
+        'createPhotographerConnectOnboardingLink',
+      );
+      final res = await callable.call(<String, dynamic>{
+        'photographerId': widget.profile.photographerId,
+      });
+      final data = res.data;
+
+      final url = (data is Map) ? data['url'] : null;
+      if (url is! String || url.isEmpty) {
+        throw Exception('URL Stripe invalide');
+      }
+
+      final uri = Uri.parse(url);
+      final ok = await launchUrl(uri, mode: LaunchMode.externalApplication);
+      if (!ok) {
+        throw Exception('Impossible d\'ouvrir le navigateur');
+      }
+    } catch (e) {
+      setState(() => _error = e.toString());
+    } finally {
+      if (mounted) setState(() => _loading = false);
+    }
+  }
+
+  Future<void> _refreshStatus() async {
+    setState(() {
+      _loading = true;
+      _error = null;
+    });
+
+    try {
+      final callable = _functions.httpsCallable('refreshPhotographerConnectStatus');
+      await callable.call(<String, dynamic>{
+        'photographerId': widget.profile.photographerId,
+      });
+      await widget.onRefreshed();
+    } catch (e) {
+      setState(() => _error = e.toString());
+    } finally {
+      if (mounted) setState(() => _loading = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final profile = widget.profile;
+    final hasAccount = profile.stripeAccountId != null && profile.stripeAccountId!.isNotEmpty;
+    final chargesEnabled = profile.stripeChargesEnabled;
+
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: <Widget>[
+            Text(
+              'Paiements (Stripe Connect Express)',
+              style: Theme.of(context).textTheme.titleMedium,
+            ),
+            const SizedBox(height: 8),
+            Text(
+              !hasAccount
+                  ? 'Aucun compte Stripe lié : tes ventes ne sont pas reversées tant que ce compte n\'est pas configuré.'
+                  : chargesEnabled
+                      ? 'Compte Stripe actif : tes ventes sont reversées automatiquement.'
+                      : 'Compte Stripe créé mais incomplet : termine la configuration pour être payé.',
+            ),
+            if (_error != null) ...<Widget>[
+              const SizedBox(height: 8),
+              Text(_error!, style: const TextStyle(color: Colors.red)),
+            ],
+            const SizedBox(height: 12),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: <Widget>[
+                ElevatedButton(
+                  onPressed: _loading ? null : _startOrResumeOnboarding,
+                  child: Text(hasAccount ? 'Reprendre la configuration' : 'Configurer Stripe'),
+                ),
+                if (hasAccount)
+                  OutlinedButton(
+                    onPressed: _loading ? null : _refreshStatus,
+                    child: const Text('Rafraîchir le statut'),
+                  ),
+              ],
+            ),
+          ],
         ),
       ),
     );

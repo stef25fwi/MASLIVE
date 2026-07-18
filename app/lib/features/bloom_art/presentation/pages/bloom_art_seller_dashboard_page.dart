@@ -1,5 +1,7 @@
+import 'package:cloud_functions/cloud_functions.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../../data/models/bloom_art_item.dart';
 import '../../data/models/bloom_art_offer.dart';
@@ -63,6 +65,8 @@ class BloomArtSellerDashboardPage extends StatelessWidget {
                   ),
                 ),
               if (canSell) ...<Widget>[
+                const SizedBox(height: 18),
+                _BloomArtStripeConnectCard(profile: profile!),
                 const SizedBox(height: 24),
                 const Text(
                   'Mes créations',
@@ -275,6 +279,120 @@ class _BlockedSellerCard extends StatelessWidget {
               '/bloom-art/sell',
               arguments: <String, dynamic>{'selectedType': 'artisan_art'},
             ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _BloomArtStripeConnectCard extends StatefulWidget {
+  const _BloomArtStripeConnectCard({required this.profile});
+
+  final BloomArtSellerProfile profile;
+
+  @override
+  State<_BloomArtStripeConnectCard> createState() => _BloomArtStripeConnectCardState();
+}
+
+class _BloomArtStripeConnectCardState extends State<_BloomArtStripeConnectCard> {
+  bool _loading = false;
+  String? _error;
+
+  FirebaseFunctions get _functions => FirebaseFunctions.instanceFor(region: 'us-east1');
+
+  Future<void> _startOrResumeOnboarding() async {
+    setState(() {
+      _loading = true;
+      _error = null;
+    });
+
+    try {
+      final callable = _functions.httpsCallable('createBloomArtConnectOnboardingLink');
+      final res = await callable.call(<String, dynamic>{});
+      final data = res.data;
+
+      final url = (data is Map) ? data['url'] : null;
+      if (url is! String || url.isEmpty) {
+        throw Exception('URL Stripe invalide');
+      }
+
+      final uri = Uri.parse(url);
+      final ok = await launchUrl(uri, mode: LaunchMode.externalApplication);
+      if (!ok) {
+        throw Exception('Impossible d\'ouvrir le navigateur');
+      }
+    } catch (e) {
+      setState(() => _error = e.toString());
+    } finally {
+      if (mounted) setState(() => _loading = false);
+    }
+  }
+
+  Future<void> _refreshStatus() async {
+    setState(() {
+      _loading = true;
+      _error = null;
+    });
+
+    try {
+      final callable = _functions.httpsCallable('refreshBloomArtConnectStatus');
+      await callable.call(<String, dynamic>{});
+    } catch (e) {
+      setState(() => _error = e.toString());
+    } finally {
+      if (mounted) setState(() => _loading = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final hasAccount = widget.profile.stripeAccountLinked;
+    final payoutActive = widget.profile.payoutStatus == 'active';
+
+    return Container(
+      padding: const EdgeInsets.all(18),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(color: const Color(0xFFE9DED1)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: <Widget>[
+          const Text(
+            'Paiements (Stripe Connect Express)',
+            style: TextStyle(fontSize: 16, fontWeight: FontWeight.w900),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            !hasAccount
+                ? 'Aucun compte Stripe lié : vos ventes ne sont pas reversées tant que ce compte n\'est pas configuré (commission plateforme 10%).'
+                : payoutActive
+                    ? 'Compte Stripe actif : vos ventes vous sont reversées automatiquement (90% du prix, commission plateforme 10%).'
+                    : 'Compte Stripe créé mais incomplet : terminez la configuration pour être payé.',
+            style: const TextStyle(color: Color(0xFF6A645E), height: 1.4),
+          ),
+          if (_error != null) ...<Widget>[
+            const SizedBox(height: 8),
+            Text(_error!, style: const TextStyle(color: Colors.red)),
+          ],
+          const SizedBox(height: 12),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: <Widget>[
+              BloomArtCtaButton(
+                label: hasAccount ? 'Reprendre la configuration' : 'Configurer Stripe',
+                icon: Icons.account_balance_outlined,
+                onPressed: _loading ? null : _startOrResumeOnboarding,
+              ),
+              if (hasAccount)
+                OutlinedButton(
+                  onPressed: _loading ? null : _refreshStatus,
+                  child: const Text('Rafraîchir le statut'),
+                ),
+            ],
           ),
         ],
       ),
