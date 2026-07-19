@@ -1977,13 +1977,14 @@ class _MasLiveMapWebState extends State<MasLiveMapWeb> {
 
     // 1) POI hit-test
     final poiId = _hitTestPoiId(lng, lat);
+    debugPrint('🗺️ [POI_TAP] hitTest lng=$lng lat=$lat -> poiId=$poiId');
     if (poiId != null) {
       try {
         final cb = (controller as dynamic).onPoiTap as void Function(String)?;
         cb?.call(poiId);
         return;
-      } catch (_) {
-        // ignore
+      } catch (e) {
+        debugPrint('⚠️ [POI_TAP] onPoiTap callback error: $e');
       }
     }
 
