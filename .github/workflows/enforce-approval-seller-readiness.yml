@@ -38,46 +38,7 @@ jobs:
           cache-dependency-path: functions/package-lock.json
 
       - name: Apply approval readiness guard
-        run: |
-          python3 - <<'PY'
-          from pathlib import Path
-
-          index_path = Path('functions/index.js')
-          index_text = index_path.read_text(encoding='utf-8')
-          guard_signature = 'const sellerReadiness = await createCommerceSubmissionHandlers.evaluateSellerReadiness'
-          if guard_signature not in index_text:
-              marker = '  // Vérifier les permissions du modérateur'
-              if index_text.count(marker) != 1:
-                  raise SystemExit(f'marqueur approbation ambigu: {index_text.count(marker)}')
-              guard = '''  // Revalide la capacité de reversement au dernier moment. Un compte Stripe
-          // peut devenir non payable entre la soumission et la décision du modérateur.
-          const sellerReadiness = await createCommerceSubmissionHandlers.evaluateSellerReadiness({
-            db,
-            uid: submission.ownerUid,
-            ownerRole: submission.ownerRole,
-          });
-          if (!sellerReadiness.ready) {
-            throw new HttpsError("failed-precondition", sellerReadiness.message, {
-              code: sellerReadiness.code,
-              message: sellerReadiness.message,
-              actionRoute: sellerReadiness.actionRoute,
-            });
-          }
-
-          '''
-              index_text = index_text.replace(marker, guard + marker, 1)
-              index_path.write_text(index_text, encoding='utf-8')
-
-          test_path = Path('functions/test/commerce-submissions.test.js')
-          test_text = test_path.read_text(encoding='utf-8')
-          assertion = '  assert.match(indexSource, /createCommerceSubmissionHandlers\\.evaluateSellerReadiness/);\n'
-          if assertion not in test_text:
-              marker = '  assert.match(indexSource, /exports\\.submitCommerceForReview/);\n'
-              if test_text.count(marker) != 1:
-                  raise SystemExit(f'marqueur test ambigu: {test_text.count(marker)}')
-              test_text = test_text.replace(marker, marker + assertion, 1)
-              test_path.write_text(test_text, encoding='utf-8')
-          PY
+        run: python3 scripts/enforce_approval_seller_readiness.py
 
       - name: Install Functions dependencies
         working-directory: functions
