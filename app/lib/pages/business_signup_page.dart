@@ -7,6 +7,7 @@ import '../services/auth_service.dart';
 import '../services/french_geo_lookup_service.dart';
 import '../ui/widgets/country_autocomplete_field.dart';
 import 'package:masslive/ui_kit/tokens/maslive_tokens.dart';
+import '../ui/widgets/maslive_text_field.dart';
 
 const List<String> masliveBusinessSectors = [
   'Groupes / Carnaval / Événementiel',
@@ -638,32 +639,15 @@ class _FormField extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return TextFormField(
+    return MasliveTextField(
       controller: controller,
+      label: label,
+      icon: icon,
       obscureText: obscureText,
       keyboardType: keyboardType,
       inputFormatters: inputFormatters,
       validator: validator,
-      style: const TextStyle(fontWeight: FontWeight.w600),
-      decoration: InputDecoration(
-        labelText: label,
-        prefixIcon: Icon(icon, color: MasliveTokens.textMuted),
-        suffixIcon: suffix,
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(16),
-          borderSide: const BorderSide(color: Color(0x1A111827)),
-        ),
-        enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(16),
-          borderSide: const BorderSide(color: Color(0x1A111827)),
-        ),
-        focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(16),
-          borderSide: const BorderSide(color: Color(0xFF9B7BFF), width: 2),
-        ),
-        filled: true,
-        fillColor: Colors.white,
-      ),
+      suffix: suffix,
     );
   }
 }

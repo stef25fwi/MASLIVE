@@ -11,6 +11,7 @@ import '../../models/market_event.dart';
 import '../../services/commerce/commerce_service.dart';
 import '../../ui/widgets/marketmap_poi_selector_sheet.dart';
 import '../../ui/widgets/maslive_button.dart';
+import '../../ui/widgets/maslive_text_field.dart';
 
 /// Page de création/édition d'un média
 class CreateMediaPage extends StatefulWidget {
@@ -507,51 +508,32 @@ class _CreateMediaPageState extends State<CreateMediaPage> {
                       child: ListView(
                         padding: const EdgeInsets.all(16),
                         children: [
-                          TextFormField(
+                          MasliveTextField(
                             controller: _titleController,
-                            decoration: InputDecoration(
-                              labelText: 'Titre *',
-                              border: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(12),
-                              ),
-                              filled: true,
-                              fillColor: Colors.grey.shade50,
-                            ),
+                            label: 'Titre *',
                             validator: (v) => v == null || v.trim().isEmpty
                                 ? 'Titre obligatoire'
                                 : null,
                           ),
                           const SizedBox(height: 16),
-                          TextFormField(
+                          MasliveTextField(
                             controller: _descriptionController,
+                            label: 'Description *',
                             maxLines: 4,
-                            decoration: InputDecoration(
-                              labelText: 'Description *',
-                              border: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(12),
-                              ),
-                              filled: true,
-                              fillColor: Colors.grey.shade50,
-                            ),
                             validator: (v) => v == null || v.trim().isEmpty
                                 ? 'Description obligatoire'
                                 : null,
                           ),
                           const SizedBox(height: 16),
-                          TextFormField(
+                          MasliveTextField(
                             controller: _photographerController,
-                            decoration: InputDecoration(
-                              labelText: 'Photographe',
-                              border: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(12),
-                              ),
-                              filled: true,
-                              fillColor: Colors.grey.shade50,
-                            ),
+                            label: 'Photographe',
                           ),
                           const SizedBox(height: 16),
-                          TextFormField(
+                          MasliveTextField(
                             controller: _priceController,
+                            label: 'Prix par photo ($_currency) *',
+                            prefixText: '€ ',
                             keyboardType: const TextInputType.numberWithOptions(
                               decimal: true,
                             ),
@@ -569,15 +551,6 @@ class _CreateMediaPageState extends State<CreateMediaPage> {
                                 );
                               }
                             },
-                            decoration: InputDecoration(
-                              labelText: 'Prix par photo ($_currency) *',
-                              border: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(12),
-                              ),
-                              filled: true,
-                              fillColor: Colors.grey.shade50,
-                              prefixText: '€ ',
-                            ),
                             validator: (value) {
                               if (value == null || value.trim().isEmpty) {
                                 return 'Prix obligatoire';
@@ -655,16 +628,9 @@ class _CreateMediaPageState extends State<CreateMediaPage> {
                             },
                           ),
                           const SizedBox(height: 16),
-                          TextFormField(
+                          MasliveTextField(
                             initialValue: _scopeId,
-                            decoration: InputDecoration(
-                              labelText: 'Scope ID (optionnel)',
-                              border: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(12),
-                              ),
-                              filled: true,
-                              fillColor: Colors.grey.shade50,
-                            ),
+                            label: 'Scope ID (optionnel)',
                             onChanged: (val) => _scopeId = val.trim(),
                           ),
                           const SizedBox(height: 24),
@@ -854,19 +820,14 @@ class _MarketScopeField extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return TextFormField(
+    return MasliveTextField(
       controller: controller,
+      label: label,
+      hint: 'Choisir via le menu Carte',
+      errorText: errorText,
       readOnly: true,
       onTap: onTap,
-      decoration: InputDecoration(
-        labelText: label,
-        hintText: 'Choisir via le menu Carte',
-        errorText: errorText,
-        suffixIcon: const Icon(Icons.keyboard_arrow_down_rounded),
-        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-        filled: true,
-        fillColor: Colors.grey.shade50,
-      ),
+      suffix: const Icon(Icons.keyboard_arrow_down_rounded),
     );
   }
 }

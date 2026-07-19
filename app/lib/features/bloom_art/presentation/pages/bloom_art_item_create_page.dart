@@ -8,6 +8,7 @@ import '../../data/repositories/bloom_art_repository.dart';
 import '../widgets/bloom_art_cta_button.dart';
 import '../widgets/bloom_art_photo_picker.dart';
 import 'package:masslive/ui_kit/tokens/maslive_tokens.dart';
+import '../../../../ui/widgets/maslive_text_field.dart';
 
 class BloomArtItemCreatePage extends StatefulWidget {
   const BloomArtItemCreatePage({
@@ -419,17 +420,12 @@ class _BloomArtField extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return TextFormField(
+    return MasliveTextField(
       controller: controller,
+      label: label,
       keyboardType: keyboardType,
       maxLines: maxLines,
       validator: validator,
-      decoration: InputDecoration(
-        labelText: label,
-        border: const OutlineInputBorder(),
-        filled: true,
-        fillColor: Colors.white,
-      ),
     );
   }
 }
