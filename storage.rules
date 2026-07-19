@@ -67,24 +67,38 @@ service firebase.storage {
       return request.resource.size < 5 * 1024 * 1024;
     }
 
-    function hasValidPhotographerReservation(photographerId, eventId, galleryId, fileName) {
+    function hasValidPhotographerReservation(
+      photographerId,
+      eventId,
+      galleryId,
+      storagePath,
+      originalUpload
+    ) {
       let reservationId = request.resource.metadata.reservationId;
       let reservationPath = /databases/(default)/documents/media_upload_reservations/$(reservationId);
+      let reservation = firestore.get(reservationPath).data;
       return isAuthenticated()
         && request.resource.metadata != null
         && reservationId is string
         && reservationId.size() > 0
         && firestore.exists(reservationPath)
-        && firestore.get(reservationPath).data.status == 'reserved'
-        && firestore.get(reservationPath).data.ownerUid == request.auth.uid
-        && firestore.get(reservationPath).data.photographerId == photographerId
-        && firestore.get(reservationPath).data.galleryId == galleryId
-        && firestore.get(reservationPath).data.eventId == eventId
-        && firestore.get(reservationPath).data.photoId == request.resource.metadata.photoId
-        && firestore.get(reservationPath).data.originalPath == 'photographers/' + photographerId + '/events/' + eventId + '/galleries/' + galleryId + '/originals/' + fileName
+        && reservation.status == 'reserved'
+        && reservation.ownerUid == request.auth.uid
+        && reservation.photographerId == photographerId
+        && reservation.galleryId == galleryId
+        && reservation.eventId == eventId
+        && reservation.photoId == request.resource.metadata.photoId
+        && request.resource.metadata.photographerId == photographerId
+        && request.resource.metadata.galleryId == galleryId
+        && (
+          reservation.originalPath == storagePath
+          || reservation.previewPath == storagePath
+          || reservation.thumbnailPath == storagePath
+          || reservation.watermarkedPath == storagePath
+        )
         && request.resource.size > 0
-        && request.resource.size <= firestore.get(reservationPath).data.maxFileBytes
-        && request.resource.size <= firestore.get(reservationPath).data.sizeBytes;
+        && request.resource.size <= reservation.maxFileBytes
+        && (!originalUpload || request.resource.size <= reservation.reservedBytes);
     }
 
     match /users/{userId}/profile/{imageId} {
@@ -135,8 +149,8 @@ service firebase.storage {
       allow delete: if isMasterAdmin();
     }
 
-    // Les originaux ne sont jamais publics. Le client ne peut envoyer un fichier
-    // qu'après une réservation serveur liée au photographe, à la galerie et au quota.
+    // Originaux privés : seuls le propriétaire et les administrateurs peuvent
+    // les lire. Chaque création doit correspondre à une réservation serveur.
     match /photographers/{photographerId}/events/{eventId}/galleries/{galleryId}/originals/{fileName} {
       allow read: if canManageMarketplaceMedia(photographerId);
       allow create, update: if canManageMarketplaceMedia(photographerId)
@@ -146,26 +160,54 @@ service firebase.storage {
                               photographerId,
                               eventId,
                               galleryId,
-                              fileName
+                              'photographers/' + photographerId + '/events/' + eventId + '/galleries/' + galleryId + '/originals/' + fileName,
+                              true
                             );
       allow delete: if canManageMarketplaceMedia(photographerId);
     }
 
-    // Les dérivés sont générés uniquement par Cloud Functions avec Admin SDK.
-    // Ils sont consultables publiquement dans la boutique, contrairement aux originaux.
+    // Miniatures et aperçus : lecture publique pour la boutique. L’écriture
+    // reste limitée au propriétaire pendant la réservation active du lot.
     match /photographers/{photographerId}/events/{eventId}/galleries/{galleryId}/thumbs/{fileName} {
       allow read: if true;
-      allow write: if false;
+      allow create, update: if canManageMarketplaceMedia(photographerId)
+                            && isValidImageType()
+                            && hasValidPhotographerReservation(
+                              photographerId,
+                              eventId,
+                              galleryId,
+                              'photographers/' + photographerId + '/events/' + eventId + '/galleries/' + galleryId + '/thumbs/' + fileName,
+                              false
+                            );
+      allow delete: if canManageMarketplaceMedia(photographerId);
     }
 
     match /photographers/{photographerId}/events/{eventId}/galleries/{galleryId}/previews/{fileName} {
       allow read: if true;
-      allow write: if false;
+      allow create, update: if canManageMarketplaceMedia(photographerId)
+                            && isValidImageType()
+                            && hasValidPhotographerReservation(
+                              photographerId,
+                              eventId,
+                              galleryId,
+                              'photographers/' + photographerId + '/events/' + eventId + '/galleries/' + galleryId + '/previews/' + fileName,
+                              false
+                            );
+      allow delete: if canManageMarketplaceMedia(photographerId);
     }
 
     match /photographers/{photographerId}/events/{eventId}/galleries/{galleryId}/watermarked/{fileName} {
       allow read: if true;
-      allow write: if false;
+      allow create, update: if canManageMarketplaceMedia(photographerId)
+                            && isValidImageType()
+                            && hasValidPhotographerReservation(
+                              photographerId,
+                              eventId,
+                              galleryId,
+                              'photographers/' + photographerId + '/events/' + eventId + '/galleries/' + galleryId + '/watermarked/' + fileName,
+                              false
+                            );
+      allow delete: if canManageMarketplaceMedia(photographerId);
     }
 
     match /{allPaths=**} {
