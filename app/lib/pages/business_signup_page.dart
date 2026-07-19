@@ -6,6 +6,7 @@ import 'package:flutter/services.dart';
 import '../services/auth_service.dart';
 import '../services/french_geo_lookup_service.dart';
 import '../ui/widgets/country_autocomplete_field.dart';
+import 'package:masslive/ui_kit/tokens/maslive_tokens.dart';
 
 const List<String> masliveBusinessSectors = [
   'Groupes / Carnaval / Événementiel',
@@ -254,8 +255,8 @@ class _BusinessSignupPageState extends State<BusinessSignupPage> {
   @override
   Widget build(BuildContext context) {
     const bg = Color(0xFFFFFFFF);
-    const text = Color(0xFF1A1A1A);
-    const subText = Color(0xFF6B7280);
+    const text = MasliveTokens.text;
+    const subText = MasliveTokens.textMuted;
 
     const masliveGradient = LinearGradient(
       begin: Alignment.topLeft,
@@ -606,7 +607,7 @@ class _SectionHeader extends StatelessWidget {
           style: const TextStyle(
             fontSize: 18,
             fontWeight: FontWeight.w700,
-            color: Color(0xFF1A1A1A),
+            color: MasliveTokens.text,
           ),
         ),
       ],
@@ -646,7 +647,7 @@ class _FormField extends StatelessWidget {
       style: const TextStyle(fontWeight: FontWeight.w600),
       decoration: InputDecoration(
         labelText: label,
-        prefixIcon: Icon(icon, color: const Color(0xFF6B7280)),
+        prefixIcon: Icon(icon, color: MasliveTokens.textMuted),
         suffixIcon: suffix,
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(16),
@@ -691,7 +692,7 @@ class _DropdownField extends StatelessWidget {
       validator: validator,
       decoration: InputDecoration(
         labelText: label,
-        prefixIcon: Icon(icon, color: const Color(0xFF6B7280)),
+        prefixIcon: Icon(icon, color: MasliveTokens.textMuted),
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(16),
           borderSide: const BorderSide(color: Color(0x1A111827)),

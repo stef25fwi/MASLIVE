@@ -7,6 +7,7 @@ import 'auth/auth_action_runner.dart';
 import '../services/auth_service.dart';
 import '../l10n/app_localizations.dart';
 import 'business_signup_page.dart';
+import 'package:masslive/ui_kit/tokens/maslive_tokens.dart';
 
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key, this.onLoginSuccess});
@@ -325,8 +326,8 @@ class _LoginPageState extends State<LoginPage> {
   @override
   Widget build(BuildContext context) {
     const bg = Color(0xFFFFFFFF);
-    const text = Color(0xFF1A1A1A);
-    const subText = Color(0xFF6B7280);
+    const text = MasliveTokens.text;
+    const subText = MasliveTokens.textMuted;
     const border = Color(0x1A111827);
 
     const masliveGradient = LinearGradient(
@@ -494,7 +495,7 @@ class _LoginPageState extends State<LoginPage> {
                                           _obscure
                                               ? Icons.visibility_off_outlined
                                               : Icons.visibility_outlined,
-                                          color: const Color(0xFF6B7280),
+                                          color: MasliveTokens.textMuted,
                                         ),
                                       ),
                                     ),
@@ -618,7 +619,7 @@ class _LoginPageState extends State<LoginPage> {
                                         leading: const Icon(
                                           Icons.apple,
                                           size: 22,
-                                          color: Color(0xFF111827),
+                                          color: MasliveTokens.text,
                                         ),
                                         onPressed: _loading
                                             ? () {}
@@ -809,7 +810,7 @@ class _PremiumField extends StatelessWidget {
             color: Color(0xFF9CA3AF),
             fontWeight: FontWeight.w600,
           ),
-          prefixIcon: Icon(prefixIcon, color: const Color(0xFF6B7280)),
+          prefixIcon: Icon(prefixIcon, color: MasliveTokens.textMuted),
           suffixIcon: suffix,
           border: InputBorder.none,
           contentPadding: const EdgeInsets.symmetric(
@@ -894,7 +895,7 @@ class _SocialButton extends StatelessWidget {
         onPressed: onPressed,
         style: ElevatedButton.styleFrom(
           backgroundColor: Colors.white.withAlpha((0.70 * 255).round()),
-          foregroundColor: const Color(0xFF111827),
+          foregroundColor: MasliveTokens.text,
           elevation: 0,
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(22),
@@ -1039,7 +1040,7 @@ class _HexPatternPainter extends CustomPainter {
   }
 
   void _drawHex(Canvas canvas, Offset c, double r, Paint p) {
-    p.color = const Color(0xFF111827).withValues(alpha: 0.35);
+    p.color = MasliveTokens.text.withValues(alpha: 0.35);
 
     final path = Path();
     for (int i = 0; i < 6; i++) {

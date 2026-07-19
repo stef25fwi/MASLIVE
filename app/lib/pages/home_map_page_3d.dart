@@ -49,6 +49,7 @@ import '../l10n/app_localizations.dart' as l10n;
 import 'home_vertical_nav.dart';
 import 'storex_shop_page.dart';
 import 'splash_wrapper_page.dart' show mapReadyNotifier;
+import 'package:masslive/ui_kit/tokens/maslive_tokens.dart';
 
 // Menu vertical: modes/actions (filtrage POIs)
 enum _MapAction { visiter, food, assistance, parking, wc }
@@ -1081,7 +1082,7 @@ class _HomeMapPage3DState extends State<HomeMapPage3D>
     if (cfg.trafficDemoEnabled) {
       const traffic = [
         Color(0xFF22C55E), // vert
-        Color(0xFFF59E0B), // orange
+        MasliveTokens.warning, // orange
         Color(0xFFEF4444), // rouge
       ];
       return traffic[index % traffic.length];
@@ -1301,7 +1302,7 @@ class _HomeMapPage3DState extends State<HomeMapPage3D>
             LineLayer(
               id: _mmRouteLayerGlowId,
               sourceId: _mmRouteSourceId,
-              lineColor: const Color(0xFF1A73E8).toARGB32(),
+              lineColor: MasliveTokens.primary.toARGB32(),
               lineOpacity: 0.0,
               lineWidth: 1.0,
               lineBlur: 0.0,
@@ -1320,7 +1321,7 @@ class _HomeMapPage3DState extends State<HomeMapPage3D>
             LineLayer(
               id: _mmRouteLayerSideLId,
               sourceId: _mmRouteSegmentsSourceId,
-              lineColor: const Color(0xFF1A73E8).toARGB32(),
+              lineColor: MasliveTokens.primary.toARGB32(),
               lineOpacity: 0.0,
               lineWidth: 7.0,
               lineBlur: 0.0,
@@ -1337,7 +1338,7 @@ class _HomeMapPage3DState extends State<HomeMapPage3D>
             LineLayer(
               id: _mmRouteLayerSideRId,
               sourceId: _mmRouteSegmentsSourceId,
-              lineColor: const Color(0xFF1A73E8).toARGB32(),
+              lineColor: MasliveTokens.primary.toARGB32(),
               lineOpacity: 0.0,
               lineWidth: 7.0,
               lineBlur: 0.0,
@@ -1370,7 +1371,7 @@ class _HomeMapPage3DState extends State<HomeMapPage3D>
             LineLayer(
               id: _mmRouteLayerMainId,
               sourceId: _mmRouteSegmentsSourceId,
-              lineColor: const Color(0xFF1A73E8).toARGB32(),
+              lineColor: MasliveTokens.primary.toARGB32(),
               lineOpacity: 1.0,
               lineWidth: 7.0,
               lineJoin: LineJoin.ROUND,
@@ -1724,7 +1725,7 @@ class _HomeMapPage3DState extends State<HomeMapPage3D>
       // Rendu legacy (roadLike) si pas de StylePro
       final color =
           _parseHexColor(legacy['color']?.toString()) ??
-          const Color(0xFF0A84FF);
+          MasliveTokens.primary;
       final width = (legacy['width'] as num?)?.toDouble() ?? 6.0;
 
       final roadLike = (legacy['roadLike'] as bool?) ?? true;
@@ -4132,7 +4133,7 @@ class _HalfRedCompass extends StatelessWidget {
             const Icon(
               Icons.navigation_rounded,
               size: 26,
-              color: Color(0xFF111827),
+              color: MasliveTokens.text,
             ),
             ClipRect(
               child: Align(
@@ -4224,7 +4225,7 @@ class _MapOverlayControlButton extends StatelessWidget {
             size: embedded ? 20 : 22,
             color: onTap == null
                 ? MasliveTheme.textSecondary.withValues(alpha: 0.45)
-                : const Color(0xFF111827),
+                : MasliveTokens.text,
           ),
         ),
       ),

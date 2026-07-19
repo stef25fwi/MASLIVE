@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:masslive/ui_kit/tokens/maslive_tokens.dart';
 
 class BloomArtPhotoPicker extends StatefulWidget {
   const BloomArtPhotoPicker({
@@ -60,13 +61,13 @@ class _BloomArtPhotoPickerState extends State<BloomArtPhotoPicker> {
             width: double.infinity,
             padding: const EdgeInsets.all(18),
             decoration: BoxDecoration(
-              color: const Color(0xFFFFFBF7),
+              color: MasliveTokens.surfaceEditorial,
               borderRadius: BorderRadius.circular(20),
               border: Border.all(color: const Color(0xFFE8DED3)),
             ),
             child: const Text(
               'Ajoutez jusqu\'a 10 photos. Elles seront uploadees dans Firebase Storage au moment de la publication.',
-              style: TextStyle(color: Color(0xFF6A645E)),
+              style: TextStyle(color: MasliveTokens.textEditorialMuted),
             ),
           )
         else

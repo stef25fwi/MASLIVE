@@ -6,6 +6,7 @@ import '../../data/repositories/bloom_art_offer_repository.dart';
 import '../../../../services/checkout/unified_checkout_service.dart';
 import '../../services/bloom_art_notification_service.dart';
 import '../widgets/bloom_art_cta_button.dart';
+import 'package:masslive/ui_kit/tokens/maslive_tokens.dart';
 
 Future<void> showBloomArtMakeOfferSheet(
   BuildContext context, {
@@ -167,7 +168,7 @@ class _BloomArtMakeOfferSheetState extends State<BloomArtMakeOfferSheet> {
       padding: EdgeInsets.only(bottom: bottomInset),
       child: Container(
         decoration: const BoxDecoration(
-          color: Color(0xFFFFFBF7),
+          color: MasliveTokens.surfaceEditorial,
           borderRadius: BorderRadius.vertical(top: Radius.circular(34)),
         ),
         padding: const EdgeInsets.fromLTRB(20, 18, 20, 24),
@@ -192,14 +193,14 @@ class _BloomArtMakeOfferSheetState extends State<BloomArtMakeOfferSheet> {
                 style: const TextStyle(
                   fontSize: 24,
                   fontWeight: FontWeight.w900,
-                  color: Color(0xFF1A1A1A),
+                  color: MasliveTokens.text,
                 ),
               ),
               const SizedBox(height: 8),
               const Text(
                 'Le prix de référence reste privé. Saisissez votre meilleure proposition et un message pour le vendeur.',
                 style: TextStyle(
-                  color: Color(0xFF6A645E),
+                  color: MasliveTokens.textEditorialMuted,
                   height: 1.45,
                 ),
               ),

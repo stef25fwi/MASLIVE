@@ -35,6 +35,7 @@ import '../utils/mapbox_style_url.dart';
 import '../utils/mapbox_base_style_presets.dart';
 import '../services/startup_map_style_service.dart';
 import 'admin_groups_page.dart';
+import 'package:masslive/ui_kit/tokens/maslive_tokens.dart';
 
 /// Dashboard admin principal 10/10 avec toutes les fonctionnalités
 class AdminMainDashboard extends StatefulWidget {
@@ -2075,7 +2076,7 @@ class AdminAssistantStepByStepHomePage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF6F7FB),
+      backgroundColor: MasliveTokens.bg,
       appBar: AppBar(title: const Text('Assistant (step-by-step)')),
       body: ListView(
         padding: const EdgeInsets.all(16),
@@ -2085,7 +2086,7 @@ class AdminAssistantStepByStepHomePage extends StatelessWidget {
             subtitle:
                 'Périmètre → Offline → Tracé → Segments → Flèches → Styles → Publier',
             icon: Icons.route_rounded,
-            color: const Color(0xFF1A73E8),
+            color: MasliveTokens.primary,
             badge: 'New',
             onTap: () {
               Navigator.of(context).pushNamed('/admin/circuit-wizard');

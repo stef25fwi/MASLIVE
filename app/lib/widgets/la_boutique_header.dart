@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import 'cart/cart_icon_badge.dart';
+import 'package:masslive/ui_kit/tokens/maslive_tokens.dart';
 
 /// Header pixel-perfect (style comme ton visuel) :
 /// - Titre: "La boutique"
@@ -76,7 +77,7 @@ class LaBoutiqueHeader extends StatelessWidget {
                         height: 1.05,
                         fontWeight: FontWeight.w900,
                         letterSpacing: -0.6,
-                        color: Color(0xFF111827),
+                        color: MasliveTokens.text,
                       ),
                     ),
                     SizedBox(height: 2),
@@ -99,7 +100,7 @@ class LaBoutiqueHeader extends StatelessWidget {
               const SizedBox(width: 12),
               CartIconBadge(
                 onPressed: onCartIconTap,
-                iconColor: const Color(0xFF111827),
+                iconColor: MasliveTokens.text,
                 backgroundColor: Colors.white.withValues(alpha: 0.20),
                 borderColor: Colors.white.withValues(alpha: 0.28),
               ),
@@ -138,7 +139,7 @@ class _RoundIconGlassButton extends StatelessWidget {
             width: 1,
           ),
         ),
-        child: Icon(icon, size: 22, color: const Color(0xFF111827)),
+        child: Icon(icon, size: 22, color: MasliveTokens.text),
       ),
     );
   }
@@ -172,7 +173,7 @@ class _SearchPillExact extends StatelessWidget {
       ),
       child: Row(
         children: [
-          const Icon(Icons.search_rounded, size: 22, color: Color(0xFF6B7280)),
+          const Icon(Icons.search_rounded, size: 22, color: MasliveTokens.textMuted),
           const SizedBox(width: 12),
           Expanded(
             child: TextField(
@@ -183,7 +184,7 @@ class _SearchPillExact extends StatelessWidget {
                 hintStyle: const TextStyle(
                   fontSize: 16,
                   fontWeight: FontWeight.w600,
-                  color: Color(0xFF6B7280),
+                  color: MasliveTokens.textMuted,
                 ),
                 border: InputBorder.none,
                 isDense: true,
@@ -191,7 +192,7 @@ class _SearchPillExact extends StatelessWidget {
               style: const TextStyle(
                 fontSize: 16,
                 fontWeight: FontWeight.w700,
-                color: Color(0xFF111827),
+                color: MasliveTokens.text,
               ),
             ),
           ),

@@ -341,7 +341,7 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
           subtitle:
               'Choisissez un template pour accélérer le démarrage ou partez d’une base libre.',
           icon: Icons.auto_awesome_rounded,
-          accent: const Color(0xFF0A84FF),
+          accent: MasliveTokens.primary,
         );
       case 1:
         return (
@@ -357,7 +357,7 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
           subtitle:
               'Définissez la zone visible et les contraintes caméra qui poseront le cadre du circuit.',
           icon: Icons.crop_free_rounded,
-          accent: const Color(0xFF0A84FF),
+          accent: MasliveTokens.primary,
         );
       case 3:
         return (
@@ -508,13 +508,13 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
                 ? 'Création libre'
                 : 'Template actif',
             icon: Icons.dashboard_customize_outlined,
-            accent: const Color(0xFF0A84FF),
+            accent: MasliveTokens.primary,
           ),
           _buildStageFact(
             label: 'Sélection',
             value: _selectedTemplate?.name ?? 'Aucun modèle',
             icon: Icons.layers_outlined,
-            accent: const Color(0xFF0A84FF),
+            accent: MasliveTokens.primary,
           ),
         ];
       case 1:
@@ -549,13 +549,13 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
             label: 'Sommets',
             value: '${_perimeterPoints.length}',
             icon: Icons.scatter_plot_outlined,
-            accent: const Color(0xFF0A84FF),
+            accent: MasliveTokens.primary,
           ),
           _buildStageFact(
             label: 'Mode',
             value: _perimeterCircleMode ? 'Cercle' : 'Polygone',
             icon: Icons.crop_square_rounded,
-            accent: const Color(0xFF0A84FF),
+            accent: MasliveTokens.primary,
           ),
           _buildStageFact(
             label: 'Statut',
@@ -4854,7 +4854,7 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
       '#EF4444': 'Rouge',
       '#F59E0B': 'Orange',
     };
-    const proBlue = Color(0xFF1A73E8);
+    const proBlue = MasliveTokens.primary;
 
     return LayoutBuilder(
       builder: (context, constraints) {
@@ -6601,7 +6601,7 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
     int animTick,
   ) {
     if (cfg.trafficDemoEnabled) {
-      const traffic = [Color(0xFF22C55E), Color(0xFFF59E0B), Color(0xFFEF4444)];
+      const traffic = [Color(0xFF22C55E), MasliveTokens.warning, Color(0xFFEF4444)];
       return traffic[index % traffic.length];
     }
 

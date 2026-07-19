@@ -11,6 +11,7 @@ import '../../../ui/map/maslive_map.dart';
 import '../../../ui/map/maslive_map_controller.dart';
 import '../../services/map_buildings_style_service_native.dart';
 import '../../models/route_style_config.dart';
+import 'package:masslive/ui_kit/tokens/maslive_tokens.dart';
 
 class RouteStylePreviewMap extends StatefulWidget {
   final RouteStyleConfig config;
@@ -158,7 +159,7 @@ class _RouteStylePreviewMapState extends State<RouteStylePreviewMap> {
       LineLayer(
         id: _layerGlow,
         sourceId: _srcRoute,
-        lineColor: const Color(0xFF1A73E8).toARGB32(),
+        lineColor: MasliveTokens.primary.toARGB32(),
         lineOpacity: 0.0,
         lineWidth: 1.0,
         lineBlur: 0.0,
@@ -183,7 +184,7 @@ class _RouteStylePreviewMapState extends State<RouteStylePreviewMap> {
       LineLayer(
         id: _layerMain,
         sourceId: _srcSegments,
-        lineColor: const Color(0xFF1A73E8).toARGB32(),
+        lineColor: MasliveTokens.primary.toARGB32(),
         lineOpacity: 1.0,
         lineWidth: 7.0,
         lineJoin: LineJoin.ROUND,
@@ -671,7 +672,7 @@ class _RouteStylePreviewMapState extends State<RouteStylePreviewMap> {
     if (cfg.trafficDemoEnabled) {
       const traffic = [
         Color(0xFF22C55E), // vert
-        Color(0xFFF59E0B), // orange
+        MasliveTokens.warning, // orange
         Color(0xFFEF4444), // rouge
       ];
       return traffic[index % traffic.length];

@@ -10,6 +10,7 @@ import 'maslive_map_controller.dart';
 import 'maslive_poi_style.dart';
 import '../../services/mapbox_token_service.dart';
 import '../../route_style_pro/services/map_buildings_style_service_native.dart';
+import 'package:masslive/ui_kit/tokens/maslive_tokens.dart';
 
 /// Implémentation Native (iOS/Android) de MasLiveMap
 /// Utilise mapbox_maps_flutter avec API Phase 1 complète
@@ -2489,7 +2490,7 @@ class _MasLiveMapNativeState extends State<MasLiveMapNative> {
         LineLayer(
           id: _layerRouteSideL,
           sourceId: _segmentsSourceId,
-          lineColor: const Color(0xFF1A73E8).toARGB32(),
+          lineColor: MasliveTokens.primary.toARGB32(),
           lineOpacity: 0.0,
           lineWidth: width + 2.0,
           lineBlur: 0.0,
@@ -2501,7 +2502,7 @@ class _MasLiveMapNativeState extends State<MasLiveMapNative> {
         LineLayer(
           id: _layerRouteSideR,
           sourceId: _segmentsSourceId,
-          lineColor: const Color(0xFF1A73E8).toARGB32(),
+          lineColor: MasliveTokens.primary.toARGB32(),
           lineOpacity: 0.0,
           lineWidth: width + 2.0,
           lineBlur: 0.0,
@@ -2525,7 +2526,7 @@ class _MasLiveMapNativeState extends State<MasLiveMapNative> {
         LineLayer(
           id: _layerRouteCore,
           sourceId: _segmentsSourceId,
-          lineColor: const Color(0xFF1A73E8).toARGB32(),
+          lineColor: MasliveTokens.primary.toARGB32(),
           lineOpacity: opacity,
           lineWidth: width,
           lineJoin: LineJoin.ROUND,
@@ -2537,7 +2538,7 @@ class _MasLiveMapNativeState extends State<MasLiveMapNative> {
         LineLayer(
           id: _layerRoutePlain,
           sourceId: _segmentsSourceId,
-          lineColor: const Color(0xFF1A73E8).toARGB32(),
+          lineColor: MasliveTokens.primary.toARGB32(),
           lineOpacity: opacity,
           lineWidth: width,
           lineJoin: LineJoin.ROUND,

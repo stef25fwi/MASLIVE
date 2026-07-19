@@ -12,6 +12,7 @@ import '../services/market_map_service.dart';
 import '../services/media_permissions_service.dart';
 import '../utils/country_flag.dart';
 import '../ui/widgets/storage_image.dart';
+import 'package:masslive/ui_kit/tokens/maslive_tokens.dart';
 
 class MediaGalleryMasliveInstagramPage extends StatefulWidget {
   const MediaGalleryMasliveInstagramPage({super.key});
@@ -391,7 +392,7 @@ class _MasliveHeader extends StatelessWidget {
                   style: const TextStyle(
                     fontSize: 18,
                     fontWeight: FontWeight.w900,
-                    color: Color(0xFF0D0F12),
+                    color: MasliveTokens.text,
                     letterSpacing: 0.2,
                   ),
                 ),
@@ -403,7 +404,7 @@ class _MasliveHeader extends StatelessWidget {
                     onPressed: onAddMedia,
                     icon: const Icon(
                       Icons.add_a_photo_outlined,
-                      color: Color(0xFF0D0F12),
+                      color: MasliveTokens.text,
                     ),
                   ),
 
@@ -414,7 +415,7 @@ class _MasliveHeader extends StatelessWidget {
                       'Réinitialiser',
                       style: TextStyle(
                         fontWeight: FontWeight.w900,
-                        color: Color(0xFF0D0F12),
+                        color: MasliveTokens.text,
                       ),
                     ),
                   ),
@@ -424,7 +425,7 @@ class _MasliveHeader extends StatelessWidget {
                   icon: Stack(
                     clipBehavior: Clip.none,
                     children: [
-                      const Icon(Icons.tune_rounded, color: Color(0xFF0D0F12)),
+                      const Icon(Icons.tune_rounded, color: MasliveTokens.text),
                       if (hasActiveFilters)
                         const Positioned(
                           right: -2,
@@ -1012,7 +1013,7 @@ class _FiltersSheetMasliveState extends State<_FiltersSheetMaslive> {
                   style: TextStyle(
                     fontSize: 18,
                     fontWeight: FontWeight.w900,
-                    color: Color(0xFF0D0F12),
+                    color: MasliveTokens.text,
                   ),
                 ),
               ],
@@ -1086,7 +1087,7 @@ class _FiltersSheetMasliveState extends State<_FiltersSheetMaslive> {
                       'Reset',
                       style: TextStyle(
                         fontWeight: FontWeight.w900,
-                        color: Color(0xFF0D0F12),
+                        color: MasliveTokens.text,
                       ),
                     ),
                   ),
@@ -1113,7 +1114,7 @@ class _FiltersSheetMasliveState extends State<_FiltersSheetMaslive> {
                     },
                     style: ElevatedButton.styleFrom(
                       padding: const EdgeInsets.symmetric(vertical: 14),
-                      backgroundColor: const Color(0xFF0D0F12),
+                      backgroundColor: MasliveTokens.text,
                       foregroundColor: Colors.white,
                       elevation: 0,
                       shape: RoundedRectangleBorder(
@@ -1232,7 +1233,7 @@ class _MasliveChoiceChip extends StatelessWidget {
             label,
             style: TextStyle(
               fontWeight: FontWeight.w900,
-              color: selected ? const Color(0xFF0D0F12) : const Color(0xFF2B2F36),
+              color: selected ? MasliveTokens.text : const Color(0xFF2B2F36),
             ),
           ),
         ),
@@ -1275,7 +1276,7 @@ class _EmptyStateMaslive extends StatelessWidget {
               'Aucun média',
               style: TextStyle(
                 fontWeight: FontWeight.w900,
-                color: Color(0xFF0D0F12),
+                color: MasliveTokens.text,
               ),
             ),
             SizedBox(height: 6),
@@ -1661,7 +1662,7 @@ class _HoneycombPainter extends CustomPainter {
     final paint = Paint()
       ..style = PaintingStyle.stroke
       ..strokeWidth = 1
-      ..color = const Color(0xFF0D0F12).withAlpha((opacity * 255).toInt());
+      ..color = MasliveTokens.text.withAlpha((opacity * 255).toInt());
 
     // Hex pattern
     const double r = 16; // rayon

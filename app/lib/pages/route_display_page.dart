@@ -5,6 +5,7 @@ import '../services/mapbox_token_service.dart';
 import '../ui/widgets/mapbox_token_dialog.dart';
 import '../ui/map/maslive_map.dart';
 import '../ui/map/maslive_map_controller.dart';
+import 'package:masslive/ui_kit/tokens/maslive_tokens.dart';
 
 /// RouteDisplayPage (Mapbox-only)
 /// Affiche un itinéraire calculé entre plusieurs waypoints
@@ -107,7 +108,7 @@ class _RouteDisplayPageState extends State<RouteDisplayPage> {
         points: [
           for (final p in route.points) MapPoint(p.longitude, p.latitude),
         ],
-        color: const Color(0xFF0A84FF),
+        color: MasliveTokens.primary,
         width: 6.0,
         roadLike: false,
         shadow3d: false,

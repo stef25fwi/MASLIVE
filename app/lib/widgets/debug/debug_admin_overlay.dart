@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../../utils/debug_log_buffer.dart';
+import 'package:masslive/ui_kit/tokens/maslive_tokens.dart';
 
 /// Overlay global: enveloppe l'app et affiche un petit bouton flottant
 /// « debug admin » sur tous les écrans. Il ouvre la console des logs
@@ -52,7 +53,7 @@ class _DebugAdminOverlayState extends State<DebugAdminOverlay> {
                   width: btn,
                   height: btn,
                   decoration: BoxDecoration(
-                    color: const Color(0xFF111827),
+                    color: MasliveTokens.text,
                     shape: BoxShape.circle,
                     border: Border.all(color: Colors.white24),
                     boxShadow: const [
@@ -218,7 +219,7 @@ class _DebugLogsViewState extends State<_DebugLogsView> {
                         decoration: BoxDecoration(
                           color: isErr
                               ? const Color(0x33B91C1C)
-                              : const Color(0xFF111827),
+                              : MasliveTokens.text,
                           borderRadius: BorderRadius.circular(10),
                           border: Border.all(
                             color: isErr

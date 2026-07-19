@@ -3,6 +3,7 @@
 import 'package:flutter/material.dart';
 
 import '../ui/snack/top_snack_bar.dart';
+import 'package:masslive/ui_kit/tokens/maslive_tokens.dart';
 
 class CircuitSavePage extends StatefulWidget {
   const CircuitSavePage({super.key});
@@ -57,8 +58,8 @@ class _CircuitSavePageState extends State<CircuitSavePage> {
   };
 
   final List<Map<String, dynamic>> _layers = [
-    {'name': 'Circuit', 'icon': Icons.route, 'color': Color(0xFF1A73E8)},
-    {'name': 'Visiter', 'icon': Icons.tour, 'color': Color(0xFFF59E0B)},
+    {'name': 'Circuit', 'icon': Icons.route, 'color': MasliveTokens.primary},
+    {'name': 'Visiter', 'icon': Icons.tour, 'color': MasliveTokens.warning},
     {'name': 'Food', 'icon': Icons.restaurant, 'color': Color(0xFFEF4444)},
     {
       'name': 'Assistance',
@@ -225,7 +226,7 @@ class _FolderCard extends StatelessWidget {
               padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 14),
               child: Row(
                 children: [
-                  Icon(Icons.folder, size: 24, color: const Color(0xFFF59E0B)),
+                  Icon(Icons.folder, size: 24, color: MasliveTokens.warning),
                   const SizedBox(width: 12),
                   Expanded(
                     child: Column(
@@ -322,12 +323,12 @@ class _MapCard extends StatelessWidget {
       margin: const EdgeInsets.only(bottom: 12),
       decoration: BoxDecoration(
         color: isMapEnabled
-            ? const Color(0xFF1A73E8).withAlpha(15)
+            ? MasliveTokens.primary.withAlpha(15)
             : Colors.grey.shade50,
         borderRadius: BorderRadius.circular(10),
         border: Border.all(
           color: isMapEnabled
-              ? const Color(0xFF1A73E8).withAlpha(77)
+              ? MasliveTokens.primary.withAlpha(77)
               : Colors.grey.shade200,
           width: 1,
         ),
@@ -345,7 +346,7 @@ class _MapCard extends StatelessWidget {
                     child: Checkbox(
                       value: isMapEnabled,
                       onChanged: (_) => onToggleMap(),
-                      activeColor: const Color(0xFF1A73E8),
+                      activeColor: MasliveTokens.primary,
                     ),
                   ),
                   const SizedBox(width: 8),

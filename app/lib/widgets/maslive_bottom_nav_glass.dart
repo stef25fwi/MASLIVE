@@ -1,5 +1,6 @@
 import 'dart:ui';
 import 'package:flutter/material.dart';
+import 'package:masslive/ui_kit/tokens/maslive_tokens.dart';
 
 /// Barre de navigation inférieure MASLIVE avec effet verre blanc transparent,
 /// indicateur glissant pastel et animations fluides.
@@ -181,7 +182,7 @@ class _NavIcon extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final activeColor = const Color(0xFF111827);
+    final activeColor = MasliveTokens.text;
     final idleColor = const Color(0xFF7A8699);
     final iconColor = selected ? activeColor : idleColor;
 

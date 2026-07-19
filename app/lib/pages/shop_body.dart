@@ -10,6 +10,7 @@ import 'product_detail_page.dart';
 import '../services/cart_service.dart';
 import 'cart/unified_cart_page.dart';
 import '../ui/snack/top_snack_bar.dart';
+import 'package:masslive/ui_kit/tokens/maslive_tokens.dart';
 
 class ShopBodyUnderHeader extends StatefulWidget {
   const ShopBodyUnderHeader({
@@ -260,7 +261,7 @@ class _ShopBodyUnderHeaderState extends State<ShopBodyUnderHeader> {
     final h1 = TextStyle(
       fontSize: _fs(context, 18),
       fontWeight: FontWeight.w900,
-      color: const Color(0xFF111827),
+      color: MasliveTokens.text,
     );
 
     return CustomScrollView(

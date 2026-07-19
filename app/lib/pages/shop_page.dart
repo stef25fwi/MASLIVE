@@ -13,6 +13,7 @@ import 'user_facing_bottom_bar.dart';
 import '../widgets/cart/cart_icon_badge.dart';
 import '../widgets/language_switcher.dart';
 import '../l10n/app_localizations.dart';
+import 'package:masslive/ui_kit/tokens/maslive_tokens.dart';
 
 class ShopPixelPerfectPage extends StatefulWidget {
   const ShopPixelPerfectPage({super.key, this.shopId});
@@ -41,7 +42,7 @@ class _ShopPixelPerfectPageState extends State<ShopPixelPerfectPage> {
 
   static const String _allGroupsLabel = 'Tous les groupes';
 
-  static const _bg = Color(0xFFF6F7FB);
+  static const _bg = MasliveTokens.bg;
 
   // Compact (comme ton mockup)
   static const double _pageHPad = 10;
@@ -621,7 +622,7 @@ class _ShopPixelPerfectPageState extends State<ShopPixelPerfectPage> {
                               style: TextStyle(
                                 fontSize: 16,
                                 fontWeight: FontWeight.w600,
-                                color: Color(0xFF6B7280),
+                                color: MasliveTokens.textMuted,
                               ),
                             ),
                           ],
@@ -803,7 +804,7 @@ class _CartButton extends StatelessWidget {
   Widget build(BuildContext context) {
     return CartIconBadge(
       onPressed: onTap,
-      iconColor: const Color(0xFF111827),
+      iconColor: MasliveTokens.text,
       backgroundColor: Colors.white.withValues(alpha: 0.16),
       borderColor: Colors.white.withValues(alpha: 0.22),
     );
@@ -903,7 +904,7 @@ class _FiltersBar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      color: const Color(0xFFF6F7FB),
+      color: MasliveTokens.bg,
       padding: const EdgeInsets.fromLTRB(10, 8, 10, 8),
       child: Column(
         children: [
@@ -939,7 +940,7 @@ class _FiltersBar extends StatelessWidget {
                           vertical: 4,
                         ),
                         decoration: BoxDecoration(
-                          color: const Color(0xFFF6F7FB).withValues(alpha: 0.9),
+                          color: MasliveTokens.bg.withValues(alpha: 0.9),
                           borderRadius: BorderRadius.circular(999),
                         ),
                         child: Row(
@@ -1018,7 +1019,7 @@ class _FilterRow extends StatelessWidget {
           style: const TextStyle(
             fontSize: 12,
             fontWeight: FontWeight.w700,
-            color: Color(0xFF6B7280),
+            color: MasliveTokens.textMuted,
           ),
         ),
         const SizedBox(width: 8),
@@ -1074,7 +1075,7 @@ class _MiniChip extends StatelessWidget {
           border: Border.all(
             color: selected
                 ? const Color(0xFF2563EB)
-                : const Color(0xFFE5E7EB),
+                : MasliveTokens.line,
             width: 1.5,
           ),
         ),
@@ -1083,7 +1084,7 @@ class _MiniChip extends StatelessWidget {
           style: TextStyle(
             fontSize: 11,
             fontWeight: FontWeight.w800,
-            color: selected ? Colors.white : const Color(0xFF6B7280),
+            color: selected ? Colors.white : MasliveTokens.textMuted,
           ),
         ),
       ),
@@ -1131,7 +1132,7 @@ class _SelectedChip extends StatelessWidget {
           style: const TextStyle(
             fontWeight: FontWeight.w900,
             fontSize: 18,
-            color: Color(0xFF111827),
+            color: MasliveTokens.text,
           ),
         ),
       ),
@@ -1388,7 +1389,7 @@ class _ProductTile extends StatelessWidget {
                           fontSize: compact ? 16 : 22,
                           height: 1.05,
                           fontWeight: FontWeight.w900,
-                          color: const Color(0xFF111827),
+                          color: MasliveTokens.text,
                         ),
                       ),
                       const SizedBox(height: 8),
@@ -1401,7 +1402,7 @@ class _ProductTile extends StatelessWidget {
                             style: TextStyle(
                               fontSize: compact ? 14 : 16,
                               fontWeight: FontWeight.w900,
-                              color: const Color(0xFF111827),
+                              color: MasliveTokens.text,
                             ),
                           ),
                           if (outOfStock)
@@ -1465,7 +1466,7 @@ class _AddButton extends StatelessWidget {
         decoration: BoxDecoration(
           gradient: disabled
               ? const LinearGradient(
-                  colors: [Color(0xFFCBD5E1), Color(0xFFE5E7EB)],
+                  colors: [Color(0xFFCBD5E1), MasliveTokens.line],
                   begin: Alignment.topLeft,
                   end: Alignment.bottomRight,
                 )

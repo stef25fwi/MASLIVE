@@ -11,6 +11,7 @@ import '../../data/repositories/bloom_art_repository.dart';
 import '../widgets/bloom_art_cta_button.dart';
 import '../widgets/bloom_art_item_card.dart';
 import '../widgets/bloom_art_offer_status_badge.dart';
+import 'package:masslive/ui_kit/tokens/maslive_tokens.dart';
 
 class BloomArtSellerDashboardPage extends StatelessWidget {
   BloomArtSellerDashboardPage({super.key});
@@ -30,9 +31,9 @@ class BloomArtSellerDashboardPage extends StatelessWidget {
     }
 
     return Scaffold(
-      backgroundColor: const Color(0xFFFFFBF7),
+      backgroundColor: MasliveTokens.surfaceEditorial,
       appBar: AppBar(
-        backgroundColor: const Color(0xFFFFFBF7),
+        backgroundColor: MasliveTokens.surfaceEditorial,
         elevation: 0,
         title: const Text(
           'Dashboard Bloom Art',
@@ -188,13 +189,13 @@ class _DashboardHero extends StatelessWidget {
           const SizedBox(height: 8),
           Text(
             statusLabel,
-            style: const TextStyle(color: Color(0xFF6A645E), height: 1.45),
+            style: const TextStyle(color: MasliveTokens.textEditorialMuted, height: 1.45),
           ),
           if (profile?.canSell == true) ...<Widget>[
             const SizedBox(height: 8),
             Text(
               '${profile!.businessName} · ${profile!.siret} · ${profile!.city} ${profile!.postalCode}',
-              style: const TextStyle(color: Color(0xFF6A645E), height: 1.35),
+              style: const TextStyle(color: MasliveTokens.textEditorialMuted, height: 1.35),
             ),
           ],
         ],
@@ -211,7 +212,7 @@ class _NoSellerProfileCard extends StatelessWidget {
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(24),
-        border: Border.all(color: const Color(0xFFE9DED1)),
+        border: Border.all(color: MasliveTokens.lineEditorial),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -223,7 +224,7 @@ class _NoSellerProfileCard extends StatelessWidget {
           const SizedBox(height: 8),
           const Text(
             'Choisissez votre parcours Bloom Art : artiste déjà déclaré avec SIRET, ou guide “Je me lance” si vous devez encore créer votre activité.',
-            style: TextStyle(color: Color(0xFF6A645E), height: 1.45),
+            style: TextStyle(color: MasliveTokens.textEditorialMuted, height: 1.45),
           ),
           const SizedBox(height: 14),
           BloomArtCtaButton(
@@ -257,7 +258,7 @@ class _BlockedSellerCard extends StatelessWidget {
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(24),
-        border: Border.all(color: const Color(0xFFE9DED1)),
+        border: Border.all(color: MasliveTokens.lineEditorial),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -269,7 +270,7 @@ class _BlockedSellerCard extends StatelessWidget {
           const SizedBox(height: 8),
           Text(
             message,
-            style: const TextStyle(color: Color(0xFF6A645E), height: 1.45),
+            style: const TextStyle(color: MasliveTokens.textEditorialMuted, height: 1.45),
           ),
           const SizedBox(height: 14),
           BloomArtCtaButton(
@@ -355,7 +356,7 @@ class _BloomArtStripeConnectCardState extends State<_BloomArtStripeConnectCard> 
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(24),
-        border: Border.all(color: const Color(0xFFE9DED1)),
+        border: Border.all(color: MasliveTokens.lineEditorial),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -371,7 +372,7 @@ class _BloomArtStripeConnectCardState extends State<_BloomArtStripeConnectCard> 
                 : payoutActive
                     ? 'Compte Stripe actif : vos ventes vous sont reversées automatiquement (90% du prix, commission plateforme 10%).'
                     : 'Compte Stripe créé mais incomplet : terminez la configuration pour être payé.',
-            style: const TextStyle(color: Color(0xFF6A645E), height: 1.4),
+            style: const TextStyle(color: MasliveTokens.textEditorialMuted, height: 1.4),
           ),
           if (_error != null) ...<Widget>[
             const SizedBox(height: 8),
@@ -415,7 +416,7 @@ class _OfferPreviewCard extends StatelessWidget {
         decoration: BoxDecoration(
           color: Colors.white,
           borderRadius: BorderRadius.circular(24),
-          border: Border.all(color: const Color(0xFFE9DED1)),
+          border: Border.all(color: MasliveTokens.lineEditorial),
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -437,7 +438,7 @@ class _OfferPreviewCard extends StatelessWidget {
               style: const TextStyle(
                 fontSize: 22,
                 fontWeight: FontWeight.w900,
-                color: Color(0xFF1A1A1A),
+                color: MasliveTokens.text,
               ),
             ),
             if (offer.buyerMessage.trim().isNotEmpty) ...<Widget>[
@@ -446,7 +447,7 @@ class _OfferPreviewCard extends StatelessWidget {
                 offer.buyerMessage,
                 maxLines: 2,
                 overflow: TextOverflow.ellipsis,
-                style: const TextStyle(color: Color(0xFF6A645E), height: 1.4),
+                style: const TextStyle(color: MasliveTokens.textEditorialMuted, height: 1.4),
               ),
             ],
           ],
@@ -469,11 +470,11 @@ class _EmptyBloomArtBlock extends StatelessWidget {
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(24),
-        border: Border.all(color: const Color(0xFFE9DED1)),
+        border: Border.all(color: MasliveTokens.lineEditorial),
       ),
       child: Text(
         message,
-        style: const TextStyle(color: Color(0xFF6A645E), height: 1.45),
+        style: const TextStyle(color: MasliveTokens.textEditorialMuted, height: 1.45),
       ),
     );
   }

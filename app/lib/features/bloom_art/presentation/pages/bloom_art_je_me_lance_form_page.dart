@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import '../../data/models/bloom_art_seller_profile.dart';
 import '../../data/repositories/bloom_art_repository.dart';
 import '../widgets/bloom_art_cta_button.dart';
+import 'package:masslive/ui_kit/tokens/maslive_tokens.dart';
 
 class BloomArtJeMeLanceFormPage extends StatefulWidget {
   const BloomArtJeMeLanceFormPage({super.key});
@@ -207,9 +208,9 @@ class _BloomArtJeMeLanceFormPageState
   Widget build(BuildContext context) {
     final guide = _guide;
     return Scaffold(
-      backgroundColor: const Color(0xFFFFFBF7),
+      backgroundColor: MasliveTokens.surfaceEditorial,
       appBar: AppBar(
-        backgroundColor: const Color(0xFFFFFBF7),
+        backgroundColor: MasliveTokens.surfaceEditorial,
         elevation: 0,
         title: const Text(
           'Je me lance',
@@ -526,7 +527,7 @@ class _BloomArtLaunchHero extends StatelessWidget {
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(28),
-        border: Border.all(color: const Color(0xFFE9DED1)),
+        border: Border.all(color: MasliveTokens.lineEditorial),
       ),
       child: const Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -538,7 +539,7 @@ class _BloomArtLaunchHero extends StatelessWidget {
           SizedBox(height: 8),
           Text(
             'Inspiré du parcours personnalisé iliprestō : région, activité et statut servent à générer le guide avant activation du vendeur Bloom Art. Aucune œuvre ne peut être déposée tant que le SIRET n’est pas vérifié.',
-            style: TextStyle(color: Color(0xFF6A645E), height: 1.45),
+            style: TextStyle(color: MasliveTokens.textEditorialMuted, height: 1.45),
           ),
         ],
       ),
@@ -564,14 +565,14 @@ class _MenuCard extends StatelessWidget {
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(24),
-        border: Border.all(color: const Color(0xFFE9DED1)),
+        border: Border.all(color: MasliveTokens.lineEditorial),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: <Widget>[
           Text(title, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w900)),
           const SizedBox(height: 6),
-          Text(subtitle, style: const TextStyle(color: Color(0xFF6A645E), height: 1.45)),
+          Text(subtitle, style: const TextStyle(color: MasliveTokens.textEditorialMuted, height: 1.45)),
           const SizedBox(height: 14),
           ...children,
         ],
@@ -605,7 +606,7 @@ class _GuideSummaryCard extends StatelessWidget {
           const SizedBox(height: 6),
           Text(
             guide.recommendedLegalStatus['why'].toString(),
-            style: const TextStyle(color: Color(0xFF6A645E), height: 1.45),
+            style: const TextStyle(color: MasliveTokens.textEditorialMuted, height: 1.45),
           ),
           if (guide.blockingAlerts.isNotEmpty) ...<Widget>[
             const SizedBox(height: 12),
@@ -692,14 +693,14 @@ class _GuideListCard extends StatelessWidget {
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(24),
-        border: Border.all(color: const Color(0xFFE9DED1)),
+        border: Border.all(color: MasliveTokens.lineEditorial),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: <Widget>[
           Row(
             children: <Widget>[
-              Icon(icon, color: const Color(0xFF1A1A1A)),
+              Icon(icon, color: MasliveTokens.text),
               const SizedBox(width: 8),
               Expanded(
                 child: Text(title, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w900)),
@@ -722,7 +723,7 @@ class _GuideListCard extends StatelessWidget {
                   const SizedBox(height: 4),
                   Text(
                     (item['body'] ?? '').toString(),
-                    style: const TextStyle(color: Color(0xFF6A645E), height: 1.4),
+                    style: const TextStyle(color: MasliveTokens.textEditorialMuted, height: 1.4),
                   ),
                 ],
               ),

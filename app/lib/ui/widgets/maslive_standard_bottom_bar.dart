@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../theme/maslive_theme.dart';
+import 'package:masslive/ui_kit/tokens/maslive_tokens.dart';
 
 typedef MasliveStandardBottomBarIconBuilder =
     Widget Function(BuildContext context, bool active);
@@ -13,7 +14,7 @@ class MasliveStandardBottomBar extends StatelessWidget {
     this.height = defaultHeight,
     this.padding = const EdgeInsets.symmetric(horizontal: 14),
     this.backgroundColor = const Color(0xF9FFFFFF),
-    this.inactiveColor = const Color(0xFF101828),
+    this.inactiveColor = MasliveTokens.text,
     this.includeBottomSafeArea = false,
     this.border,
     this.borderRadius = BorderRadius.zero,

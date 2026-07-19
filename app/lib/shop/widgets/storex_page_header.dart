@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../widgets/cart/cart_icon_badge.dart';
+import 'package:masslive/ui_kit/tokens/maslive_tokens.dart';
 
 class StorexPageHeaderTitle extends StatelessWidget {
   const StorexPageHeaderTitle({
@@ -21,7 +22,7 @@ class StorexPageHeaderTitle extends StatelessWidget {
             fontSize: 28,
             fontWeight: FontWeight.w900,
             letterSpacing: -0.8,
-            color: const Color(0xFF101828),
+            color: MasliveTokens.text,
             height: 1,
             shadows: <Shadow>[
               Shadow(
@@ -65,7 +66,7 @@ class StorexHeaderCartIcon extends StatelessWidget {
   Widget build(BuildContext context) {
     return CartBadgeGlyph(
       count: badgeCount,
-      iconColor: selected ? Colors.white : const Color(0xFF101828),
+      iconColor: selected ? Colors.white : MasliveTokens.text,
       iconSize: 30,
       containerSize: 30,
       showContainer: false,

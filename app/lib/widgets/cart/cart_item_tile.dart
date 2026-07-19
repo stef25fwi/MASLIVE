@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../models/cart_item_model.dart';
 import '../../ui/widgets/storage_image.dart';
+import 'package:masslive/ui_kit/tokens/maslive_tokens.dart';
 
 class CartItemTile extends StatelessWidget {
   const CartItemTile({
@@ -55,7 +56,7 @@ class CartItemTile extends StatelessWidget {
               height: 88,
               child: effectiveImageRef.isEmpty
                   ? Container(
-                      color: const Color(0xFFE5E7EB),
+                      color: MasliveTokens.line,
                       child: const Icon(Icons.image_outlined),
                     )
                   : usesAssetImage
@@ -64,7 +65,7 @@ class CartItemTile extends StatelessWidget {
                       fit: BoxFit.cover,
                       errorBuilder: (context, error, stackTrace) {
                         return Container(
-                          color: const Color(0xFFE5E7EB),
+                          color: MasliveTokens.line,
                           child: const Icon(Icons.broken_image_outlined),
                         );
                       },
@@ -74,7 +75,7 @@ class CartItemTile extends StatelessWidget {
                       fit: BoxFit.cover,
                       cacheWidth: 264,
                       errorWidget: Container(
-                        color: const Color(0xFFE5E7EB),
+                        color: MasliveTokens.line,
                         child: const Icon(Icons.broken_image_outlined),
                       ),
                     ),
@@ -94,7 +95,7 @@ class CartItemTile extends StatelessWidget {
                         overflow: TextOverflow.ellipsis,
                         style: theme.textTheme.titleMedium?.copyWith(
                           fontWeight: FontWeight.w800,
-                          color: const Color(0xFF111827),
+                          color: MasliveTokens.text,
                         ),
                       ),
                     ),
@@ -109,7 +110,7 @@ class CartItemTile extends StatelessWidget {
                     maxLines: 2,
                     overflow: TextOverflow.ellipsis,
                     style: theme.textTheme.bodyMedium?.copyWith(
-                      color: const Color(0xFF6B7280),
+                      color: MasliveTokens.textMuted,
                     ),
                   ),
                 ],
@@ -133,7 +134,7 @@ class CartItemTile extends StatelessWidget {
                       '${item.unitPrice.toStringAsFixed(2)} ${item.currency}',
                       style: theme.textTheme.bodyLarge?.copyWith(
                         fontWeight: FontWeight.w700,
-                        color: const Color(0xFF111827),
+                        color: MasliveTokens.text,
                       ),
                     ),
                     const Spacer(),
@@ -141,7 +142,7 @@ class CartItemTile extends StatelessWidget {
                       '${item.totalPrice.toStringAsFixed(2)} ${item.currency}',
                       style: theme.textTheme.bodyLarge?.copyWith(
                         fontWeight: FontWeight.w900,
-                        color: const Color(0xFF111827),
+                        color: MasliveTokens.text,
                       ),
                     ),
                   ],
@@ -266,7 +267,7 @@ class _InfoChip extends StatelessWidget {
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(999),
-        border: Border.all(color: const Color(0xFFE5E7EB)),
+        border: Border.all(color: MasliveTokens.line),
       ),
       child: Text(
         label,

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../widgets/seller_profile_choice_card.dart';
+import 'package:masslive/ui_kit/tokens/maslive_tokens.dart';
 
 Future<String?> showBloomArtProfileChoiceSheet(BuildContext context) {
   return showModalBottomSheet<String>(
@@ -19,7 +20,7 @@ class BloomArtProfileChoiceSheet extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       decoration: const BoxDecoration(
-        color: Color(0xFFFFFBF7),
+        color: MasliveTokens.surfaceEditorial,
         borderRadius: BorderRadius.vertical(top: Radius.circular(34)),
       ),
       padding: const EdgeInsets.fromLTRB(20, 18, 20, 26),
@@ -43,14 +44,14 @@ class BloomArtProfileChoiceSheet extends StatelessWidget {
             style: TextStyle(
               fontSize: 24,
               fontWeight: FontWeight.w900,
-              color: Color(0xFF1A1A1A),
+              color: MasliveTokens.text,
             ),
           ),
           const SizedBox(height: 8),
           const Text(
             'Le dépôt d’œuvre est réservé aux artistes déclarés avec SIRET vérifié. Le parcours “Je me lance” sert à préparer la création d’entreprise.',
             style: TextStyle(
-              color: Color(0xFF6A645E),
+              color: MasliveTokens.textEditorialMuted,
               height: 1.45,
             ),
           ),

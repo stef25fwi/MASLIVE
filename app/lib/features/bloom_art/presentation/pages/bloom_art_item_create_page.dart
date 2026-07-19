@@ -7,6 +7,7 @@ import '../../data/models/bloom_art_seller_profile.dart';
 import '../../data/repositories/bloom_art_repository.dart';
 import '../widgets/bloom_art_cta_button.dart';
 import '../widgets/bloom_art_photo_picker.dart';
+import 'package:masslive/ui_kit/tokens/maslive_tokens.dart';
 
 class BloomArtItemCreatePage extends StatefulWidget {
   const BloomArtItemCreatePage({
@@ -186,9 +187,9 @@ class _BloomArtItemCreatePageState extends State<BloomArtItemCreatePage> {
     final profile = _sellerProfile;
 
     return Scaffold(
-      backgroundColor: const Color(0xFFFFFBF7),
+      backgroundColor: MasliveTokens.surfaceEditorial,
       appBar: AppBar(
-        backgroundColor: const Color(0xFFFFFBF7),
+        backgroundColor: MasliveTokens.surfaceEditorial,
         elevation: 0,
         title: const Text(
           'Dépôt d’une création',
@@ -218,7 +219,7 @@ class _BloomArtItemCreatePageState extends State<BloomArtItemCreatePage> {
                             decoration: BoxDecoration(
                               color: Colors.white,
                               borderRadius: BorderRadius.circular(28),
-                              border: Border.all(color: const Color(0xFFE9DED1)),
+                              border: Border.all(color: MasliveTokens.lineEditorial),
                             ),
                             child: const Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
@@ -230,7 +231,7 @@ class _BloomArtItemCreatePageState extends State<BloomArtItemCreatePage> {
                                 SizedBox(height: 8),
                                 Text(
                                   'Le prix de référence reste privé. La fiche publique ne montrera que l’œuvre, son histoire et le bouton proposer un prix.',
-                                  style: TextStyle(color: Color(0xFF6A645E), height: 1.45),
+                                  style: TextStyle(color: MasliveTokens.textEditorialMuted, height: 1.45),
                                 ),
                               ],
                             ),
@@ -373,7 +374,7 @@ class _BlockedCreateState extends StatelessWidget {
           decoration: BoxDecoration(
             color: Colors.white,
             borderRadius: BorderRadius.circular(28),
-            border: Border.all(color: const Color(0xFFE9DED1)),
+            border: Border.all(color: MasliveTokens.lineEditorial),
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -383,7 +384,7 @@ class _BlockedCreateState extends StatelessWidget {
                 style: TextStyle(fontSize: 24, fontWeight: FontWeight.w900),
               ),
               const SizedBox(height: 8),
-              Text(message, style: const TextStyle(color: Color(0xFF6A645E), height: 1.45)),
+              Text(message, style: const TextStyle(color: MasliveTokens.textEditorialMuted, height: 1.45)),
               const SizedBox(height: 14),
               BloomArtCtaButton(
                 label: 'Vérifier mon SIRET',

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:masslive/ui_kit/tokens/maslive_tokens.dart';
 
 class ColorPickerTile extends StatelessWidget {
   final String title;
@@ -13,13 +14,13 @@ class ColorPickerTile extends StatelessWidget {
   });
 
   static const _swatches = <Color>[
-    Color(0xFF1A73E8),
+    MasliveTokens.primary,
     Color(0xFF34A853),
     Color(0xFFEF4444),
-    Color(0xFFF59E0B),
+    MasliveTokens.warning,
     Color(0xFF9333EA),
     Color(0xFF00FFB3),
-    Color(0xFF111827),
+    MasliveTokens.text,
     Color(0xFF0B1B2B),
     Color(0xFFFFFFFF),
   ];

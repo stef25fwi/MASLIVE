@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../../map_style/domain/entities/map_style_preset.dart';
+import 'package:masslive/ui_kit/tokens/maslive_tokens.dart';
 
 class WizardQuickPresetCarousel extends StatelessWidget {
   const WizardQuickPresetCarousel({
@@ -23,7 +24,7 @@ class WizardQuickPresetCarousel extends StatelessWidget {
     if (presets.isEmpty) {
       return const Text(
         'Aucun preset rapide publie.',
-        style: TextStyle(color: Color(0xFF6B7280)),
+        style: TextStyle(color: MasliveTokens.textMuted),
       );
     }
 
@@ -40,7 +41,7 @@ class WizardQuickPresetCarousel extends StatelessWidget {
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(14),
                 side: BorderSide(
-                  color: selected ? const Color(0xFF111827) : const Color(0xFFE5E7EB),
+                  color: selected ? MasliveTokens.text : MasliveTokens.line,
                 ),
               ),
               child: Padding(
@@ -59,7 +60,7 @@ class WizardQuickPresetCarousel extends StatelessWidget {
                       preset.description.isEmpty ? 'Sans description' : preset.description,
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(color: Color(0xFF6B7280), fontSize: 12),
+                      style: const TextStyle(color: MasliveTokens.textMuted, fontSize: 12),
                     ),
                     const Spacer(),
                     Wrap(

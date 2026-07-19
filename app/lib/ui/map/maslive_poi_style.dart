@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:masslive/ui_kit/tokens/maslive_tokens.dart';
 
 @immutable
 class MasLivePoiStyle {
@@ -9,7 +10,7 @@ class MasLivePoiStyle {
 
   const MasLivePoiStyle({
     this.circleRadius = 7.0,
-    this.circleColor = const Color(0xFF0A84FF),
+    this.circleColor = MasliveTokens.primary,
     this.circleStrokeWidth = 2.0,
     this.circleStrokeColor = const Color(0xFFFFFFFF),
   });
@@ -75,7 +76,7 @@ const List<MasLivePoiAppearancePreset> kMasLivePoiAppearancePresets = [
     label: 'Rond bleu',
     style: MasLivePoiStyle(
       circleRadius: 7.0,
-      circleColor: Color(0xFF0A84FF),
+      circleColor: MasliveTokens.primary,
       circleStrokeWidth: 2.0,
       circleStrokeColor: Color(0xFFFFFFFF),
     ),
@@ -95,7 +96,7 @@ const List<MasLivePoiAppearancePreset> kMasLivePoiAppearancePresets = [
     label: 'Icône point',
     style: MasLivePoiStyle(
       circleRadius: 7.0,
-      circleColor: Color(0xFF0A84FF),
+      circleColor: MasliveTokens.primary,
       circleStrokeWidth: 2.0,
       circleStrokeColor: Color(0xFFFFFFFF),
     ),

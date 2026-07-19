@@ -5,6 +5,7 @@ import '../services/mapbox_token_service.dart';
 import '../ui/map/maslive_map.dart';
 import '../ui/map/maslive_map_controller.dart';
 import '../ui/widgets/mapbox_token_dialog.dart';
+import 'package:masslive/ui_kit/tokens/maslive_tokens.dart';
 
 /// AdminTrackingPage - Version MasLiveMap (Phase 2)
 /// 
@@ -466,7 +467,7 @@ class _AdminTrackingPageState extends State<AdminTrackingPage> {
     const palette = [
       Color(0xFFFF3B30),
       Color(0xFF34C759),
-      Color(0xFF0A84FF),
+      MasliveTokens.primary,
       Color(0xFFFF9500),
       Color(0xFFAF52DE),
       Color(0xFFFFC107),

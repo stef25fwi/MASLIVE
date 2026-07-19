@@ -7,6 +7,7 @@ import 'cart/unified_cart_page.dart';
 import '../widgets/rainbow_header.dart';
 import 'shop/storex_reviews_and_success_pages.dart';
 import 'user_facing_bottom_bar.dart';
+import 'package:masslive/ui_kit/tokens/maslive_tokens.dart';
 
 class ProductDetailPage extends StatefulWidget {
   final String groupId;
@@ -758,7 +759,7 @@ class _ProductDetailPageState extends State<ProductDetailPage> {
                     style: TextStyle(
                       fontWeight: FontWeight.w900,
                       color: on
-                          ? const Color(0xFF1A73E8)
+                          ? MasliveTokens.primary
                           : Colors.black.withValues(alpha: 0.60),
                     ),
                   ),

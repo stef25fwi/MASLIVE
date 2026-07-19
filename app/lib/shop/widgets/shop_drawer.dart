@@ -5,6 +5,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import '../../models/group_product.dart';
 import '../../widgets/language_switcher.dart';
 import '../../l10n/app_localizations.dart' as l10n;
+import 'package:masslive/ui_kit/tokens/maslive_tokens.dart';
 
 /// Drawer standardisé pour toutes les pages boutique
 /// 
@@ -238,14 +239,14 @@ class ShopDrawerItem extends StatelessWidget {
         child: Row(
           children: [
             if (icon != null) ...[
-              Icon(icon, size: 20, color: const Color(0xFF101828)),
+              Icon(icon, size: 20, color: MasliveTokens.text),
               const SizedBox(width: 12)
             ],
             Text(
               label,
               style: TextStyle(
                 fontSize: small ? 14 : 16,
-                color: const Color(0xFF101828),
+                color: MasliveTokens.text,
                 fontWeight: small ? FontWeight.w600 : FontWeight.w700,
               ),
             ),

@@ -8,6 +8,7 @@ import '../../widgets/cart/cart_group_section.dart';
 import '../../widgets/cart/cart_item_tile.dart';
 import '../../widgets/cart/cart_summary_card.dart';
 import '../../widgets/cart/empty_cart_view.dart';
+import 'package:masslive/ui_kit/tokens/maslive_tokens.dart';
 
 class UnifiedCartPage extends StatefulWidget {
   const UnifiedCartPage({super.key, this.embedded = false});
@@ -165,7 +166,7 @@ class _UnifiedCartPageState extends State<UnifiedCartPage> {
           'Panier',
           style: TextStyle(
             fontWeight: FontWeight.w800,
-            color: Color(0xFF101828),
+            color: MasliveTokens.text,
           ),
         ),
         actions: <Widget>[
@@ -175,7 +176,7 @@ class _UnifiedCartPageState extends State<UnifiedCartPage> {
               child: const Text(
                 'Tout vider',
                 style: TextStyle(
-                  color: Color(0xFF101828),
+                  color: MasliveTokens.text,
                   fontWeight: FontWeight.w700,
                 ),
               ),

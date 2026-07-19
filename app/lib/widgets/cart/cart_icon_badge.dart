@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import '../../pages/cart/unified_cart_page.dart';
 import '../../providers/cart_provider.dart';
 import '../../utils/cart_constants.dart';
+import 'package:masslive/ui_kit/tokens/maslive_tokens.dart';
 
 class CartBadgeGlyph extends StatelessWidget {
   const CartBadgeGlyph({
@@ -46,7 +47,7 @@ class CartBadgeGlyph extends StatelessWidget {
 
     final iconWidget = Icon(
       Icons.shopping_cart_rounded,
-      color: iconColor ?? const Color(0xFF111827),
+      color: iconColor ?? MasliveTokens.text,
       size: iconSize,
     );
 

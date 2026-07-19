@@ -1,5 +1,6 @@
 import 'dart:ui' show Color;
 import 'package:flutter/foundation.dart' show VoidCallback;
+import 'package:masslive/ui_kit/tokens/maslive_tokens.dart';
 
 /// Contrôleur unifié pour MasLiveMap (Web + Mobile)
 /// API agnostique de la plateforme sous-jacente
@@ -237,7 +238,7 @@ class MasLiveMapController {
   /// Afficher une polyligne (parcours, trajet)
   Future<void> setPolyline({
     required List<MapPoint> points,
-    Color color = const Color(0xFF0A84FF),
+    Color color = MasliveTokens.primary,
     double width = 4.0,
     bool show = true,
     bool roadLike = false,
@@ -359,7 +360,7 @@ class MasLiveMapController {
   Future<void> setPolygon({
     required List<MapPoint> points,
     Color fillColor = const Color(0x4D0A84FF),
-    Color strokeColor = const Color(0xFF0A84FF),
+    Color strokeColor = MasliveTokens.primary,
     double strokeWidth = 2.0,
     bool show = true,
   }) async {
@@ -629,7 +630,7 @@ class MapMarker {
     required this.id,
     required this.lng,
     required this.lat,
-    this.color = const Color(0xFF0A84FF),
+    this.color = MasliveTokens.primary,
     this.label,
     this.size = 1.0,
     this.onTap,

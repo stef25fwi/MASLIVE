@@ -7,11 +7,12 @@ import '../../data/models/bloom_art_seller_profile.dart';
 import '../../data/repositories/bloom_art_repository.dart';
 import '../widgets/bloom_art_item_card.dart';
 import 'bloom_art_profile_choice_sheet.dart';
+import 'package:masslive/ui_kit/tokens/maslive_tokens.dart';
 
 class _Ui {
   const _Ui._();
   static const Color pageBg = Color(0xFFF7F8FC);
-  static const Color textMain = Color(0xFF101828);
+  static const Color textMain = MasliveTokens.text;
   static const Color textMuted = Color(0xFF667085);
   static const LinearGradient rainbowGradient = LinearGradient(
     colors: [Color(0xFFFFE36A), Color(0xFFFF7BC5), Color(0xFF7CE0FF)],
@@ -66,7 +67,7 @@ class BloomArtHomePage extends StatelessWidget {
     return Scaffold(
       backgroundColor: _Ui.pageBg,
       appBar: AppBar(
-        backgroundColor: const Color(0xFFF6F7FB),
+        backgroundColor: MasliveTokens.bg,
         surfaceTintColor: Colors.transparent,
         shadowColor: Colors.transparent,
         scrolledUnderElevation: 0,

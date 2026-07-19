@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 
 import '../ui/widgets/maslive_standard_bottom_bar.dart';
 import 'user_facing_shell_switch.dart';
+import 'package:masslive/ui_kit/tokens/maslive_tokens.dart';
 
 // Ordre UX commun : Boutique, Media, Home, Explorer, Profil.
 enum UserFacingBottomBarTab { boutique, media, home, explorer, profile }
@@ -126,7 +127,7 @@ class _ProfileBottomBarIcon extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final iconColor = active ? Colors.white : const Color(0xFF101828);
+    final iconColor = active ? Colors.white : MasliveTokens.text;
 
     return Stack(
       clipBehavior: Clip.none,
