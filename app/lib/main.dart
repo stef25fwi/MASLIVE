@@ -693,6 +693,31 @@ Route<dynamic>? _onGenerateRoute(RouteSettings settings) {
     );
   }
 
+  // Retour web depuis Stripe Checkout : le fragment contient une query
+  // (?orderId=...&continueToRoute=...), donc le `switch (name)` exact ne
+  // matcherait pas et l'écran de confirmation ne s'afficherait jamais après
+  // paiement. On construit les args depuis la query pour atterrir sur la
+  // confirmation quel que soit le mode (natif = args Navigator, web = query).
+  if (uri != null && uri.path == StorexRoutes.paymentComplete) {
+    final resolvedArgs = args is PaymentCompleteArgs
+        ? args
+        : PaymentCompleteArgs(
+            orderCode: uri.queryParameters['orderId'] ?? '',
+            continueToRoute:
+                uri.queryParameters['continueToRoute'] ?? '/boutique',
+          );
+    return MaterialPageRoute<dynamic>(
+      settings: settings,
+      builder: (_) => _DeferredLoader(
+        load: storex_reviews.loadLibrary,
+        build: () => storex_reviews.PaymentCompletePage(
+          orderCode: resolvedArgs.orderCode,
+          continueToRoute: resolvedArgs.continueToRoute,
+        ),
+      ),
+    );
+  }
+
   switch (name) {
     // ── Maps ──
     case '/mapbox-web':
