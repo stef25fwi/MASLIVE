@@ -2775,20 +2775,13 @@ class _HomeMapPage3DState extends State<HomeMapPage3D>
   }
 
   Future<void> _openPoiCandidate(_PoiTapCandidate candidate) async {
-    if (!candidate.canOpenSheet) {
-      debugPrint('🗺️ [POI_TAP] bloqué: canOpenSheet=false pour ${candidate.id}');
-      return;
-    }
+    if (!candidate.canOpenSheet) return;
 
     final now = DateTime.now();
     final lastAt = _lastPoiPopupAt;
-    if (_isPoiPopupShowing) {
-      debugPrint('🗺️ [POI_TAP] bloqué: _isPoiPopupShowing déjà true');
-      return;
-    }
+    if (_isPoiPopupShowing) return;
     if (lastAt != null && now.difference(lastAt) < _poiPopupDebounce) {
       if (_lastPoiPopupId != null && _lastPoiPopupId == candidate.id) {
-        debugPrint('🗺️ [POI_TAP] bloqué: debounce sur ${candidate.id}');
         return;
       }
     }
@@ -3301,13 +3294,6 @@ class _HomeMapPage3DState extends State<HomeMapPage3D>
         _marketPoiSelection.country == null ||
         _marketPoiSelection.event == null ||
         _marketPoiSelection.circuit == null) {
-      debugPrint(
-        '🗺️ [POI_TAP] ignoré: pas de sélection MarketMap active '
-        '(enabled=${_marketPoiSelection.enabled}, '
-        'country=${_marketPoiSelection.country?.id}, '
-        'event=${_marketPoiSelection.event?.id}, '
-        'circuit=${_marketPoiSelection.circuit?.id})',
-      );
       return;
     }
 
@@ -3318,12 +3304,6 @@ class _HomeMapPage3DState extends State<HomeMapPage3D>
       final res = await map.queryRenderedFeatures(
         RenderedQueryGeometry.fromScreenCoordinate(sc),
         RenderedQueryOptions(layerIds: layerIds, filter: null),
-      );
-
-      debugPrint(
-        '🗺️ [POI_TAP] selection=${_marketPoiSelection.enabled ? "enabled" : "disabled"} '
-        'circuit=${_marketPoiSelection.circuit?.id ?? "none"} '
-        'layerIds=$layerIds featuresFound=${res.length}',
       );
 
       if (res.isEmpty) {
@@ -3410,15 +3390,9 @@ class _HomeMapPage3DState extends State<HomeMapPage3D>
         props: props,
       );
       if (candidate == null) {
-        debugPrint('🗺️ [POI_TAP] candidat null (feature invalide) props=$props');
         _clearNearbyPoiCarousel();
         return;
       }
-
-      debugPrint(
-        '🗺️ [POI_TAP] candidat=${candidate.id} title=${candidate.title} '
-        'category=${candidate.category} canOpenSheet=${candidate.canOpenSheet}',
-      );
 
       final nearbyCandidates = _findNearbyPoiCandidates(candidate);
       if (nearbyCandidates.length > 1) {
@@ -3464,9 +3438,11 @@ class _HomeMapPage3DState extends State<HomeMapPage3D>
     if (_isPoiPopupShowing) return;
     _isPoiPopupShowing = true;
 
-    debugPrint(
-      '📍 [POI_TAP] ouverture showPolaroidPoiSheet (title=$title, imageUrl=${(imageUrl ?? "").isEmpty ? "empty" : "present"}, metaKeys=${meta.keys.toList()}, metaImage=${(meta['image'] as Map?)?.keys.toList() ?? []})',
-    );
+    if (kDebugMode) {
+      debugPrint(
+        '📍 POI Polaroid: opening sheet (title=$title, imageUrl=${(imageUrl ?? "").isEmpty ? "empty" : "present"}, metaKeys=${meta.keys.toList()}, metaImage=${(meta['image'] as Map?)?.keys.toList() ?? []})',
+      );
+    }
 
     // Analytics: uniquement si on ouvre réellement la polaroid
     unawaited(
@@ -3501,7 +3477,9 @@ class _HomeMapPage3DState extends State<HomeMapPage3D>
         poiId: poiId,
       );
     } catch (e) {
-      debugPrint('⚠️ [POI_TAP] erreur affichage polaroid: $e');
+      if (kDebugMode) {
+        debugPrint('⚠️ POI polaroid display error: $e');
+      }
     } finally {
       _isPoiPopupShowing = false;
     }
