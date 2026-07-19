@@ -54,19 +54,22 @@ class _PhotographerGalleryManagerState
       PhotographerMediaUploadService();
 
   PhotographerMediaQuota? _quota;
-  PhotographerUploadProgress? _uploadProgress;
+  PhotographerUploadProgress? _progress;
+  bool _busy = false;
   bool _loadingQuota = false;
-  bool _actionInProgress = false;
   String? _error;
 
   MediaGalleryModel? get _selectedGallery {
-    final selectedId = widget.selectedGalleryId;
-    if (selectedId == null || selectedId.isEmpty) return null;
     for (final gallery in widget.galleries) {
-      if (gallery.galleryId == selectedId) return gallery;
+      if (gallery.galleryId == widget.selectedGalleryId) return gallery;
     }
     return null;
   }
+
+  bool get _hasCircuitContext =>
+      widget.countryId?.trim().isNotEmpty == true &&
+      widget.eventId?.trim().isNotEmpty == true &&
+      widget.circuitId?.trim().isNotEmpty == true;
 
   @override
   void initState() {
@@ -89,26 +92,21 @@ class _PhotographerGalleryManagerState
 
   Future<void> _loadQuota() async {
     if (_loadingQuota || !mounted) return;
-    setState(() {
-      _loadingQuota = true;
-      _error = null;
-    });
+    setState(() => _loadingQuota = true);
     try {
       final quota = await _service.getQuota(widget.profile.photographerId);
-      if (!mounted) return;
-      setState(() => _quota = quota);
+      if (mounted) setState(() => _quota = quota);
     } catch (error) {
-      if (!mounted) return;
-      setState(() => _error = _friendlyError(error));
+      if (mounted) setState(() => _error = _friendlyError(error));
     } finally {
       if (mounted) setState(() => _loadingQuota = false);
     }
   }
 
-  Future<void> _runAction(Future<void> Function() action) async {
-    if (_actionInProgress) return;
+  Future<void> _run(Future<void> Function() action) async {
+    if (_busy) return;
     setState(() {
-      _actionInProgress = true;
+      _busy = true;
       _error = null;
     });
     try {
@@ -116,86 +114,79 @@ class _PhotographerGalleryManagerState
       await widget.onRefresh();
       await _loadQuota();
     } catch (error) {
-      if (!mounted) return;
-      setState(() => _error = _friendlyError(error));
+      if (mounted) setState(() => _error = _friendlyError(error));
     } finally {
       if (mounted) {
         setState(() {
-          _actionInProgress = false;
-          _uploadProgress = null;
+          _busy = false;
+          _progress = null;
         });
       }
     }
   }
 
   String _friendlyError(Object error) {
-    final message = error.toString().replaceFirst('Exception: ', '');
-    if (message.contains('resource-exhausted')) {
+    final raw = error.toString().replaceFirst('Exception: ', '');
+    if (raw.contains('resource-exhausted')) {
       return 'Le quota de votre abonnement est atteint. Archivez des médias ou changez d’offre.';
     }
-    if (message.contains('failed-precondition')) {
-      return 'Cette action n’est pas encore possible. Vérifiez la galerie, la validation du profil et les photos.';
-    }
-    if (message.contains('permission-denied')) {
+    if (raw.contains('permission-denied')) {
       return 'Vous n’avez pas l’autorisation de modifier cette galerie.';
     }
-    return message;
+    if (raw.contains('failed-precondition')) {
+      return 'Cette action n’est pas encore possible. Vérifiez la validation du profil et le contenu de la galerie.';
+    }
+    return raw;
   }
 
-  bool get _hasCompleteCircuitContext =>
-      widget.countryId?.trim().isNotEmpty == true &&
-      widget.eventId?.trim().isNotEmpty == true &&
-      widget.circuitId?.trim().isNotEmpty == true;
-
   Future<void> _createGallery() async {
-    if (!_hasCompleteCircuitContext) {
+    if (!_hasCircuitContext) {
       setState(() {
         _error =
-            'Sélectionnez d’abord un pays, un événement et un circuit dans la boutique photo.';
+            'Sélectionnez un pays, un événement et un circuit avant de créer une galerie.';
       });
       return;
     }
 
     final titleController = TextEditingController(
       text: widget.circuitName?.trim().isNotEmpty == true
-          ? '${widget.circuitName} • ${_formattedDate(DateTime.now())}'
-          : 'Nouvelle galerie • ${_formattedDate(DateTime.now())}',
+          ? '${widget.circuitName} • ${_dateLabel(DateTime.now())}'
+          : 'Nouvelle galerie • ${_dateLabel(DateTime.now())}',
     );
     final descriptionController = TextEditingController();
     final accepted = await showDialog<bool>(
       context: context,
       builder: (dialogContext) => AlertDialog(
         title: const Text('Créer une galerie'),
-        content: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 520),
+        content: SizedBox(
+          width: 480,
           child: Column(
             mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
             children: <Widget>[
               TextField(
                 controller: titleController,
                 autofocus: true,
                 maxLength: 120,
-                decoration: const InputDecoration(
-                  labelText: 'Nom de la galerie',
-                  hintText: 'Sortie du samedi matin',
-                ),
+                decoration: const InputDecoration(labelText: 'Nom de la galerie'),
               ),
               const SizedBox(height: 10),
               TextField(
                 controller: descriptionController,
+                maxLength: 1000,
                 minLines: 2,
                 maxLines: 4,
-                maxLength: 1000,
-                decoration: const InputDecoration(
-                  labelText: 'Description facultative',
-                ),
+                decoration:
+                    const InputDecoration(labelText: 'Description facultative'),
               ),
               const SizedBox(height: 8),
-              _ContextSummary(
-                country: widget.countryName ?? widget.countryId!,
-                event: widget.eventName ?? widget.eventId!,
-                circuit: widget.circuitName ?? widget.circuitId!,
+              Align(
+                alignment: Alignment.centerLeft,
+                child: Text(
+                  '${widget.countryName ?? widget.countryId} • '
+                  '${widget.eventName ?? widget.eventId} • '
+                  '${widget.circuitName ?? widget.circuitId}',
+                  style: Theme.of(dialogContext).textTheme.bodySmall,
+                ),
               ),
             ],
           ),
@@ -219,9 +210,9 @@ class _PhotographerGalleryManagerState
     descriptionController.dispose();
     if (accepted != true || title.isEmpty || !mounted) return;
 
-    String? createdGalleryId;
-    await _runAction(() async {
-      createdGalleryId = await _service.createGallery(
+    String? createdId;
+    await _run(() async {
+      createdId = await _service.createGallery(
         photographerId: widget.profile.photographerId,
         title: title,
         description: description.isEmpty ? null : description,
@@ -233,8 +224,8 @@ class _PhotographerGalleryManagerState
         circuitName: widget.circuitName,
       );
     });
-    if (createdGalleryId?.isNotEmpty == true && mounted) {
-      await widget.onSelectGallery(createdGalleryId!);
+    if (createdId?.isNotEmpty == true && mounted) {
+      await widget.onSelectGallery(createdId!);
     }
   }
 
@@ -244,17 +235,13 @@ class _PhotographerGalleryManagerState
       setState(() => _error = 'Sélectionnez une galerie avant l’import.');
       return;
     }
+    if (_quota == null) await _loadQuota();
     final quota = _quota;
-    if (quota == null) {
-      await _loadQuota();
-      if (!mounted) return;
-    }
-    final resolvedQuota = _quota;
-    if (resolvedQuota == null) return;
+    if (quota == null || !mounted) return;
 
     final maxCount = math.min(
-      resolvedQuota.maxBatchUpload,
-      resolvedQuota.photoCapacityRemaining,
+      quota.maxBatchUpload,
+      quota.photoCapacityRemaining,
     );
     if (maxCount <= 0) {
       setState(() => _error = 'Votre quota photo est atteint.');
@@ -264,14 +251,14 @@ class _PhotographerGalleryManagerState
     final files = await _service.selectPhotos(maxCount: maxCount);
     if (files.isEmpty || !mounted) return;
 
-    await _runAction(() async {
+    await _run(() async {
       await _service.uploadPhotos(
         photographerId: widget.profile.photographerId,
         galleryId: gallery.galleryId,
         files: files,
         unitPrice: 6.90,
         onProgress: (progress) {
-          if (mounted) setState(() => _uploadProgress = progress);
+          if (mounted) setState(() => _progress = progress);
         },
       );
       await widget.onSelectGallery(gallery.galleryId);
@@ -281,7 +268,7 @@ class _PhotographerGalleryManagerState
   Future<void> _publishGallery() async {
     final gallery = _selectedGallery;
     if (gallery == null) return;
-    await _runAction(() async {
+    await _run(() async {
       await _service.publishGallery(
         photographerId: widget.profile.photographerId,
         galleryId: gallery.galleryId,
@@ -297,7 +284,7 @@ class _PhotographerGalleryManagerState
   Future<void> _createPacks() async {
     final gallery = _selectedGallery;
     if (gallery == null) return;
-    await _runAction(() async {
+    await _run(() async {
       final created = await _service.createRecommendedPacks(
         photographerId: widget.profile.photographerId,
         galleryId: gallery.galleryId,
@@ -305,7 +292,7 @@ class _PhotographerGalleryManagerState
       if (mounted && created == 0) {
         setState(() {
           _error =
-              'Les packs disponibles sont déjà créés ou la galerie ne contient pas assez de photos.';
+              'Les packs sont déjà créés ou la galerie ne contient pas assez de photos.';
         });
       }
       await widget.onSelectGallery(gallery.galleryId);
@@ -320,7 +307,7 @@ class _PhotographerGalleryManagerState
       builder: (dialogContext) => AlertDialog(
         title: const Text('Archiver la galerie ?'),
         content: const Text(
-          'Les photos disparaîtront de la boutique. Les achats déjà réalisés resteront téléchargeables.',
+          'Elle disparaîtra de la boutique. Les achats déjà réalisés resteront accessibles.',
         ),
         actions: <Widget>[
           TextButton(
@@ -335,7 +322,7 @@ class _PhotographerGalleryManagerState
       ),
     );
     if (confirmed != true || !mounted) return;
-    await _runAction(() async {
+    await _run(() async {
       await _service.archiveGallery(
         photographerId: widget.profile.photographerId,
         galleryId: gallery.galleryId,
@@ -349,7 +336,7 @@ class _PhotographerGalleryManagerState
       builder: (dialogContext) => AlertDialog(
         title: const Text('Supprimer cette photo ?'),
         content: const Text(
-          'Une photo déjà achetée sera seulement archivée afin de préserver le téléchargement du client.',
+          'Une photo déjà achetée sera archivée afin de préserver le téléchargement du client.',
         ),
         actions: <Widget>[
           TextButton(
@@ -364,17 +351,16 @@ class _PhotographerGalleryManagerState
       ),
     );
     if (confirmed != true || !mounted) return;
-    final galleryId = photo.galleryId;
-    await _runAction(() async {
+    await _run(() async {
       await _service.deletePhoto(
         photographerId: widget.profile.photographerId,
         photoId: photo.photoId,
       );
-      await widget.onSelectGallery(galleryId);
+      await widget.onSelectGallery(photo.galleryId);
     });
   }
 
-  String _formattedDate(DateTime value) {
+  String _dateLabel(DateTime value) {
     final day = value.day.toString().padLeft(2, '0');
     final month = value.month.toString().padLeft(2, '0');
     return '$day/$month/${value.year}';
@@ -382,38 +368,64 @@ class _PhotographerGalleryManagerState
 
   @override
   Widget build(BuildContext context) {
-    final quota = _quota;
-    final gallery = _selectedGallery;
+    final selected = _selectedGallery;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: <Widget>[
-        _QuotaCard(
-          quota: quota,
+        _QuotaPanel(
+          quota: _quota,
+          fallbackPhotos: widget.profile.publishedPhotoCount,
+          fallbackStorage: widget.profile.storageUsedBytes,
           loading: _loadingQuota,
-          fallbackPhotoCount: widget.profile.publishedPhotoCount,
-          fallbackStorageBytes: widget.profile.storageUsedBytes,
           onRefresh: _loadQuota,
         ),
-        const SizedBox(height: 16),
-        _ActionBar(
-          disabled: _actionInProgress,
-          canCreateGallery: _hasCompleteCircuitContext,
-          hasSelectedGallery: gallery != null,
-          onCreateGallery: _createGallery,
-          onUploadPhotos: _uploadPhotos,
-          onPublish: _publishGallery,
-          onCreatePacks: _createPacks,
-          onArchive: _archiveGallery,
+        const SizedBox(height: 14),
+        Wrap(
+          spacing: 9,
+          runSpacing: 9,
+          children: <Widget>[
+            FilledButton.icon(
+              onPressed: _busy || !_hasCircuitContext ? null : _createGallery,
+              icon: const Icon(Icons.create_new_folder_outlined),
+              label: const Text('Créer une galerie'),
+            ),
+            FilledButton.tonalIcon(
+              onPressed: _busy || selected == null ? null : _uploadPhotos,
+              icon: const Icon(Icons.add_photo_alternate_outlined),
+              label: const Text('Ajouter des photos'),
+            ),
+            OutlinedButton.icon(
+              onPressed: _busy || selected == null ? null : _publishGallery,
+              icon: const Icon(Icons.publish_outlined),
+              label: const Text('Publier'),
+            ),
+            OutlinedButton.icon(
+              onPressed: _busy || selected == null ? null : _createPacks,
+              icon: const Icon(Icons.sell_outlined),
+              label: const Text('Créer les packs'),
+            ),
+            TextButton.icon(
+              onPressed: _busy || selected == null ? null : _archiveGallery,
+              icon: const Icon(Icons.archive_outlined),
+              label: const Text('Archiver'),
+            ),
+          ],
         ),
-        if (_uploadProgress != null) ...<Widget>[
+        if (_progress != null) ...<Widget>[
           const SizedBox(height: 12),
-          _UploadProgressCard(progress: _uploadProgress!),
+          _ProgressPanel(progress: _progress!),
         ],
         if (_error != null) ...<Widget>[
           const SizedBox(height: 12),
-          _ErrorBanner(
-            message: _error!,
-            onClose: () => setState(() => _error = null),
+          MaterialBanner(
+            content: Text(_error!),
+            leading: const Icon(Icons.error_outline),
+            actions: <Widget>[
+              TextButton(
+                onPressed: () => setState(() => _error = null),
+                child: const Text('Fermer'),
+              ),
+            ],
           ),
         ],
         const SizedBox(height: 22),
@@ -436,47 +448,63 @@ class _PhotographerGalleryManagerState
             icon: Icons.photo_library_outlined,
             title: 'Aucune galerie',
             message:
-                'Choisissez un circuit puis créez votre première galerie photo.',
+                'Sélectionnez un circuit puis créez votre première galerie.',
           )
         else
           SizedBox(
-            height: 190,
+            height: 180,
             child: ListView.separated(
               scrollDirection: Axis.horizontal,
-              physics: const BouncingScrollPhysics(),
               itemCount: widget.galleries.length,
               separatorBuilder: (_, __) => const SizedBox(width: 12),
               itemBuilder: (context, index) {
-                final item = widget.galleries[index];
-                return _GalleryThumbnailCard(
-                  gallery: item,
-                  selected: item.galleryId == widget.selectedGalleryId,
-                  onTap: () => widget.onSelectGallery(item.galleryId),
+                final gallery = widget.galleries[index];
+                return _GalleryCard(
+                  gallery: gallery,
+                  selected: gallery.galleryId == widget.selectedGalleryId,
+                  onTap: () => widget.onSelectGallery(gallery.galleryId),
                 );
               },
             ),
           ),
-        if (gallery != null) ...<Widget>[
+        if (selected != null) ...<Widget>[
           const SizedBox(height: 24),
-          _SelectedGalleryHeader(
-            gallery: gallery,
-            photoCount: widget.selectedPhotos.length,
-            packCount: widget.selectedPacks.length,
+          Row(
+            children: <Widget>[
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: <Widget>[
+                    Text(
+                      selected.title,
+                      style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                            fontWeight: FontWeight.w900,
+                          ),
+                    ),
+                    Text(
+                      '${widget.selectedPhotos.length} photo(s) • '
+                      '${widget.selectedPacks.length} pack(s)',
+                    ),
+                  ],
+                ),
+              ),
+              Chip(label: Text(selected.status.label)),
+            ],
           ),
-          const SizedBox(height: 14),
+          const SizedBox(height: 12),
           if (widget.selectedPhotos.isEmpty)
             const _EmptyPanel(
               icon: Icons.add_photo_alternate_outlined,
               title: 'Galerie vide',
               message:
-                  'Ajoutez des photos. Les miniatures et le filigrane seront générés automatiquement.',
+                  'Ajoutez des photos. MASLIVE créera les miniatures et le filigrane.',
             )
           else
             LayoutBuilder(
               builder: (context, constraints) {
-                final columns = constraints.maxWidth >= 1000
+                final columns = constraints.maxWidth >= 960
                     ? 5
-                    : constraints.maxWidth >= 720
+                    : constraints.maxWidth >= 700
                         ? 4
                         : constraints.maxWidth >= 480
                             ? 3
@@ -486,16 +514,16 @@ class _PhotographerGalleryManagerState
                   physics: const NeverScrollableScrollPhysics(),
                   gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
                     crossAxisCount: columns,
-                    mainAxisSpacing: 12,
-                    crossAxisSpacing: 12,
+                    mainAxisSpacing: 10,
+                    crossAxisSpacing: 10,
                     childAspectRatio: 0.78,
                   ),
                   itemCount: widget.selectedPhotos.length,
                   itemBuilder: (context, index) {
                     final photo = widget.selectedPhotos[index];
-                    return _ManagedPhotoTile(
+                    return _PhotoTile(
                       photo: photo,
-                      disabled: _actionInProgress,
+                      disabled: _busy,
                       onDelete: () => _deletePhoto(photo),
                     );
                   },
@@ -503,19 +531,26 @@ class _PhotographerGalleryManagerState
               },
             ),
           if (widget.selectedPacks.isNotEmpty) ...<Widget>[
-            const SizedBox(height: 22),
+            const SizedBox(height: 20),
             Text(
               'Packs actifs',
               style: Theme.of(context).textTheme.titleMedium?.copyWith(
                     fontWeight: FontWeight.w900,
                   ),
             ),
-            const SizedBox(height: 10),
+            const SizedBox(height: 8),
             Wrap(
-              spacing: 10,
-              runSpacing: 10,
+              spacing: 8,
+              runSpacing: 8,
               children: widget.selectedPacks
-                  .map((pack) => _PackChip(pack: pack))
+                  .map(
+                    (pack) => Chip(
+                      avatar: const Icon(Icons.sell_outlined, size: 17),
+                      label: Text(
+                        '${pack.title} • ${pack.price.toStringAsFixed(2)} ${pack.currency}',
+                      ),
+                    ),
+                  )
                   .toList(growable: false),
             ),
           ],
@@ -525,41 +560,41 @@ class _PhotographerGalleryManagerState
   }
 }
 
-class _QuotaCard extends StatelessWidget {
-  const _QuotaCard({
+class _QuotaPanel extends StatelessWidget {
+  const _QuotaPanel({
     required this.quota,
+    required this.fallbackPhotos,
+    required this.fallbackStorage,
     required this.loading,
-    required this.fallbackPhotoCount,
-    required this.fallbackStorageBytes,
     required this.onRefresh,
   });
 
   final PhotographerMediaQuota? quota;
+  final int fallbackPhotos;
+  final int fallbackStorage;
   final bool loading;
-  final int fallbackPhotoCount;
-  final int fallbackStorageBytes;
   final VoidCallback onRefresh;
 
-  String _formatBytes(int bytes) {
-    if (bytes < 1024 * 1024) return '${(bytes / 1024).toStringAsFixed(1)} Ko';
-    if (bytes < 1024 * 1024 * 1024) {
-      return '${(bytes / (1024 * 1024)).toStringAsFixed(1)} Mo';
+  String _bytes(int value) {
+    if (value < 1024 * 1024) return '${(value / 1024).toStringAsFixed(1)} Ko';
+    if (value < 1024 * 1024 * 1024) {
+      return '${(value / (1024 * 1024)).toStringAsFixed(1)} Mo';
     }
-    return '${(bytes / (1024 * 1024 * 1024)).toStringAsFixed(1)} Go';
+    return '${(value / (1024 * 1024 * 1024)).toStringAsFixed(1)} Go';
   }
 
   @override
   Widget build(BuildContext context) {
-    final resolved = quota;
-    final photoCount = resolved?.publishedPhotoCount ?? fallbackPhotoCount;
-    final storageBytes = resolved?.storageUsedBytes ?? fallbackStorageBytes;
+    final current = quota;
+    final photos = current?.publishedPhotoCount ?? fallbackPhotos;
+    final storage = current?.storageUsedBytes ?? fallbackStorage;
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(24),
-        border: Border.all(color: MasliveTheme.border),
+        borderRadius: BorderRadius.circular(22),
+        border: Border.all(color: MasliveTheme.divider),
         boxShadow: MasliveTheme.cardShadow,
       ),
       child: Column(
@@ -567,34 +602,16 @@ class _QuotaCard extends StatelessWidget {
         children: <Widget>[
           Row(
             children: <Widget>[
-              Container(
-                width: 44,
-                height: 44,
-                decoration: BoxDecoration(
-                  color: MasliveTheme.pink.withValues(alpha: 0.12),
-                  borderRadius: BorderRadius.circular(14),
-                ),
-                child: const Icon(Icons.cloud_outlined, color: MasliveTheme.pink),
-              ),
-              const SizedBox(width: 12),
+              const Icon(Icons.cloud_outlined, color: MasliveTheme.pink),
+              const SizedBox(width: 10),
               Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: <Widget>[
-                    Text(
-                      resolved == null
-                          ? 'Stockage photographe'
-                          : 'Offre ${resolved.planName}',
-                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                            fontWeight: FontWeight.w900,
-                          ),
-                    ),
-                    if (resolved != null)
-                      Text(
-                        '${resolved.commissionPercent} % de commission • conservation ${resolved.retentionDays} jours',
-                        style: Theme.of(context).textTheme.bodySmall,
+                child: Text(
+                  current == null
+                      ? 'Stockage photographe'
+                      : 'Offre ${current.planName}',
+                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                        fontWeight: FontWeight.w900,
                       ),
-                  ],
                 ),
               ),
               IconButton(
@@ -609,42 +626,35 @@ class _QuotaCard extends StatelessWidget {
               ),
             ],
           ),
-          const SizedBox(height: 18),
-          _QuotaLine(
+          if (current != null)
+            Text(
+              '${current.commissionPercent} % de commission • '
+              'conservation ${current.retentionDays} jours',
+              style: Theme.of(context).textTheme.bodySmall,
+            ),
+          const SizedBox(height: 15),
+          _UsageLine(
             label: 'Photos publiées',
-            value: resolved == null
-                ? '$photoCount'
-                : '$photoCount / ${resolved.maxPublishedPhotos}',
-            fraction: resolved?.photoUsageFraction ?? 0,
+            value: current == null
+                ? '$photos'
+                : '$photos / ${current.maxPublishedPhotos}',
+            fraction: current?.photoUsageFraction ?? 0,
           ),
-          const SizedBox(height: 14),
-          _QuotaLine(
+          const SizedBox(height: 12),
+          _UsageLine(
             label: 'Stockage',
-            value: resolved == null
-                ? _formatBytes(storageBytes)
-                : '${_formatBytes(storageBytes)} / ${_formatBytes(resolved.maxStorageBytes)}',
-            fraction: resolved?.storageUsageFraction ?? 0,
+            value: current == null
+                ? _bytes(storage)
+                : '${_bytes(storage)} / ${_bytes(current.maxStorageBytes)}',
+            fraction: current?.storageUsageFraction ?? 0,
           ),
-          if (resolved != null) ...<Widget>[
-            const SizedBox(height: 14),
-            Wrap(
-              spacing: 8,
-              runSpacing: 8,
-              children: <Widget>[
-                _InfoPill(
-                  icon: Icons.photo_library_outlined,
-                  label:
-                      '${resolved.galleryCapacityRemaining} galerie(s) disponible(s)',
-                ),
-                _InfoPill(
-                  icon: Icons.upload_file_outlined,
-                  label: '${resolved.maxBatchUpload} photos/import',
-                ),
-                _InfoPill(
-                  icon: Icons.high_quality_outlined,
-                  label: '${resolved.maxMegapixels} Mpx max',
-                ),
-              ],
+          if (current != null) ...<Widget>[
+            const SizedBox(height: 12),
+            Text(
+              '${current.galleryCapacityRemaining} galerie(s) disponible(s) • '
+              '${current.maxBatchUpload} photos/import • '
+              '${current.maxMegapixels} Mpx max',
+              style: Theme.of(context).textTheme.bodySmall,
             ),
           ],
         ],
@@ -653,8 +663,8 @@ class _QuotaCard extends StatelessWidget {
   }
 }
 
-class _QuotaLine extends StatelessWidget {
-  const _QuotaLine({
+class _UsageLine extends StatelessWidget {
+  const _UsageLine({
     required this.label,
     required this.value,
     required this.fraction,
@@ -676,7 +686,7 @@ class _QuotaLine extends StatelessWidget {
             Text(value),
           ],
         ),
-        const SizedBox(height: 7),
+        const SizedBox(height: 6),
         ClipRRect(
           borderRadius: BorderRadius.circular(99),
           child: LinearProgressIndicator(
@@ -690,65 +700,8 @@ class _QuotaLine extends StatelessWidget {
   }
 }
 
-class _ActionBar extends StatelessWidget {
-  const _ActionBar({
-    required this.disabled,
-    required this.canCreateGallery,
-    required this.hasSelectedGallery,
-    required this.onCreateGallery,
-    required this.onUploadPhotos,
-    required this.onPublish,
-    required this.onCreatePacks,
-    required this.onArchive,
-  });
-
-  final bool disabled;
-  final bool canCreateGallery;
-  final bool hasSelectedGallery;
-  final VoidCallback onCreateGallery;
-  final VoidCallback onUploadPhotos;
-  final VoidCallback onPublish;
-  final VoidCallback onCreatePacks;
-  final VoidCallback onArchive;
-
-  @override
-  Widget build(BuildContext context) {
-    return Wrap(
-      spacing: 10,
-      runSpacing: 10,
-      children: <Widget>[
-        FilledButton.icon(
-          onPressed: disabled || !canCreateGallery ? null : onCreateGallery,
-          icon: const Icon(Icons.create_new_folder_outlined),
-          label: const Text('Créer une galerie'),
-        ),
-        FilledButton.tonalIcon(
-          onPressed: disabled || !hasSelectedGallery ? null : onUploadPhotos,
-          icon: const Icon(Icons.add_photo_alternate_outlined),
-          label: const Text('Ajouter des photos'),
-        ),
-        OutlinedButton.icon(
-          onPressed: disabled || !hasSelectedGallery ? null : onPublish,
-          icon: const Icon(Icons.publish_outlined),
-          label: const Text('Publier'),
-        ),
-        OutlinedButton.icon(
-          onPressed: disabled || !hasSelectedGallery ? null : onCreatePacks,
-          icon: const Icon(Icons.sell_outlined),
-          label: const Text('Créer les packs'),
-        ),
-        TextButton.icon(
-          onPressed: disabled || !hasSelectedGallery ? null : onArchive,
-          icon: const Icon(Icons.archive_outlined),
-          label: const Text('Archiver'),
-        ),
-      ],
-    );
-  }
-}
-
-class _UploadProgressCard extends StatelessWidget {
-  const _UploadProgressCard({required this.progress});
+class _ProgressPanel extends StatelessWidget {
+  const _ProgressPanel({required this.progress});
 
   final PhotographerUploadProgress progress;
 
@@ -758,7 +711,7 @@ class _UploadProgressCard extends StatelessWidget {
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
         color: const Color(0xFFEFF8FF),
-        borderRadius: BorderRadius.circular(18),
+        borderRadius: BorderRadius.circular(16),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -769,9 +722,9 @@ class _UploadProgressCard extends StatelessWidget {
             overflow: TextOverflow.ellipsis,
             style: const TextStyle(fontWeight: FontWeight.w800),
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: 7),
           LinearProgressIndicator(value: progress.fraction),
-          const SizedBox(height: 6),
+          const SizedBox(height: 5),
           Text('${progress.completed} / ${progress.total} photo(s)'),
         ],
       ),
@@ -779,8 +732,8 @@ class _UploadProgressCard extends StatelessWidget {
   }
 }
 
-class _GalleryThumbnailCard extends StatelessWidget {
-  const _GalleryThumbnailCard({
+class _GalleryCard extends StatelessWidget {
+  const _GalleryCard({
     required this.gallery,
     required this.selected,
     required this.onTap,
@@ -793,66 +746,39 @@ class _GalleryThumbnailCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return SizedBox(
-      width: 230,
+      width: 220,
       child: InkWell(
         onTap: onTap,
-        borderRadius: BorderRadius.circular(22),
+        borderRadius: BorderRadius.circular(20),
         child: Container(
           decoration: BoxDecoration(
             color: Colors.white,
-            borderRadius: BorderRadius.circular(22),
+            borderRadius: BorderRadius.circular(20),
             border: Border.all(
-              color: selected ? MasliveTheme.pink : MasliveTheme.border,
+              color: selected ? MasliveTheme.pink : MasliveTheme.divider,
               width: selected ? 2 : 1,
             ),
-            boxShadow: MasliveTheme.cardShadow,
           ),
           clipBehavior: Clip.antiAlias,
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: <Widget>[
               Expanded(
-                child: Stack(
-                  fit: StackFit.expand,
-                  children: <Widget>[
-                    if (gallery.coverUrl?.trim().isNotEmpty == true)
-                      StorageImage(
+                child: gallery.coverUrl?.trim().isNotEmpty == true
+                    ? StorageImage(
                         url: gallery.coverUrl!.trim(),
+                        width: double.infinity,
                         fit: BoxFit.cover,
-                        cacheWidth: 600,
+                        cacheWidth: 500,
                       )
-                    else
-                      Container(
+                    : Container(
+                        width: double.infinity,
                         color: MasliveTheme.surfaceAlt,
-                        child: const Icon(Icons.photo_library_outlined, size: 42),
+                        child: const Icon(Icons.photo_library_outlined, size: 40),
                       ),
-                    Positioned(
-                      top: 8,
-                      left: 8,
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 8,
-                          vertical: 5,
-                        ),
-                        decoration: BoxDecoration(
-                          color: Colors.black.withValues(alpha: 0.62),
-                          borderRadius: BorderRadius.circular(99),
-                        ),
-                        child: Text(
-                          gallery.status.label,
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 11,
-                            fontWeight: FontWeight.w800,
-                          ),
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
               ),
               Padding(
-                padding: const EdgeInsets.all(12),
+                padding: const EdgeInsets.all(11),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: <Widget>[
@@ -862,9 +788,8 @@ class _GalleryThumbnailCard extends StatelessWidget {
                       overflow: TextOverflow.ellipsis,
                       style: const TextStyle(fontWeight: FontWeight.w900),
                     ),
-                    const SizedBox(height: 4),
                     Text(
-                      '${gallery.photoCount} photos • ${gallery.packCount} packs',
+                      '${gallery.photoCount} photos • ${gallery.status.label}',
                       style: Theme.of(context).textTheme.bodySmall,
                     ),
                   ],
@@ -878,50 +803,8 @@ class _GalleryThumbnailCard extends StatelessWidget {
   }
 }
 
-class _SelectedGalleryHeader extends StatelessWidget {
-  const _SelectedGalleryHeader({
-    required this.gallery,
-    required this.photoCount,
-    required this.packCount,
-  });
-
-  final MediaGalleryModel gallery;
-  final int photoCount;
-  final int packCount;
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: <Widget>[
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: <Widget>[
-              Text(
-                gallery.title,
-                style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                      fontWeight: FontWeight.w900,
-                    ),
-              ),
-              const SizedBox(height: 4),
-              Text('$photoCount photo(s) • $packCount pack(s)'),
-            ],
-          ),
-        ),
-        _InfoPill(
-          icon: gallery.status == GalleryStatus.published
-              ? Icons.public
-              : Icons.edit_outlined,
-          label: gallery.status.label,
-        ),
-      ],
-    );
-  }
-}
-
-class _ManagedPhotoTile extends StatelessWidget {
-  const _ManagedPhotoTile({
+class _PhotoTile extends StatelessWidget {
+  const _PhotoTile({
     required this.photo,
     required this.disabled,
     required this.onDelete,
@@ -933,14 +816,14 @@ class _ManagedPhotoTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final imageUrl = photo.thumbnailPath.trim().isNotEmpty
-        ? photo.thumbnailPath.trim()
-        : photo.previewPath.trim();
+    final url = photo.thumbnailPath.trim().isNotEmpty
+        ? photo.thumbnailPath
+        : photo.previewPath;
     return Container(
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: MasliveTheme.border),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: MasliveTheme.divider),
       ),
       clipBehavior: Clip.antiAlias,
       child: Column(
@@ -950,16 +833,12 @@ class _ManagedPhotoTile extends StatelessWidget {
             child: Stack(
               fit: StackFit.expand,
               children: <Widget>[
-                StorageImage(
-                  url: imageUrl,
-                  fit: BoxFit.cover,
-                  cacheWidth: 500,
-                ),
+                StorageImage(url: url, fit: BoxFit.cover, cacheWidth: 500),
                 Positioned(
-                  top: 7,
-                  right: 7,
+                  top: 5,
+                  right: 5,
                   child: Material(
-                    color: Colors.black.withValues(alpha: 0.58),
+                    color: Colors.black54,
                     shape: const CircleBorder(),
                     child: IconButton(
                       tooltip: 'Supprimer',
@@ -967,7 +846,7 @@ class _ManagedPhotoTile extends StatelessWidget {
                       icon: const Icon(
                         Icons.delete_outline,
                         color: Colors.white,
-                        size: 19,
+                        size: 18,
                       ),
                     ),
                   ),
@@ -976,7 +855,7 @@ class _ManagedPhotoTile extends StatelessWidget {
             ),
           ),
           Padding(
-            padding: const EdgeInsets.fromLTRB(10, 9, 10, 11),
+            padding: const EdgeInsets.all(9),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: <Widget>[
@@ -986,133 +865,13 @@ class _ManagedPhotoTile extends StatelessWidget {
                   overflow: TextOverflow.ellipsis,
                   style: const TextStyle(fontWeight: FontWeight.w800),
                 ),
-                const SizedBox(height: 3),
                 Text(
-                  '${photo.unitPrice.toStringAsFixed(2)} ${photo.currency} • ${photo.lifecycleStatus.name}',
+                  '${photo.unitPrice.toStringAsFixed(2)} ${photo.currency}',
                   style: Theme.of(context).textTheme.bodySmall,
                 ),
               ],
             ),
           ),
-        ],
-      ),
-    );
-  }
-}
-
-class _PackChip extends StatelessWidget {
-  const _PackChip({required this.pack});
-
-  final MediaPackModel pack;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-      decoration: BoxDecoration(
-        color: pack.sortOrder == 30
-            ? MasliveTheme.pink.withValues(alpha: 0.12)
-            : Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(
-          color: pack.sortOrder == 30
-              ? MasliveTheme.pink.withValues(alpha: 0.40)
-              : MasliveTheme.border,
-        ),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: <Widget>[
-          const Icon(Icons.sell_outlined, size: 18),
-          const SizedBox(width: 8),
-          Text(
-            '${pack.title} • ${pack.price.toStringAsFixed(2)} ${pack.currency}',
-            style: const TextStyle(fontWeight: FontWeight.w800),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _ContextSummary extends StatelessWidget {
-  const _ContextSummary({
-    required this.country,
-    required this.event,
-    required this.circuit,
-  });
-
-  final String country;
-  final String event;
-  final String circuit;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: MasliveTheme.surfaceAlt,
-        borderRadius: BorderRadius.circular(14),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: <Widget>[
-          Text('Pays : $country'),
-          Text('Événement : $event'),
-          Text('Circuit : $circuit'),
-        ],
-      ),
-    );
-  }
-}
-
-class _InfoPill extends StatelessWidget {
-  const _InfoPill({required this.icon, required this.label});
-
-  final IconData icon;
-  final String label;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
-      decoration: BoxDecoration(
-        color: MasliveTheme.surfaceAlt,
-        borderRadius: BorderRadius.circular(99),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: <Widget>[
-          Icon(icon, size: 16),
-          const SizedBox(width: 6),
-          Text(label, style: const TextStyle(fontSize: 12)),
-        ],
-      ),
-    );
-  }
-}
-
-class _ErrorBanner extends StatelessWidget {
-  const _ErrorBanner({required this.message, required this.onClose});
-
-  final String message;
-  final VoidCallback onClose;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.fromLTRB(14, 10, 6, 10),
-      decoration: BoxDecoration(
-        color: const Color(0xFFFFF1F3),
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: const Color(0xFFFDA4AF)),
-      ),
-      child: Row(
-        children: <Widget>[
-          const Icon(Icons.error_outline, color: Color(0xFFBE123C)),
-          const SizedBox(width: 10),
-          Expanded(child: Text(message)),
-          IconButton(onPressed: onClose, icon: const Icon(Icons.close)),
         ],
       ),
     );
@@ -1134,18 +893,18 @@ class _EmptyPanel extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(22),
+      padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: MasliveTheme.border),
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: MasliveTheme.divider),
       ),
       child: Column(
         children: <Widget>[
-          Icon(icon, size: 42, color: MasliveTheme.textSecondary),
-          const SizedBox(height: 10),
+          Icon(icon, size: 40, color: MasliveTheme.textSecondary),
+          const SizedBox(height: 8),
           Text(title, style: const TextStyle(fontWeight: FontWeight.w900)),
-          const SizedBox(height: 5),
+          const SizedBox(height: 4),
           Text(message, textAlign: TextAlign.center),
         ],
       ),
