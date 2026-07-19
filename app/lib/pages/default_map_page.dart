@@ -618,7 +618,13 @@ class _DefaultMapPageState extends State<DefaultMapPage>
         break;
       }
     }
-    if (poi == null || !mounted) return;
+    if (poi == null || !mounted) {
+      debugPrint(
+        '🗺️ [POI_TAP] onPoiTap($poiId) mais aucun POI visible correspondant '
+        '(visibles=${_visibleMarketPoisForCurrentAction().length}, mounted=$mounted)',
+      );
+      return;
+    }
 
     final type = (poi.type ?? poi.layerId).trim();
     final title = poi.name.trim().isEmpty
@@ -634,20 +640,29 @@ class _DefaultMapPageState extends State<DefaultMapPage>
       hasImage: hasImage,
     );
 
+    debugPrint(
+      '🗺️ [POI_TAP] candidat=$poiId title=$title type=$type popupEnabled=$popupEnabled',
+    );
+
     // La fiche doit toujours pouvoir s'ouvrir au tap (avec logo par défaut si
     // pas de photo/description) : seul popupEnabled (flag explicite ou défaut
     // par type, ex: WC désactivé) décide, plus de condition sur le volume de
     // données déjà renseignées.
     if (!popupEnabled) {
+      debugPrint('🗺️ [POI_TAP] bloqué: popupEnabled=false pour $poiId');
       return;
     }
 
     final now = DateTime.now();
     final lastAt = _lastPoiPopupAt;
-    if (_isPoiPopupShowing) return;
+    if (_isPoiPopupShowing) {
+      debugPrint('🗺️ [POI_TAP] bloqué: _isPoiPopupShowing déjà true');
+      return;
+    }
     if (lastAt != null &&
         now.difference(lastAt) < _poiPopupDebounce &&
         _lastPoiPopupId == poiId) {
+      debugPrint('🗺️ [POI_TAP] bloqué: debounce sur $poiId');
       return;
     }
 
