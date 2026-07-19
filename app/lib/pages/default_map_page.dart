@@ -157,6 +157,10 @@ class _DefaultMapPageState extends State<DefaultMapPage>
   rsp.RouteStyleConfig? _marketRouteStylePro;
   ({double west, double south, double east, double north})? _marketRouteBounds;
   bool _isPoiPopupShowing = false;
+
+  // TEMP DEBUG: bandeau visible pour diagnostiquer le tap POI sans accès aux
+  // devtools (Safari iPad). À retirer une fois le bug identifié.
+  String? _debugLastTapInfo;
   DateTime? _lastPoiPopupAt;
   String? _lastPoiPopupId;
 
@@ -619,10 +623,11 @@ class _DefaultMapPageState extends State<DefaultMapPage>
       }
     }
     if (poi == null || !mounted) {
-      debugPrint(
-        '🗺️ [POI_TAP] onPoiTap($poiId) mais aucun POI visible correspondant '
-        '(visibles=${_visibleMarketPoisForCurrentAction().length}, mounted=$mounted)',
-      );
+      final msg =
+          'onPoiTap($poiId) mais aucun POI visible correspondant '
+          '(visibles=${_visibleMarketPoisForCurrentAction().length})';
+      debugPrint('🗺️ [POI_TAP] $msg');
+      if (mounted) setState(() => _debugLastTapInfo = msg);
       return;
     }
 
@@ -643,6 +648,10 @@ class _DefaultMapPageState extends State<DefaultMapPage>
     debugPrint(
       '🗺️ [POI_TAP] candidat=$poiId title=$title type=$type popupEnabled=$popupEnabled',
     );
+    setState(() {
+      _debugLastTapInfo =
+          'POI trouvé: id=$poiId title=$title type=$type popupEnabled=$popupEnabled';
+    });
 
     // La fiche doit toujours pouvoir s'ouvrir au tap (avec logo par défaut si
     // pas de photo/description) : seul popupEnabled (flag explicite ou défaut
@@ -657,12 +666,14 @@ class _DefaultMapPageState extends State<DefaultMapPage>
     final lastAt = _lastPoiPopupAt;
     if (_isPoiPopupShowing) {
       debugPrint('🗺️ [POI_TAP] bloqué: _isPoiPopupShowing déjà true');
+      setState(() => _debugLastTapInfo = 'Bloqué: popup déjà affichée (_isPoiPopupShowing)');
       return;
     }
     if (lastAt != null &&
         now.difference(lastAt) < _poiPopupDebounce &&
         _lastPoiPopupId == poiId) {
       debugPrint('🗺️ [POI_TAP] bloqué: debounce sur $poiId');
+      setState(() => _debugLastTapInfo = 'Bloqué: debounce sur $poiId');
       return;
     }
 
@@ -693,6 +704,9 @@ class _DefaultMapPageState extends State<DefaultMapPage>
         circuitId: _marketPoiSelection.circuit?.id,
         poiId: poi.id,
       );
+    } catch (e) {
+      debugPrint('⚠️ [POI_TAP] erreur affichage polaroid: $e');
+      if (mounted) setState(() => _debugLastTapInfo = 'Erreur showPolaroidPoiSheet: $e');
     } finally {
       _isPoiPopupShowing = false;
     }
@@ -2359,6 +2373,10 @@ class _DefaultMapPageState extends State<DefaultMapPage>
                                       () => _showOnboardingTooltip = false,
                                     );
                                   }
+                                  setState(() {
+                                    _debugLastTapInfo =
+                                        'onTap générique: aucun POI détecté sous le doigt (hit-test JS négatif)';
+                                  });
                                 },
                                 onMapReady: (_) {
                                   _isMasLiveMapReady = true;
@@ -2408,6 +2426,28 @@ class _DefaultMapPageState extends State<DefaultMapPage>
                       child: Center(
                         child: ActiveCircuitHeaderBanner(
                           circuitName: activeCircuitName,
+                        ),
+                      ),
+                    ),
+                  ),
+
+                // TEMP DEBUG: bandeau diagnostic tap POI (à retirer une fois
+                // le bug identifié).
+                if (_debugLastTapInfo != null)
+                  Positioned(
+                    left: 12,
+                    right: 12,
+                    bottom: bottomInset + bottomBarHeight + 12,
+                    child: IgnorePointer(
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                        decoration: BoxDecoration(
+                          color: Colors.black87,
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: Text(
+                          _debugLastTapInfo!,
+                          style: const TextStyle(color: Colors.yellow, fontSize: 12, fontWeight: FontWeight.w600),
                         ),
                       ),
                     ),
