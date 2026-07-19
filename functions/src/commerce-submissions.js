@@ -22,7 +22,93 @@ function isStripePayable(stripe) {
     data.payoutsEnabled === true;
 }
 
+const MASTER_ROLES = new Set([
+  "admin",
+  "admin_master",
+  "superadmin",
+  "super-admin",
+]);
+
+const GROUP_ROLES = new Set([
+  "group",
+  "group-admin",
+  "admin_group",
+  "admin_groupe",
+]);
+
+function hasCreatorActivity(userData) {
+  const activities = Array.isArray(userData?.activities)
+    ? userData.activities.map(normalizeLower)
+    : [];
+  return activities.includes("createur_digital") ||
+    activities.includes("creator_digital");
+}
+
+async function authorizeDeclaredOwnerRole({ db, uid, ownerRole }) {
+  const declaredRole = normalizeLower(ownerRole);
+
+  if (declaredRole === "compte_pro") {
+    const business = await db.collection("businesses").doc(uid).get();
+    return business.exists
+      ? { ready: true, code: "ready", message: "", actionRoute: null }
+      : readinessFailure(
+        "business_profile_missing",
+        "Créez votre compte professionnel avant de publier.",
+        "/business"
+      );
+  }
+
+  const userSnapshot = await db.collection("users").doc(uid).get();
+  const userData = userSnapshot.exists ? (userSnapshot.data() || {}) : {};
+  const authoritativeRole = normalizeLower(userData.role);
+
+  if (declaredRole === "superadmin") {
+    const isAuthorized = userData.isAdmin === true ||
+      MASTER_ROLES.has(authoritativeRole);
+    return isAuthorized
+      ? { ready: true, code: "ready", message: "", actionRoute: null }
+      : readinessFailure(
+        "seller_role_mismatch",
+        "Le rôle vendeur déclaré ne correspond pas à votre profil.",
+        "/account"
+      );
+  }
+
+  if (declaredRole === "admin_groupe") {
+    return GROUP_ROLES.has(authoritativeRole)
+      ? { ready: true, code: "ready", message: "", actionRoute: null }
+      : readinessFailure(
+        "seller_role_mismatch",
+        "Le rôle vendeur déclaré ne correspond pas à votre profil groupe.",
+        "/group-admin"
+      );
+  }
+
+  if (declaredRole === "createur_digital") {
+    return hasCreatorActivity(userData)
+      ? { ready: true, code: "ready", message: "", actionRoute: null }
+      : readinessFailure(
+        "seller_role_mismatch",
+        "Activez votre profil créateur avant de publier.",
+        "/media-marketplace"
+      );
+  }
+
+  return readinessFailure(
+    "seller_role_not_allowed",
+    "Votre profil n’autorise pas la publication de produits vendables.",
+    "/account"
+  );
+}
+
 async function evaluateSellerReadiness({ db, uid, ownerRole }) {
+  const roleAuthorization = await authorizeDeclaredOwnerRole({
+    db,
+    uid,
+    ownerRole,
+  });
+  if (!roleAuthorization.ready) return roleAuthorization;
+
   switch (normalizeLower(ownerRole)) {
     case "superadmin":
     case "admin_groupe":
@@ -172,15 +258,9 @@ function createCommerceSubmissionHandlers({ admin, db, onCall, HttpsError }) {
       });
     }
 
-    if (submission.status === "pending") {
-      return {
-        success: true,
-        status: "pending",
-        idempotent: true,
-        readinessCode: "ready",
-      };
-    }
-    if (submission.status !== "draft" && submission.status !== "rejected") {
+    if (submission.status !== "draft" &&
+        submission.status !== "rejected" &&
+        submission.status !== "pending") {
       throw new HttpsError("failed-precondition", "Invalid submission status", {
         code: "submission_status_invalid",
         message: `La publication ne peut pas être soumise depuis l’état ${submission.status || "inconnu"}.`,
@@ -194,6 +274,15 @@ function createCommerceSubmissionHandlers({ admin, db, onCall, HttpsError }) {
       ownerRole: submission.ownerRole,
     });
     if (!readiness.ready) throwBusinessError(HttpsError, readiness);
+
+    if (submission.status === "pending") {
+      return {
+        success: true,
+        status: "pending",
+        idempotent: true,
+        readinessCode: readiness.code,
+      };
+    }
 
     return db.runTransaction(async (transaction) => {
       const freshSnapshot = await transaction.get(ref);
@@ -211,6 +300,13 @@ function createCommerceSubmissionHandlers({ admin, db, onCall, HttpsError }) {
           message: "Vous n’êtes pas propriétaire de cette publication.",
         });
       }
+      if (fresh.ownerRole !== submission.ownerRole) {
+        throw new HttpsError("failed-precondition", "Seller role changed", {
+          code: "seller_role_changed",
+          message: "Le rôle vendeur a changé pendant la soumission. Réessayez.",
+        });
+      }
+      validateSubmissionPayload(HttpsError, fresh);
       if (fresh.status === "pending") {
         return {
           success: true,
@@ -266,5 +362,6 @@ function createCommerceSubmissionHandlers({ admin, db, onCall, HttpsError }) {
 
 module.exports = createCommerceSubmissionHandlers;
 module.exports.evaluateSellerReadiness = evaluateSellerReadiness;
+module.exports.authorizeDeclaredOwnerRole = authorizeDeclaredOwnerRole;
 module.exports.isStripePayable = isStripePayable;
 module.exports.SUBMISSION_GUARD_VERSION = SUBMISSION_GUARD_VERSION;

@@ -941,6 +941,31 @@ service cloud.firestore {
         );
       }
 
+      function canDeclareCommerceOwnerRole(ownerRole) {
+        return (
+          ownerRole == 'superadmin' && isMasterAdmin()
+        ) || (
+          ownerRole == 'admin_groupe'
+          && userRole() in [
+            'group',
+            'group-admin',
+            'admin_group',
+            'admin_groupe'
+          ]
+        ) || (
+          ownerRole == 'createur_digital'
+          && getUserData().keys().hasAny(['activities'])
+          && getUserData().activities is list
+          && getUserData().activities.hasAny([
+            'createur_digital',
+            'creator_digital'
+          ])
+        ) || (
+          ownerRole == 'compte_pro'
+          && exists(/databases/$(database)/documents/businesses/$(request.auth.uid))
+        );
+      }
+
       // Helper: vérifier si l'utilisateur peut modérer
       function canModerate() {
         return isMasterAdmin()
@@ -970,6 +995,7 @@ service cloud.firestore {
       // modération passe par la callable serveur après vérification Stripe.
       allow create: if isSignedIn()
         && canSubmitCommerceDraft()
+        && canDeclareCommerceOwnerRole(request.resource.data.ownerRole)
         && request.resource.data.ownerUid == request.auth.uid
         && request.resource.data.status == 'draft'
         && !request.resource.data.keys().hasAny([
@@ -989,6 +1015,10 @@ service cloud.firestore {
         (resource.data.ownerUid == request.auth.uid
          && resource.data.status in ['draft', 'rejected']
          && request.resource.data.status == resource.data.status
+         && request.resource.data.ownerUid == resource.data.ownerUid
+         && request.resource.data.ownerRole == resource.data.ownerRole
+         && request.resource.data.type == resource.data.type
+         && request.resource.data.createdAt == resource.data.createdAt
          && !request.resource.data.diff(resource.data).affectedKeys().hasAny([
            'moderatedBy',
            'moderatedAt',

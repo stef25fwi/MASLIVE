@@ -7,6 +7,7 @@ const test = require("node:test");
 
 const createCommerceSubmissionHandlers = require("../src/commerce-submissions");
 const {
+  authorizeDeclaredOwnerRole,
   evaluateSellerReadiness,
   isStripePayable,
 } = require("../src/commerce-submissions");
@@ -26,7 +27,7 @@ function snapshot(data) {
   };
 }
 
-function buildDb({ submission, business, photographer }) {
+function buildDb({ submission, business, photographer, user }) {
   const state = { submission: submission ? { ...submission } : null };
   const submissionRef = {
     get: async () => snapshot(state.submission),
@@ -39,6 +40,9 @@ function buildDb({ submission, business, photographer }) {
       }
       if (name === "businesses") {
         return { doc: () => ({ get: async () => snapshot(business) }) };
+      }
+      if (name === "users") {
+        return { doc: () => ({ get: async () => snapshot(user) }) };
       }
       if (name === "photographers") {
         return {
@@ -116,6 +120,46 @@ test("evaluateSellerReadiness bloque les virements Stripe désactivés", async (
   });
   assert.equal(result.ready, false);
   assert.equal(result.code, "stripe_connect_not_payable");
+});
+
+test("authorizeDeclaredOwnerRole refuse un faux superadmin", async () => {
+  const { db } = buildDb({
+    user: { role: "user", isAdmin: false },
+  });
+  const result = await authorizeDeclaredOwnerRole({
+    db,
+    uid: "seller-1",
+    ownerRole: "superadmin",
+  });
+  assert.equal(result.ready, false);
+  assert.equal(result.code, "seller_role_mismatch");
+});
+
+test("submitCommerceForReview refuse un ownerRole administrateur usurpé", async () => {
+  const { db } = buildDb({
+    submission: {
+      ownerUid: "seller-1",
+      ownerRole: "superadmin",
+      status: "draft",
+      type: "product",
+    },
+    user: { role: "user", isAdmin: false },
+  });
+  const handlers = createCommerceSubmissionHandlers({
+    admin: { firestore: { FieldValue: { serverTimestamp: () => null } } },
+    db,
+    HttpsError: FakeHttpsError,
+    onCall: (_options, handler) => handler,
+  });
+
+  await assert.rejects(
+    handlers.submitCommerceForReview({
+      auth: { uid: "seller-1" },
+      data: { submissionId: "submission-1" },
+    }),
+    (error) => error.code === "failed-precondition" &&
+      error.details.code === "seller_role_mismatch"
+  );
 });
 
 test("submitCommerceForReview est propriétaire, payable et idempotent", async () => {
@@ -197,5 +241,7 @@ test("le câblage interdit la transition client directe vers pending", () => {
   assert.match(indexSource, /exports\.submitCommerceForReview/);
   assert.match(rulesSource, /request\.resource\.data\.status == 'draft'/);
   assert.match(rulesSource, /request\.resource\.data\.status == resource\.data\.status/);
+  assert.match(rulesSource, /request\.resource\.data\.ownerRole == resource\.data\.ownerRole/);
+  assert.match(rulesSource, /canDeclareCommerceOwnerRole/);
   assert.match(dartSource, /httpsCallable\('submitCommerceForReview'\)/);
 });
