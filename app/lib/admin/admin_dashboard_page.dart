@@ -111,7 +111,7 @@ class _AdminStatsDashboardPageState extends State<AdminStatsDashboardPage> {
                 style: const TextStyle(
                   color: Colors.white,
                   fontSize: 20,
-                  fontWeight: FontWeight.bold,
+                  fontWeight: FontWeight.w700,
                 ),
               ),
             ),
@@ -150,7 +150,7 @@ class _AdminStatsDashboardPageState extends State<AdminStatsDashboardPage> {
                       'Super Admin',
                       style: TextStyle(
                         color: Colors.purple.shade700,
-                        fontWeight: FontWeight.bold,
+                        fontWeight: FontWeight.w700,
                         fontSize: 12,
                       ),
                     ),
@@ -212,7 +212,7 @@ class _AdminStatsDashboardPageState extends State<AdminStatsDashboardPage> {
                   value,
                   style: Theme.of(context).textTheme.headlineMedium?.copyWith(
                         color: color,
-                        fontWeight: FontWeight.bold,
+                        fontWeight: FontWeight.w700,
                       ),
                 ),
               ],
@@ -264,7 +264,7 @@ class _AdminStatsDashboardPageState extends State<AdminStatsDashboardPage> {
                           children: [
                             Text(
                               RoleDefinition.getRoleLabel(role),
-                              style: const TextStyle(fontWeight: FontWeight.bold),
+                              style: const TextStyle(fontWeight: FontWeight.w700),
                             ),
                             const SizedBox(height: 4),
                             LinearProgressIndicator(
@@ -280,7 +280,7 @@ class _AdminStatsDashboardPageState extends State<AdminStatsDashboardPage> {
                       const SizedBox(width: 12),
                       Text(
                         '$count ($percentage%)',
-                        style: const TextStyle(fontWeight: FontWeight.bold),
+                        style: const TextStyle(fontWeight: FontWeight.w700),
                       ),
                     ],
                   ),

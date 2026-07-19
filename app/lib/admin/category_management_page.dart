@@ -157,7 +157,7 @@ class _CategoryManagementPageState extends State<CategoryManagementPage> {
               child: Text(
                 category.name,
                 style: const TextStyle(
-                  fontWeight: FontWeight.bold,
+                  fontWeight: FontWeight.w700,
                   fontSize: 16,
                 ),
               ),
@@ -205,7 +205,7 @@ class _CategoryManagementPageState extends State<CategoryManagementPage> {
                   const Text(
                     'Avantages:',
                     style: TextStyle(
-                      fontWeight: FontWeight.bold,
+                      fontWeight: FontWeight.w700,
                       fontSize: 14,
                     ),
                   ),

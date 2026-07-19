@@ -468,7 +468,7 @@ class ProductCard extends StatelessWidget {
                   '${price.toStringAsFixed(2)} €',
                   style: Theme.of(context).textTheme.titleSmall?.copyWith(
                         color: Colors.green[700],
-                        fontWeight: FontWeight.bold,
+                        fontWeight: FontWeight.w700,
                       ),
                 ),
               ],

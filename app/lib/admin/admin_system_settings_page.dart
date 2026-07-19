@@ -335,7 +335,7 @@ class _AdminSystemSettingsPageState extends State<AdminSystemSettingsPage> {
             title,
             style: Theme.of(
               context,
-            ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
+            ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700),
           ),
         ),
         Card(child: Column(children: children)),
@@ -352,7 +352,7 @@ class _AdminSystemSettingsPageState extends State<AdminSystemSettingsPage> {
           child: Text(
             'Zone dangereuse',
             style: Theme.of(context).textTheme.titleMedium?.copyWith(
-              fontWeight: FontWeight.bold,
+              fontWeight: FontWeight.w700,
               color: Colors.red,
             ),
           ),

@@ -53,7 +53,7 @@ class _CreateCircuitFeaturesPageState extends State<CreateCircuitFeaturesPage> {
               const SizedBox(height: 16),
               const Text(
                 'Accès réservé aux Super Admins',
-                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700),
               ),
               const SizedBox(height: 8),
               const Text(

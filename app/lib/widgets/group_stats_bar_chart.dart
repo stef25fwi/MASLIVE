@@ -33,7 +33,7 @@ class GroupStatsBarChart extends StatelessWidget {
           children: [
             Text(
               metric == 'distance' ? 'Distance par session (km)' : 'Durée par session (min)',
-              style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+              style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w700),
             ),
             const SizedBox(height: 24),
             SizedBox(
@@ -49,7 +49,7 @@ class GroupStatsBarChart extends StatelessWidget {
                           metric == 'distance'
                               ? '${rod.toY.toStringAsFixed(1)} km'
                               : '${rod.toY.toStringAsFixed(0)} min',
-                          const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+                          const TextStyle(color: Colors.white, fontWeight: FontWeight.w700),
                         );
                       },
                     ),
@@ -187,7 +187,7 @@ class GroupStatsBarChart extends StatelessWidget {
         const SizedBox(height: 4),
         Text(
           value,
-          style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+          style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
         ),
         Text(
           label,

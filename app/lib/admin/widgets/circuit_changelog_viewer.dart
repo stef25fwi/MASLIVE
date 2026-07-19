@@ -53,7 +53,7 @@ class CircuitChangelogViewer extends StatelessWidget {
         title: Text(
           title,
           style: const TextStyle(
-            fontWeight: FontWeight.bold,
+            fontWeight: FontWeight.w700,
             fontSize: 14,
           ),
         ),
@@ -167,7 +167,7 @@ class _ChangeItem extends StatelessWidget {
                 Text(
                   _getFieldName(fieldKey),
                   style: const TextStyle(
-                    fontWeight: FontWeight.bold,
+                    fontWeight: FontWeight.w700,
                     fontSize: 13,
                   ),
                 ),
@@ -189,7 +189,7 @@ class _ChangeItem extends StatelessWidget {
                               style: TextStyle(
                                 fontSize: 10,
                                 color: Colors.red[700],
-                                fontWeight: FontWeight.bold,
+                                fontWeight: FontWeight.w700,
                               ),
                             ),
                             const SizedBox(height: 2),
@@ -229,7 +229,7 @@ class _ChangeItem extends StatelessWidget {
                               style: TextStyle(
                                 fontSize: 10,
                                 color: Colors.green[700],
-                                fontWeight: FontWeight.bold,
+                                fontWeight: FontWeight.w700,
                               ),
                             ),
                             const SizedBox(height: 2),

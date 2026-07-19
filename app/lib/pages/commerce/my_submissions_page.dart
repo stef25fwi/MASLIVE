@@ -36,7 +36,7 @@ class _MySubmissionsPageState extends State<MySubmissionsPage> with SingleTicker
       appBar: AppBar(
         backgroundColor: Colors.white,
         elevation: 0,
-        title: const Text('Mes contenus', style: TextStyle(color: Colors.black87, fontWeight: FontWeight.bold)),
+        title: const Text('Mes contenus', style: TextStyle(color: Colors.black87, fontWeight: FontWeight.w700)),
         iconTheme: const IconThemeData(color: Colors.black87),
         bottom: TabBar(
           controller: _tabController,

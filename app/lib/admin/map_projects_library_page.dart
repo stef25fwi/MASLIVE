@@ -70,7 +70,7 @@ class _MapProjectsLibraryPageState extends State<MapProjectsLibraryPage> {
                     _selectedMapTitle ?? 'Map sélectionnée',
                     style: const TextStyle(
                       color: Colors.white,
-                      fontWeight: FontWeight.bold,
+                      fontWeight: FontWeight.w700,
                       fontSize: 13,
                     ),
                   ),
@@ -143,7 +143,7 @@ class _MapProjectsLibraryPageState extends State<MapProjectsLibraryPage> {
                           '🎯 Sélectionnez une map',
                           style: TextStyle(
                             fontSize: 16,
-                            fontWeight: FontWeight.bold,
+                            fontWeight: FontWeight.w700,
                             color: Colors.teal,
                           ),
                         ),
@@ -244,7 +244,7 @@ class _MapProjectsLibraryPageState extends State<MapProjectsLibraryPage> {
                                     '${items.length}',
                                     style: TextStyle(
                                       fontSize: 12,
-                                      fontWeight: FontWeight.bold,
+                                      fontWeight: FontWeight.w700,
                                       color: Colors.blue.shade900,
                                     ),
                                   ),
@@ -300,7 +300,7 @@ class _MapProjectsLibraryPageState extends State<MapProjectsLibraryPage> {
                                     title,
                                     style: TextStyle(
                                       fontWeight: isSelected
-                                          ? FontWeight.bold
+                                          ? FontWeight.w700
                                           : FontWeight.normal,
                                     ),
                                   ),
@@ -346,7 +346,7 @@ class _MapProjectsLibraryPageState extends State<MapProjectsLibraryPage> {
                                             'POI',
                                             style: TextStyle(
                                               fontSize: 10,
-                                              fontWeight: FontWeight.bold,
+                                              fontWeight: FontWeight.w700,
                                               color: Colors.purple.shade900,
                                             ),
                                           ),
@@ -370,7 +370,7 @@ class _MapProjectsLibraryPageState extends State<MapProjectsLibraryPage> {
                                             style: TextStyle(
                                               color: Colors.white,
                                               fontSize: 10,
-                                              fontWeight: FontWeight.bold,
+                                              fontWeight: FontWeight.w700,
                                             ),
                                           ),
                                         ),

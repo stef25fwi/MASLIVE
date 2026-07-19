@@ -153,7 +153,7 @@ class _AdminCircuitsPageState extends State<AdminCircuitsPage> {
         ),
         title: Text(
           circuit.title,
-          style: const TextStyle(fontWeight: FontWeight.bold),
+          style: const TextStyle(fontWeight: FontWeight.w700),
         ),
         subtitle: Column(
           crossAxisAlignment: CrossAxisAlignment.start,

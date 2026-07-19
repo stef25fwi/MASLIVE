@@ -88,7 +88,7 @@ class _ProfessionalArticlesPageState extends State<ProfessionalArticlesPage> {
                               children: [
                                 Text(
                                   companyName,
-                                  style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                                  style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w700),
                                 ),
                                 const SizedBox(height: 4),
                                 Text(
@@ -135,7 +135,7 @@ class _ProfessionalArticlesPageState extends State<ProfessionalArticlesPage> {
                               children: [
                                 const Text(
                                   'Compte en attente de validation',
-                                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+                                  style: TextStyle(fontWeight: FontWeight.w700, fontSize: 14),
                                 ),
                                 const SizedBox(height: 4),
                                 Text(
@@ -196,7 +196,7 @@ class _ProfessionalArticlesPageState extends State<ProfessionalArticlesPage> {
               const SizedBox(height: 16),
               const Text(
                 'Mes articles',
-                style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                style: TextStyle(fontSize: 20, fontWeight: FontWeight.w700),
               ),
               const SizedBox(height: 8),
               Text(
@@ -244,7 +244,7 @@ class _ProfessionalArticlesPageState extends State<ProfessionalArticlesPage> {
                   'Mes articles',
                   style: TextStyle(
                     fontSize: 20,
-                    fontWeight: FontWeight.bold,
+                    fontWeight: FontWeight.w700,
                     color: Colors.grey[600],
                   ),
                 ),
@@ -269,7 +269,7 @@ class _ProfessionalArticlesPageState extends State<ProfessionalArticlesPage> {
                 ),
                 child: const Text(
                   'Verrouillé',
-                  style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 12),
+                  style: TextStyle(color: Colors.white, fontWeight: FontWeight.w700, fontSize: 12),
                 ),
               ),
             ),
@@ -316,7 +316,7 @@ class _ProfessionalArticlesPageState extends State<ProfessionalArticlesPage> {
                       children: [
                         const Text(
                           'Gestion des articles',
-                          style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                          style: TextStyle(fontSize: 20, fontWeight: FontWeight.w700),
                         ),
                         ElevatedButton.icon(
                           onPressed: () {
@@ -460,7 +460,7 @@ class _ProfessionalArticlesPageState extends State<ProfessionalArticlesPage> {
                     title,
                     maxLines: 2,
                     overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
+                    style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700),
                   ),
                   const SizedBox(height: 4),
                   Text(

@@ -232,7 +232,7 @@ class _AdminTrackingPageState extends State<AdminTrackingPage> {
                   child: Text(
                     '${groups.length} groupe(s) actif(s)',
                     style: const TextStyle(
-                      fontWeight: FontWeight.bold,
+                      fontWeight: FontWeight.w700,
                       fontSize: 16,
                     ),
                     overflow: TextOverflow.ellipsis,
@@ -300,7 +300,7 @@ class _AdminTrackingPageState extends State<AdminTrackingPage> {
                   Expanded(
                     child: Text(
                       g.name,
-                      style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+                      style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 14),
                       overflow: TextOverflow.ellipsis,
                     ),
                   ),

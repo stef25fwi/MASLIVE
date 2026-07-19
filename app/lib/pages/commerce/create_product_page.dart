@@ -649,7 +649,7 @@ class _CreateProductPageState extends State<CreateProductPage> {
           _isEditing ? 'Modifier le produit' : 'Nouveau produit',
           style: TextStyle(
             color: Colors.grey[800],
-            fontWeight: FontWeight.bold,
+            fontWeight: FontWeight.w700,
           ),
         ),
         iconTheme: IconThemeData(color: Colors.grey[800]),
@@ -865,7 +865,7 @@ class _CreateProductPageState extends State<CreateProductPage> {
                             const Text(
                               'Images actuelles',
                               style: TextStyle(
-                                fontWeight: FontWeight.bold,
+                                fontWeight: FontWeight.w700,
                                 fontSize: 16,
                               ),
                             ),
@@ -911,7 +911,7 @@ class _CreateProductPageState extends State<CreateProductPage> {
                             const Text(
                               'Nouvelles images',
                               style: TextStyle(
-                                fontWeight: FontWeight.bold,
+                                fontWeight: FontWeight.w700,
                                 fontSize: 16,
                               ),
                             ),

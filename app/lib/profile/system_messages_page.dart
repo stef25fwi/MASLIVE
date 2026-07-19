@@ -221,7 +221,7 @@ class _SystemMessagesPageState extends State<SystemMessagesPage> {
                         message.title,
                         style: const TextStyle(
                           fontSize: 16,
-                          fontWeight: FontWeight.bold,
+                          fontWeight: FontWeight.w700,
                         ),
                       ),
                     ),
@@ -330,7 +330,7 @@ class _SystemMessagesPageState extends State<SystemMessagesPage> {
                 'URGENT',
                 style: TextStyle(
                   fontSize: 10,
-                  fontWeight: FontWeight.bold,
+                  fontWeight: FontWeight.w700,
                   color: Colors.red.shade700,
                 ),
               ),
@@ -348,7 +348,7 @@ class _SystemMessagesPageState extends State<SystemMessagesPage> {
             'Important',
             style: TextStyle(
               fontSize: 10,
-              fontWeight: FontWeight.bold,
+              fontWeight: FontWeight.w700,
               color: Colors.orange.shade700,
             ),
           ),

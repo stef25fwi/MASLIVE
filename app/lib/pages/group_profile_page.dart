@@ -568,7 +568,7 @@ class _CommerceTab extends StatelessWidget {
                     Text(
                       'Aucun article',
                       style: TextStyle(
-                        fontWeight: FontWeight.bold,
+                        fontWeight: FontWeight.w700,
                         color: Colors.grey.shade600,
                       ),
                     ),
@@ -661,7 +661,7 @@ class _CommerceTab extends StatelessWidget {
                               Text(
                                 '€${(priceCents / 100).toStringAsFixed(2)}',
                                 style: TextStyle(
-                                  fontWeight: FontWeight.bold,
+                                  fontWeight: FontWeight.w700,
                                   color: MasliveTheme.textSecondary,
                                 ),
                               ),
@@ -688,7 +688,7 @@ class _CommerceTab extends StatelessWidget {
                                       statusText,
                                       style: TextStyle(
                                         fontSize: 11,
-                                        fontWeight: FontWeight.bold,
+                                        fontWeight: FontWeight.w700,
                                         color: statusColor,
                                       ),
                                     ),

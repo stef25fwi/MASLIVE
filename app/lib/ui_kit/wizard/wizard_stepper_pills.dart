@@ -76,7 +76,7 @@ class _WizardStepperPillsState extends State<WizardStepperPills> {
                             '${index + 1}',
                             style: TextStyle(
                               color: circleTextColor,
-                              fontWeight: FontWeight.bold,
+                              fontWeight: FontWeight.w700,
                               fontSize: 12,
                             ),
                           ),
@@ -89,7 +89,7 @@ class _WizardStepperPillsState extends State<WizardStepperPills> {
                     textAlign: TextAlign.center,
                     style: TextStyle(
                       fontSize: 10,
-                      fontWeight: isActive ? FontWeight.bold : FontWeight.normal,
+                      fontWeight: isActive ? FontWeight.w700 : FontWeight.normal,
                       color: labelColor,
                     ),
                   ),

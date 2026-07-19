@@ -40,7 +40,7 @@ class _GroupMapVisibilityWidgetState extends State<GroupMapVisibilityWidget> {
                 const Expanded(
                   child: Text(
                     'Visibilité sur les cartes',
-                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
                   ),
                 ),
                 IconButton(

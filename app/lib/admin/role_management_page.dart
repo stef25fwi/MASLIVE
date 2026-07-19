@@ -166,7 +166,7 @@ class _RoleManagementPageState extends State<RoleManagementPage> {
               child: Text(
                 name,
                 style: const TextStyle(
-                  fontWeight: FontWeight.bold,
+                  fontWeight: FontWeight.w700,
                   fontSize: 16,
                 ),
               ),
@@ -214,7 +214,7 @@ class _RoleManagementPageState extends State<RoleManagementPage> {
                 const Text(
                   'Permissions:',
                   style: TextStyle(
-                    fontWeight: FontWeight.bold,
+                    fontWeight: FontWeight.w700,
                     fontSize: 14,
                   ),
                 ),

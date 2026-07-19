@@ -644,7 +644,7 @@ class _AdminProductsPageState extends State<AdminProductsPage> {
                   Text(
                     name,
                     style: const TextStyle(
-                      fontWeight: FontWeight.bold,
+                      fontWeight: FontWeight.w700,
                       fontSize: 15,
                     ),
                     maxLines: 2,
@@ -661,7 +661,7 @@ class _AdminProductsPageState extends State<AdminProductsPage> {
                   Text(
                     '${price.toStringAsFixed(2)} €',
                     style: const TextStyle(
-                      fontWeight: FontWeight.bold,
+                      fontWeight: FontWeight.w700,
                       fontSize: 16,
                       color: Colors.green,
                     ),

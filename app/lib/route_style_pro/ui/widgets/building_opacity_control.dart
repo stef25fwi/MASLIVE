@@ -72,7 +72,7 @@ class BuildingOpacityControl extends StatelessWidget {
                     Text(
                       'Transparence immeubles',
                       style: theme.textTheme.titleMedium?.copyWith(
-                        fontWeight: FontWeight.bold,
+                        fontWeight: FontWeight.w700,
                       ),
                     ),
                     Text(
@@ -136,7 +136,7 @@ class BuildingOpacityControl extends StatelessWidget {
                 child: Text(
                   '${(opacity * 100).round()}%',
                   style: theme.textTheme.titleMedium?.copyWith(
-                    fontWeight: FontWeight.bold,
+                    fontWeight: FontWeight.w700,
                     color: isEnabled
                         ? theme.colorScheme.primary
                         : theme.disabledColor,
@@ -285,7 +285,7 @@ class _PresetChip extends StatelessWidget {
         child: Text(
           label,
           style: theme.textTheme.bodySmall?.copyWith(
-            fontWeight: isActive ? FontWeight.bold : FontWeight.w600,
+            fontWeight: isActive ? FontWeight.w700 : FontWeight.w600,
             color: isActive
                 ? theme.colorScheme.onPrimary
                 : (isEnabled

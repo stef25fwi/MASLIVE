@@ -307,7 +307,7 @@ class _UserManagementPageState extends State<UserManagementPage> {
               padding: EdgeInsets.all(16),
               child: Text(
                 'Filtrer par rôle',
-                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700),
               ),
             ),
             ...UserRoleType.values.map((role) => ListTile(
@@ -348,7 +348,7 @@ class _UserManagementPageState extends State<UserManagementPage> {
               padding: EdgeInsets.all(16),
               child: Text(
                 'Filtrer par statut',
-                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700),
               ),
             ),
             ListTile(
@@ -443,7 +443,7 @@ class _UserManagementPageState extends State<UserManagementPage> {
                   style: TextStyle(
                     fontSize: 10,
                     color: Colors.blue.shade700,
-                    fontWeight: FontWeight.bold,
+                    fontWeight: FontWeight.w700,
                   ),
                 ),
               ),
@@ -466,7 +466,7 @@ class _UserManagementPageState extends State<UserManagementPage> {
                   user.roleLabel,
                   style: TextStyle(
                     color: MasLiveTheme.getRoleColor(user.role),
-                    fontWeight: FontWeight.bold,
+                    fontWeight: FontWeight.w700,
                     fontSize: 12,
                   ),
                 ),

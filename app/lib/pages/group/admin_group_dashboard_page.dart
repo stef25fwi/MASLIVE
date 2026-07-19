@@ -355,7 +355,7 @@ class _AdminGroupDashboardPageState extends State<AdminGroupDashboardPage> {
                 const Expanded(
                   child: Text(
                     'Circuit actif du groupe',
-                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
                   ),
                 ),
                 TextButton.icon(
@@ -429,7 +429,7 @@ class _AdminGroupDashboardPageState extends State<AdminGroupDashboardPage> {
                         _admin!.displayName,
                         style: const TextStyle(
                           fontSize: 20,
-                          fontWeight: FontWeight.bold,
+                          fontWeight: FontWeight.w700,
                         ),
                       ),
                       const SizedBox(height: 4),
@@ -458,7 +458,7 @@ class _AdminGroupDashboardPageState extends State<AdminGroupDashboardPage> {
                       _admin!.adminGroupId,
                       style: TextStyle(
                         fontSize: 32,
-                        fontWeight: FontWeight.bold,
+                        fontWeight: FontWeight.w700,
                         letterSpacing: 4,
                         color: primary,
                       ),
@@ -546,7 +546,7 @@ class _AdminGroupDashboardPageState extends State<AdminGroupDashboardPage> {
                           _isTracking ? 'Tracking actif' : 'Tracking inactif',
                           style: const TextStyle(
                             fontSize: 18,
-                            fontWeight: FontWeight.bold,
+                            fontWeight: FontWeight.w700,
                           ),
                         ),
                         Text(
@@ -677,7 +677,7 @@ class _AdminGroupDashboardPageState extends State<AdminGroupDashboardPage> {
             const SizedBox(height: 8),
             Text(
               label,
-              style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
+              style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700),
               textAlign: TextAlign.center,
             ),
           ],
@@ -692,7 +692,7 @@ class _AdminGroupDashboardPageState extends State<AdminGroupDashboardPage> {
       children: [
         const Text(
           'Trackers rattachés',
-          style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+          style: TextStyle(fontSize: 20, fontWeight: FontWeight.w700),
         ),
         const SizedBox(height: 12),
         StreamBuilder<List<GroupTracker>>(

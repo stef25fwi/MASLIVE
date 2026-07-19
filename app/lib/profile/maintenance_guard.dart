@@ -65,7 +65,7 @@ class MaintenanceGuard extends StatelessWidget {
               Text(
                 title,
                 style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                  fontWeight: FontWeight.bold,
+                  fontWeight: FontWeight.w700,
                 ),
                 textAlign: TextAlign.center,
               ),
@@ -93,7 +93,7 @@ class MaintenanceGuard extends StatelessWidget {
                           Text(
                             'Fin estimée',
                             style: TextStyle(
-                              fontWeight: FontWeight.bold,
+                              fontWeight: FontWeight.w700,
                               color: Colors.orange[700],
                             ),
                           ),
@@ -238,7 +238,7 @@ class MaintenanceStatusWidget extends StatelessWidget {
             title: Text(
               'Mode maintenance actif',
               style: TextStyle(
-                fontWeight: FontWeight.bold,
+                fontWeight: FontWeight.w700,
                 color: Colors.orange[700],
               ),
             ),
@@ -379,7 +379,7 @@ class _MaintenanceManagementPageState extends State<MaintenanceManagementPage> {
                         ? 'Maintenance activée'
                         : 'Maintenance désactivée',
                     style: TextStyle(
-                      fontWeight: FontWeight.bold,
+                      fontWeight: FontWeight.w700,
                       color: _isEnabled
                           ? Colors.orange[700]
                           : Colors.green[700],

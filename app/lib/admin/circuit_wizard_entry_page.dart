@@ -81,7 +81,7 @@ class _CircuitWizardEntryPageState extends State<CircuitWizardEntryPage> {
               children: [
                 const Text(
                   '🗺️ Wizard Circuit Pro',
-                  style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+                  style: TextStyle(fontSize: 24, fontWeight: FontWeight.w700),
                 ),
                 const SizedBox(height: 8),
                 const Text(
@@ -202,7 +202,7 @@ class _CircuitWizardEntryPageState extends State<CircuitWizardEntryPage> {
         ),
         title: Text(
           project.name,
-          style: const TextStyle(fontWeight: FontWeight.bold),
+          style: const TextStyle(fontWeight: FontWeight.w700),
         ),
         subtitle: Column(
           crossAxisAlignment: CrossAxisAlignment.start,

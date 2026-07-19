@@ -152,7 +152,7 @@ class _AdminAnalyticsPageState extends State<AdminAnalyticsPage> {
         Text(
           'Vue d\'ensemble',
           style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                fontWeight: FontWeight.bold,
+                fontWeight: FontWeight.w700,
               ),
         ),
         const SizedBox(height: 12),
@@ -207,7 +207,7 @@ class _AdminAnalyticsPageState extends State<AdminAnalyticsPage> {
               value,
               style: TextStyle(
                 fontSize: 24,
-                fontWeight: FontWeight.bold,
+                fontWeight: FontWeight.w700,
                 color: color,
               ),
             ),
@@ -241,7 +241,7 @@ class _AdminAnalyticsPageState extends State<AdminAnalyticsPage> {
             Text(
               'Croissance',
               style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                    fontWeight: FontWeight.bold,
+                    fontWeight: FontWeight.w700,
                   ),
             ),
             const SizedBox(height: 16),
@@ -287,7 +287,7 @@ class _AdminAnalyticsPageState extends State<AdminAnalyticsPage> {
             value,
             style: TextStyle(
               fontSize: 20,
-              fontWeight: FontWeight.bold,
+              fontWeight: FontWeight.w700,
               color: color,
             ),
           ),
@@ -318,7 +318,7 @@ class _AdminAnalyticsPageState extends State<AdminAnalyticsPage> {
             Text(
               'Distribution des rôles',
               style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                    fontWeight: FontWeight.bold,
+                    fontWeight: FontWeight.w700,
                   ),
             ),
             const SizedBox(height: 16),
@@ -379,7 +379,7 @@ class _AdminAnalyticsPageState extends State<AdminAnalyticsPage> {
                 Text(
                   'Activité récente',
                   style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                        fontWeight: FontWeight.bold,
+                        fontWeight: FontWeight.w700,
                       ),
                 ),
                 TextButton(

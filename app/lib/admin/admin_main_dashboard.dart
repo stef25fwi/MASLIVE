@@ -1272,7 +1272,7 @@ class _AdminMainDashboardState extends State<AdminMainDashboard> {
                       const SizedBox(width: 12),
                       const Text(
                         'Étapes:',
-                        style: TextStyle(fontWeight: FontWeight.bold),
+                        style: TextStyle(fontWeight: FontWeight.w700),
                       ),
                     ],
                   ),
@@ -1352,7 +1352,7 @@ class _AdminMainDashboardState extends State<AdminMainDashboard> {
                 Text(
                   currentStep,
                   textAlign: TextAlign.justify,
-                  style: const TextStyle(fontWeight: FontWeight.bold),
+                  style: const TextStyle(fontWeight: FontWeight.w700),
                 ),
                 const SizedBox(height: 8),
                 const LinearProgressIndicator(),
@@ -1440,7 +1440,7 @@ class _AdminMainDashboardState extends State<AdminMainDashboard> {
                   SizedBox(width: 12),
                   Text(
                     'Pipeline terminé !',
-                    style: TextStyle(fontWeight: FontWeight.bold),
+                    style: TextStyle(fontWeight: FontWeight.w700),
                   ),
                 ],
               ),
@@ -1650,7 +1650,7 @@ class _AdminMainDashboardState extends State<AdminMainDashboard> {
                                           ? 'Erreur'
                                           : 'Succès',
                                       style: TextStyle(
-                                        fontWeight: FontWeight.bold,
+                                        fontWeight: FontWeight.w700,
                                         color: result!.contains('Erreur')
                                             ? Colors.red
                                             : Colors.green,
@@ -1763,7 +1763,7 @@ Vérifiez:
                 style: const TextStyle(
                   color: Colors.white,
                   fontSize: 20,
-                  fontWeight: FontWeight.bold,
+                  fontWeight: FontWeight.w700,
                 ),
               ),
             ),
@@ -1777,7 +1777,7 @@ Vérifiez:
                     textAlign: TextAlign.justify,
                     style: const TextStyle(
                       fontSize: 20,
-                      fontWeight: FontWeight.bold,
+                      fontWeight: FontWeight.w700,
                     ),
                   ),
                   const SizedBox(height: 4),
@@ -1806,8 +1806,8 @@ Vérifiez:
     final titleStyle =
         Theme.of(
           context,
-        ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold) ??
-        const TextStyle(fontSize: 18, fontWeight: FontWeight.bold);
+        ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700) ??
+        const TextStyle(fontSize: 18, fontWeight: FontWeight.w700);
 
     return Row(
       children: [
@@ -1867,7 +1867,7 @@ Vérifiez:
                             Text(
                               'Carte par défaut',
                               style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                                    fontWeight: FontWeight.bold,
+                                    fontWeight: FontWeight.w700,
                                   ),
                             ),
                             const SizedBox(height: 2),
@@ -2041,11 +2041,11 @@ Vérifiez:
                       textAlign: TextAlign.justify,
                       style:
                           Theme.of(context).textTheme.titleSmall?.copyWith(
-                            fontWeight: FontWeight.bold,
+                            fontWeight: FontWeight.w700,
                           ) ??
                           const TextStyle(
                             fontSize: 16,
-                            fontWeight: FontWeight.bold,
+                            fontWeight: FontWeight.w700,
                           ),
                     ),
                   ),
@@ -2164,7 +2164,7 @@ class _AssistantCard extends StatelessWidget {
                             title,
                             style: const TextStyle(
                               fontSize: 16,
-                              fontWeight: FontWeight.bold,
+                              fontWeight: FontWeight.w700,
                             ),
                           ),
                         ),
@@ -2183,7 +2183,7 @@ class _AssistantCard extends StatelessWidget {
                               style: const TextStyle(
                                 color: Colors.white,
                                 fontSize: 10,
-                                fontWeight: FontWeight.bold,
+                                fontWeight: FontWeight.w700,
                               ),
                             ),
                           ),

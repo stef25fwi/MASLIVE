@@ -196,7 +196,7 @@ class _TrackerGroupProfilePageState extends State<TrackerGroupProfilePage> {
           const SizedBox(height: 24),
           const Text(
             'Rattachement à un groupe',
-            style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+            style: TextStyle(fontSize: 24, fontWeight: FontWeight.w700),
           ),
           const SizedBox(height: 32),
           TextField(
@@ -262,7 +262,7 @@ class _TrackerGroupProfilePageState extends State<TrackerGroupProfilePage> {
                   _tracker!.displayName,
                   style: const TextStyle(
                     fontSize: 20,
-                    fontWeight: FontWeight.bold,
+                    fontWeight: FontWeight.w700,
                   ),
                 ),
                 const SizedBox(height: 8),
@@ -288,7 +288,7 @@ class _TrackerGroupProfilePageState extends State<TrackerGroupProfilePage> {
                   _isTracking ? 'Tracking actif' : 'Tracking inactif',
                   style: const TextStyle(
                     fontSize: 18,
-                    fontWeight: FontWeight.bold,
+                    fontWeight: FontWeight.w700,
                   ),
                 ),
                 const SizedBox(height: 16),

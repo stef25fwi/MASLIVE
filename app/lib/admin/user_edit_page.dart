@@ -226,7 +226,7 @@ class _UserEditPageState extends State<UserEditPage> {
                         style: const TextStyle(
                           color: Colors.white,
                           fontSize: 32,
-                          fontWeight: FontWeight.bold,
+                          fontWeight: FontWeight.w700,
                         ),
                       ),
                     ),
@@ -249,7 +249,7 @@ class _UserEditPageState extends State<UserEditPage> {
                           RoleDefinition.getRoleLabel(_selectedRole),
                           style: TextStyle(
                             color: MasLiveTheme.getRoleColor(_selectedRole),
-                            fontWeight: FontWeight.bold,
+                            fontWeight: FontWeight.w700,
                           ),
                         ),
                       ],

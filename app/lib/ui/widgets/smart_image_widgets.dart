@@ -597,7 +597,7 @@ class SmartAvatar extends StatelessWidget {
                 fallbackText!.substring(0, 1).toUpperCase(),
                 style: TextStyle(
                   fontSize: size * 0.4,
-                  fontWeight: FontWeight.bold,
+                  fontWeight: FontWeight.w700,
                   color: Colors.white,
                 ),
               )

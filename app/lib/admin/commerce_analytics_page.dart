@@ -120,7 +120,7 @@ class _CommerceAnalyticsPageState extends State<CommerceAnalyticsPage> {
         elevation: 0,
         title: const Text(
           'Analytics Commerce',
-          style: TextStyle(color: Colors.black87, fontWeight: FontWeight.bold),
+          style: TextStyle(color: Colors.black87, fontWeight: FontWeight.w700),
         ),
         iconTheme: const IconThemeData(color: Colors.black87),
         actions: [
@@ -279,7 +279,7 @@ class _CommerceAnalyticsPageState extends State<CommerceAnalyticsPage> {
       title,
       style: const TextStyle(
         fontSize: 18,
-        fontWeight: FontWeight.bold,
+        fontWeight: FontWeight.w700,
         color: Colors.black87,
       ),
     );
@@ -313,7 +313,7 @@ class _CommerceAnalyticsPageState extends State<CommerceAnalyticsPage> {
               value,
               style: TextStyle(
                 fontSize: 28,
-                fontWeight: FontWeight.bold,
+                fontWeight: FontWeight.w700,
                 color: color,
               ),
             ),
@@ -358,7 +358,7 @@ class _CommerceAnalyticsPageState extends State<CommerceAnalyticsPage> {
                   '${percentage.toStringAsFixed(1)}%',
                   style: TextStyle(
                     fontSize: 18,
-                    fontWeight: FontWeight.bold,
+                    fontWeight: FontWeight.w700,
                     color: color,
                   ),
                 ),
