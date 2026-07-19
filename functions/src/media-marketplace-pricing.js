@@ -43,25 +43,60 @@ function packForCount(count) {
   return PHOTO_PACKS.find((pack) => pack.photoCount === normalized) || null
 }
 
-function bestPackCombination(count) {
-  let remaining = Math.max(0, Math.trunc(Number(count) || 0))
-  const sorted = [...PHOTO_PACKS].sort((a, b) => b.photoCount - a.photoCount)
-  const result = []
-  for (const pack of sorted) {
-    while (remaining >= pack.photoCount) {
-      result.push(pack)
-      remaining -= pack.photoCount
+function roundCurrency(value) {
+  return Math.round((Number(value) + Number.EPSILON) * 100) / 100
+}
+
+function quoteForPhotoCount(count) {
+  const requestedPhotoCount = Math.max(0, Math.trunc(Number(count) || 0))
+  if (!requestedPhotoCount) {
+    return { requestedPhotoCount: 0, billedPhotoCount: 0, bonusPhotoSlots: 0, packs: [], total: 0 }
+  }
+
+  const maxPackSize = Math.max(...PHOTO_PACKS.map((pack) => pack.photoCount))
+  const maxBilledCount = requestedPhotoCount + maxPackSize - 1
+  const bestPrices = Array(maxBilledCount + 1).fill(Number.POSITIVE_INFINITY)
+  const combinations = Array(maxBilledCount + 1).fill(null)
+  bestPrices[0] = 0
+  combinations[0] = []
+
+  for (let current = 1; current <= maxBilledCount; current += 1) {
+    for (const pack of PHOTO_PACKS) {
+      const previous = current - pack.photoCount
+      if (previous < 0 || combinations[previous] == null) continue
+      const candidate = bestPrices[previous] + pack.price
+      if (candidate < bestPrices[current] - 0.0001) {
+        bestPrices[current] = candidate
+        combinations[current] = [...combinations[previous], pack]
+      }
     }
   }
-  return result
+
+  let billedPhotoCount = requestedPhotoCount
+  for (let current = requestedPhotoCount; current <= maxBilledCount; current += 1) {
+    if (combinations[current] == null) continue
+    if (combinations[billedPhotoCount] == null ||
+        bestPrices[current] < bestPrices[billedPhotoCount] - 0.0001 ||
+        (Math.abs(bestPrices[current] - bestPrices[billedPhotoCount]) < 0.0001 && current < billedPhotoCount)) {
+      billedPhotoCount = current
+    }
+  }
+
+  return {
+    requestedPhotoCount,
+    billedPhotoCount,
+    bonusPhotoSlots: billedPhotoCount - requestedPhotoCount,
+    packs: combinations[billedPhotoCount],
+    total: roundCurrency(bestPrices[billedPhotoCount]),
+  }
+}
+
+function bestPackCombination(count) {
+  return quoteForPhotoCount(count).packs
 }
 
 function photoSelectionPrice(count) {
-  return roundCurrency(bestPackCombination(count).reduce((sum, pack) => sum + pack.price, 0))
-}
-
-function roundCurrency(value) {
-  return Math.round((Number(value) + Number.EPSILON) * 100) / 100
+  return quoteForPhotoCount(count).total
 }
 
 function stripeFeeEstimate(total) {
@@ -132,4 +167,4 @@ function defaultPackDocuments({ photographerId, ownerUid, galleryId, eventId, ti
   }))
 }
 
-module.exports = { GiB, MiB, PHOTO_PACKS, PHOTOGRAPHER_PLANS, STORAGE_EXTENSIONS, planFor, packForCode, packForCount, bestPackCombination, photoSelectionPrice, stripeFeeEstimate, roundCurrency, quotaSnapshot, planDocument, defaultPackDocuments }
+module.exports = { GiB, MiB, PHOTO_PACKS, PHOTOGRAPHER_PLANS, STORAGE_EXTENSIONS, planFor, packForCode, packForCount, quoteForPhotoCount, bestPackCombination, photoSelectionPrice, stripeFeeEstimate, roundCurrency, quotaSnapshot, planDocument, defaultPackDocuments }

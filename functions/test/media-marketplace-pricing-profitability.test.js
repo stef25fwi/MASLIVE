@@ -7,6 +7,7 @@ const {
   PHOTO_PACKS,
   PHOTOGRAPHER_PLANS,
   STORAGE_EXTENSIONS,
+  quoteForPhotoCount,
   photoSelectionPrice,
   stripeFeeEstimate,
   quotaSnapshot,
@@ -27,13 +28,31 @@ test("buyer photo packs expose the approved MASLIVE prices", () => {
   assert.equal(PHOTO_PACKS.find((pack) => pack.highlighted)?.code, "essential")
 })
 
-test("automatic pricing always uses the best approved pack combination", () => {
+test("automatic pricing always uses the cheapest approved offer", () => {
   assert.equal(photoSelectionPrice(1), 6.90)
   assert.equal(photoSelectionPrice(2), 10.90)
   assert.equal(photoSelectionPrice(5), 19.90)
-  assert.equal(photoSelectionPrice(7), 30.80)
+  assert.equal(photoSelectionPrice(7), 29.90)
+  assert.equal(photoSelectionPrice(9), 29.90)
   assert.equal(photoSelectionPrice(20), 44.90)
   assert.equal(photoSelectionPrice(21), 51.80)
+
+  assert.deepEqual(
+    quoteForPhotoCount(9),
+    {
+      requestedPhotoCount: 9,
+      billedPhotoCount: 10,
+      bonusPhotoSlots: 1,
+      packs: [PHOTO_PACKS.find((pack) => pack.code === "experience")],
+      total: 29.90,
+    },
+  )
+})
+
+test("automatic pricing is never more expensive than single photos", () => {
+  for (let count = 1; count <= 100; count += 1) {
+    assert.ok(photoSelectionPrice(count) <= (count * 6.90), `${count} photos`)
+  }
 })
 
 test("photographer plans keep exact quotas, quality and commissions", () => {

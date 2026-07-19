@@ -24,13 +24,30 @@ void main() {
       );
     });
 
-    test('calcule la meilleure combinaison de packs', () {
+    test('calcule le tarif réellement le moins cher, bonus inclus', () {
       expect(MediaMarketplacePricing.priceForPhotoCount(1), closeTo(6.90, .001));
       expect(MediaMarketplacePricing.priceForPhotoCount(2), closeTo(10.90, .001));
       expect(MediaMarketplacePricing.priceForPhotoCount(5), closeTo(19.90, .001));
-      expect(MediaMarketplacePricing.priceForPhotoCount(7), closeTo(30.80, .001));
+      expect(MediaMarketplacePricing.priceForPhotoCount(7), closeTo(29.90, .001));
+      expect(MediaMarketplacePricing.priceForPhotoCount(9), closeTo(29.90, .001));
       expect(MediaMarketplacePricing.priceForPhotoCount(20), closeTo(44.90, .001));
       expect(MediaMarketplacePricing.priceForPhotoCount(21), closeTo(51.80, .001));
+
+      final quote = MediaMarketplacePricing.quoteForPhotoCount(9);
+      expect(quote.requestedPhotoCount, 9);
+      expect(quote.billedPhotoCount, 10);
+      expect(quote.bonusPhotoSlots, 1);
+      expect(quote.packs.single.code, 'experience');
+    });
+
+    test('ne facture jamais plus cher que la sélection à l’unité', () {
+      for (var count = 1; count <= 100; count++) {
+        expect(
+          MediaMarketplacePricing.priceForPhotoCount(count),
+          lessThanOrEqualTo((count * 6.90) + .001),
+          reason: '$count photo(s)',
+        );
+      }
     });
 
     test('conserve les quatre plans et commissions', () {
