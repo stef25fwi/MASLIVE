@@ -8,6 +8,7 @@ import '../../data/repositories/bloom_art_repository.dart';
 import '../widgets/bloom_art_item_card.dart';
 import 'bloom_art_profile_choice_sheet.dart';
 import 'package:masslive/ui_kit/tokens/maslive_tokens.dart';
+import '../../../../ui/widgets/maslive_empty_state.dart';
 
 class _Ui {
   const _Ui._();
@@ -209,18 +210,14 @@ class BloomArtHomePage extends StatelessWidget {
                     SliverFillRemaining(
                       hasScrollBody: false,
                       child: Center(
-                        child: Padding(
-                          padding: const EdgeInsets.all(24),
-                          child: Text(
-                            isArtCreator
-                                ? 'Aucune pièce n’est encore publiée.\nDéposez la première création.'
-                                : 'Aucune œuvre n’est disponible pour le moment.\nRevenez bientôt pour découvrir de nouvelles créations.',
-                            textAlign: TextAlign.center,
-                            style: const TextStyle(
-                              color: _Ui.textMuted,
-                              height: 1.45,
-                            ),
-                          ),
+                        child: MasliveEmptyState(
+                          icon: Icons.palette_outlined,
+                          title: isArtCreator
+                              ? 'Aucune pièce n’est encore publiée'
+                              : 'Aucune œuvre n’est disponible pour le moment',
+                          message: isArtCreator
+                              ? 'Déposez la première création.'
+                              : 'Revenez bientôt pour découvrir de nouvelles créations.',
                         ),
                       ),
                     )
