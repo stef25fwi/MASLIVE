@@ -25,12 +25,12 @@ void main() {
     });
 
     test('calcule la meilleure combinaison de packs', () {
-      expect(MediaMarketplacePricing.priceForPhotoCount(1), 6.90);
-      expect(MediaMarketplacePricing.priceForPhotoCount(2), 10.90);
-      expect(MediaMarketplacePricing.priceForPhotoCount(5), 19.90);
-      expect(MediaMarketplacePricing.priceForPhotoCount(7), 30.80);
-      expect(MediaMarketplacePricing.priceForPhotoCount(20), 44.90);
-      expect(MediaMarketplacePricing.priceForPhotoCount(21), 51.80);
+      expect(MediaMarketplacePricing.priceForPhotoCount(1), closeTo(6.90, .001));
+      expect(MediaMarketplacePricing.priceForPhotoCount(2), closeTo(10.90, .001));
+      expect(MediaMarketplacePricing.priceForPhotoCount(5), closeTo(19.90, .001));
+      expect(MediaMarketplacePricing.priceForPhotoCount(7), closeTo(30.80, .001));
+      expect(MediaMarketplacePricing.priceForPhotoCount(20), closeTo(44.90, .001));
+      expect(MediaMarketplacePricing.priceForPhotoCount(21), closeTo(51.80, .001));
     });
 
     test('conserve les quatre plans et commissions', () {
