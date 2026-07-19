@@ -187,9 +187,9 @@ class _BloomArtItemCreatePageState extends State<BloomArtItemCreatePage> {
     final profile = _sellerProfile;
 
     return Scaffold(
-      backgroundColor: MasliveTokens.surfaceEditorial,
+      backgroundColor: MasliveTokens.surface,
       appBar: AppBar(
-        backgroundColor: MasliveTokens.surfaceEditorial,
+        backgroundColor: MasliveTokens.surface,
         elevation: 0,
         title: const Text(
           'Dépôt d’une création',
@@ -219,7 +219,7 @@ class _BloomArtItemCreatePageState extends State<BloomArtItemCreatePage> {
                             decoration: BoxDecoration(
                               color: Colors.white,
                               borderRadius: BorderRadius.circular(28),
-                              border: Border.all(color: MasliveTokens.lineEditorial),
+                              border: Border.all(color: MasliveTokens.line),
                             ),
                             child: const Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
@@ -231,7 +231,7 @@ class _BloomArtItemCreatePageState extends State<BloomArtItemCreatePage> {
                                 SizedBox(height: 8),
                                 Text(
                                   'Le prix de référence reste privé. La fiche publique ne montrera que l’œuvre, son histoire et le bouton proposer un prix.',
-                                  style: TextStyle(color: MasliveTokens.textEditorialMuted, height: 1.45),
+                                  style: TextStyle(color: MasliveTokens.textMuted, height: 1.45),
                                 ),
                               ],
                             ),
@@ -374,7 +374,7 @@ class _BlockedCreateState extends StatelessWidget {
           decoration: BoxDecoration(
             color: Colors.white,
             borderRadius: BorderRadius.circular(28),
-            border: Border.all(color: MasliveTokens.lineEditorial),
+            border: Border.all(color: MasliveTokens.line),
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -384,7 +384,7 @@ class _BlockedCreateState extends StatelessWidget {
                 style: TextStyle(fontSize: 24, fontWeight: FontWeight.w900),
               ),
               const SizedBox(height: 8),
-              Text(message, style: const TextStyle(color: MasliveTokens.textEditorialMuted, height: 1.45)),
+              Text(message, style: const TextStyle(color: MasliveTokens.textMuted, height: 1.45)),
               const SizedBox(height: 14),
               BloomArtCtaButton(
                 label: 'Vérifier mon SIRET',

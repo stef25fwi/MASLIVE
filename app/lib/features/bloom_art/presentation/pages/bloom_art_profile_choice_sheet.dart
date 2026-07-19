@@ -20,7 +20,7 @@ class BloomArtProfileChoiceSheet extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       decoration: const BoxDecoration(
-        color: MasliveTokens.surfaceEditorial,
+        color: MasliveTokens.surface,
         borderRadius: BorderRadius.vertical(top: Radius.circular(34)),
       ),
       padding: const EdgeInsets.fromLTRB(20, 18, 20, 26),
@@ -33,7 +33,7 @@ class BloomArtProfileChoiceSheet extends StatelessWidget {
               width: 48,
               height: 5,
               decoration: BoxDecoration(
-                color: const Color(0xFFD7CABD),
+                color: MasliveTokens.line,
                 borderRadius: BorderRadius.circular(999),
               ),
             ),
@@ -51,7 +51,7 @@ class BloomArtProfileChoiceSheet extends StatelessWidget {
           const Text(
             'Le dépôt d’œuvre est réservé aux artistes déclarés avec SIRET vérifié. Le parcours “Je me lance” sert à préparer la création d’entreprise.',
             style: TextStyle(
-              color: MasliveTokens.textEditorialMuted,
+              color: MasliveTokens.textMuted,
               height: 1.45,
             ),
           ),

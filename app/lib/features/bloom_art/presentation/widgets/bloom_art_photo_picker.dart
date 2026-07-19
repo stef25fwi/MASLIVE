@@ -61,13 +61,13 @@ class _BloomArtPhotoPickerState extends State<BloomArtPhotoPicker> {
             width: double.infinity,
             padding: const EdgeInsets.all(18),
             decoration: BoxDecoration(
-              color: MasliveTokens.surfaceEditorial,
+              color: MasliveTokens.surface,
               borderRadius: BorderRadius.circular(20),
-              border: Border.all(color: const Color(0xFFE8DED3)),
+              border: Border.all(color: MasliveTokens.line),
             ),
             child: const Text(
               'Ajoutez jusqu\'a 10 photos. Elles seront uploadees dans Firebase Storage au moment de la publication.',
-              style: TextStyle(color: MasliveTokens.textEditorialMuted),
+              style: TextStyle(color: MasliveTokens.textMuted),
             ),
           )
         else

@@ -328,9 +328,9 @@ class _BloomArtArtistCreatorFormPageState
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: MasliveTokens.surfaceEditorial,
+      backgroundColor: MasliveTokens.surface,
       appBar: AppBar(
-        backgroundColor: MasliveTokens.surfaceEditorial,
+        backgroundColor: MasliveTokens.surface,
         elevation: 0,
         title: const Text(
           'Artisan d’art déclaré',
@@ -507,14 +507,14 @@ class _BloomArtArtistCreatorFormPageState
                     width: double.infinity,
                     padding: const EdgeInsets.all(14),
                     decoration: BoxDecoration(
-                      color: const Color(0xFFF7F3EF),
+                      color: MasliveTokens.bg,
                       borderRadius: BorderRadius.circular(16),
                     ),
                     child: Text(
                       _stripeAccountLinked
                           ? 'Compte de paiement Stripe relié (statut : $_payoutStatus). Gérez-le depuis votre dashboard vendeur.'
                           : 'Aucun compte de paiement relié pour l’instant. Vous pourrez le configurer depuis votre dashboard vendeur après création.',
-                      style: const TextStyle(color: MasliveTokens.textEditorialMuted, height: 1.4),
+                      style: const TextStyle(color: MasliveTokens.textMuted, height: 1.4),
                     ),
                   ),
                   const SizedBox(height: 18),
@@ -585,10 +585,10 @@ class _BusinessVerificationCard extends StatelessWidget {
       width: double.infinity,
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: verified ? const Color(0xFFEAF7EE) : const Color(0xFFFFF4E5),
+        color: verified ? const Color(0xFFEAF7EE) : MasliveTokens.warning.withValues(alpha: 0.12),
         borderRadius: BorderRadius.circular(20),
         border: Border.all(
-          color: verified ? const Color(0xFFB7E1C1) : const Color(0xFFEBD1A7),
+          color: verified ? const Color(0xFFB7E1C1) : MasliveTokens.warning.withValues(alpha: 0.4),
         ),
       ),
       child: Row(
@@ -596,7 +596,7 @@ class _BusinessVerificationCard extends StatelessWidget {
         children: <Widget>[
           Icon(
             verified ? Icons.verified_rounded : Icons.info_outline_rounded,
-            color: verified ? const Color(0xFF217A3B) : const Color(0xFF9A6A18),
+            color: verified ? const Color(0xFF217A3B) : MasliveTokens.warning,
           ),
           const SizedBox(width: 12),
           Expanded(
@@ -605,7 +605,7 @@ class _BusinessVerificationCard extends StatelessWidget {
               children: <Widget>[
                 Text(title, style: const TextStyle(fontWeight: FontWeight.w900)),
                 const SizedBox(height: 4),
-                Text(body, style: const TextStyle(color: MasliveTokens.textEditorialMuted, height: 1.35)),
+                Text(body, style: const TextStyle(color: MasliveTokens.textMuted, height: 1.35)),
               ],
             ),
           ),
@@ -628,7 +628,7 @@ class _BloomArtFormHero extends StatelessWidget {
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(28),
-        border: Border.all(color: MasliveTokens.lineEditorial),
+        border: Border.all(color: MasliveTokens.line),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -640,7 +640,7 @@ class _BloomArtFormHero extends StatelessWidget {
           const SizedBox(height: 8),
           Text(
             subtitle,
-            style: const TextStyle(color: MasliveTokens.textEditorialMuted, height: 1.45),
+            style: const TextStyle(color: MasliveTokens.textMuted, height: 1.45),
           ),
         ],
       ),
@@ -680,7 +680,7 @@ class _BloomArtTextField extends StatelessWidget {
         labelText: label,
         border: const OutlineInputBorder(),
         filled: true,
-        fillColor: readOnly ? const Color(0xFFF7F3EF) : Colors.white,
+        fillColor: readOnly ? MasliveTokens.bg : Colors.white,
       ),
     );
   }

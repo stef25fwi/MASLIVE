@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import 'package:masslive/ui_kit/tokens/maslive_tokens.dart';
+
 class BloomArtInfoRow extends StatelessWidget {
   const BloomArtInfoRow({
     super.key,
@@ -23,7 +25,7 @@ class BloomArtInfoRow extends StatelessWidget {
             child: Text(
               label,
               style: const TextStyle(
-                color: Color(0xFF7D7067),
+                color: MasliveTokens.textMuted,
                 fontWeight: FontWeight.w700,
               ),
             ),
@@ -33,7 +35,7 @@ class BloomArtInfoRow extends StatelessWidget {
             child: Text(
               value,
               style: const TextStyle(
-                color: Color(0xFF1D1D1D),
+                color: MasliveTokens.text,
                 fontWeight: FontWeight.w600,
                 height: 1.4,
               ),
