@@ -1715,88 +1715,64 @@ class _MasLiveMapWebState extends State<MasLiveMapWeb> {
     }
   }
 
-  /// TEMP DEBUG: dernier diagnostic detaille du hit-test (voir
-  /// [MasLiveMapControllerPoi.onPoiHitTestDebug]). A retirer avec le reste
-  /// de l'instrumentation une fois le bug identifie.
-  String _lastHitTestDebug = '';
-
-  (String?, String) _hitTestPoiIdDebug(double lng, double lat) {
+  String? _hitTestPoiId(double lng, double lat) {
     final map = _getMapForThisContainer();
-    if (map == null) return (null, 'map JS introuvable pour ce containerId');
+    if (map == null) return null;
 
-    const layerIds = <String>[
-      _poiFillLayerId,
-      _poiPatternLayerId,
-      _poiLineLayerDottedId,
-      _poiLineLayerDashedId,
-      _poiLineLayerId,
-      _poiZoneLabelLayerId,
-      _poiIconLayerId,
-      _poiLayerId,
-    ];
-
-    final existingLayers = <String>[];
     try {
-      for (final id in layerIds) {
-        if (map.callMethod('getLayer', [id]) != null) existingLayers.add(id);
+      final layerPoint = map.callMethod('getLayer', [_poiLayerId]);
+      final layerPointIcon = map.callMethod('getLayer', [_poiIconLayerId]);
+      final layerLabel = map.callMethod('getLayer', [_poiZoneLabelLayerId]);
+      final layerFill = map.callMethod('getLayer', [_poiFillLayerId]);
+      final layerPattern = map.callMethod('getLayer', [_poiPatternLayerId]);
+      final layerLine = map.callMethod('getLayer', [_poiLineLayerId]);
+      final layerDashed = map.callMethod('getLayer', [_poiLineLayerDashedId]);
+      final layerDotted = map.callMethod('getLayer', [_poiLineLayerDottedId]);
+      if (layerPoint == null &&
+          layerPointIcon == null &&
+          layerLabel == null &&
+          layerFill == null &&
+          layerPattern == null &&
+          layerLine == null &&
+          layerDashed == null &&
+          layerDotted == null) {
+        return null;
       }
-      if (existingLayers.isEmpty) {
-        return (null, 'aucun layer POI présent dans le style (0/${layerIds.length})');
-      }
-    } catch (e) {
-      return (null, 'exception getLayer: $e');
-    }
-
-    Object? projected;
-    num? px;
-    num? py;
-    try {
-      // IMPORTANT: on construit explicitement le tableau JS via
-      // js.JsArray.from plutôt que de passer un literal Dart [lng, lat]
-      // imbriqué dans les arguments de callMethod. La conversion implicite
-      // de callMethod ne propage pas correctement les valeurs numeriques a
-      // travers un List<List<double>> imbrique (le tableau JS obtenu a la
-      // bonne longueur mais des elements undefined/NaN), ce qui faisait
-      // planter project() avec "Invalid LngLat object: (NaN, NaN)" sur
-      // TOUT tap, quelle que soit la plateforme (repro Android + iPad).
-      final lngLatArray = js.JsArray<num>.from(<num>[lng, lat]);
-      projected = map.callMethod('project', [lngLatArray]);
-      px = (projected as js.JsObject)['x'] as num?;
-      py = projected['y'] as num?;
-    } catch (e) {
-      return (null, 'exception project(): $e (projected=$projected)');
-    }
-
-    if (px == null || py == null || px.isNaN || py.isNaN) {
-      return (null, 'project() a renvoyé des pixels invalides: x=$px y=$py (input lng=$lng lat=$lat)');
-    }
-
-    js.JsArray<num>? point;
-    try {
-      point = js.JsArray<num>.from(<num>[px, py]);
-    } catch (e) {
-      return (null, 'exception construction point JS: $e (px=$px py=$py)');
+    } catch (_) {
+      return null;
     }
 
     try {
+      // On construit explicitement le tableau JS [lng, lat] via
+      // js.JsArray.from plutôt qu'un literal Dart imbriqué dans les
+      // arguments de callMethod : la conversion implicite de callMethod ne
+      // propage pas correctement les valeurs numériques à travers un
+      // List<List<double>> imbriqué (tableau JS de bonne longueur mais aux
+      // éléments undefined/NaN), ce qui faisait planter project() avec
+      // "Invalid LngLat object: (NaN, NaN)" sur tout tap.
+      final projected = map.callMethod('project', [
+        js.JsArray<num>.from(<num>[lng, lat]),
+      ]);
+      final px = projected['x'] as num?;
+      final py = projected['y'] as num?;
+      if (px == null || py == null || px.isNaN || py.isNaN) return null;
+
+      final point = js.JsArray<num>.from(<num>[px, py]);
       final feats = map.callMethod('queryRenderedFeatures', [
         point,
-        js.JsObject.jsify({'layers': layerIds}),
+        js.JsObject.jsify({
+          'layers': <String>[
+            _poiFillLayerId,
+            _poiPatternLayerId,
+            _poiLineLayerDottedId,
+            _poiLineLayerDashedId,
+            _poiLineLayerId,
+            _poiZoneLabelLayerId,
+            _poiIconLayerId,
+            _poiLayerId,
+          ],
+        }),
       ]);
-      final featCount = (feats is js.JsArray) ? feats.length : -1;
-
-      // Requête large (tous layers confondus) pour voir ce qui EST touché
-      // au même point, si notre requête restreinte ne trouve rien.
-      int anyLayerFeatCount = -1;
-      if (featCount <= 0) {
-        try {
-          final anyFeats = map.callMethod('queryRenderedFeatures', [point]);
-          anyLayerFeatCount = (anyFeats is js.JsArray) ? anyFeats.length : -1;
-        } catch (_) {
-          // ignore
-        }
-      }
-
       if (feats is js.JsArray && feats.isNotEmpty) {
         for (final item in feats) {
           if (item is! js.JsObject) continue;
@@ -1809,27 +1785,14 @@ class _MasLiveMapWebState extends State<MasLiveMapWeb> {
               (props is js.JsObject ? props['poiId'] : null) ?? item['id'];
           final id = (poiId ?? '').toString();
           if (id.isNotEmpty) {
-            return (
-              id,
-              'layers=${existingLayers.length}/${layerIds.length} featsTrouvees=$featCount poiId=$id',
-            );
+            return id;
           }
         }
       }
-      return (
-        null,
-        'layers=${existingLayers.length}/${layerIds.length} featsPoiLayers=$featCount '
-        'featsToutesLayers=$anyLayerFeatCount',
-      );
-    } catch (e) {
-      return (null, 'exception queryRenderedFeatures: $e (px=$px py=$py)');
+    } catch (_) {
+      // ignore
     }
-  }
-
-  String? _hitTestPoiId(double lng, double lat) {
-    final (poiId, debugInfo) = _hitTestPoiIdDebug(lng, lat);
-    _lastHitTestDebug = debugInfo;
-    return poiId;
+    return null;
   }
 
   Future<void> _ensurePoiPatternImages(js.JsObject map) async {
@@ -2026,23 +1989,13 @@ class _MasLiveMapWebState extends State<MasLiveMapWeb> {
 
     // 1) POI hit-test
     final poiId = _hitTestPoiId(lng, lat);
-    debugPrint('🗺️ [POI_TAP] hitTest lng=$lng lat=$lat -> poiId=$poiId ($_lastHitTestDebug)');
-    try {
-      final debugCb =
-          (controller as dynamic).onPoiHitTestDebug as void Function(String)?;
-      debugCb?.call(
-        '@${lat.toStringAsFixed(5)},${lng.toStringAsFixed(5)} poiId=$poiId $_lastHitTestDebug',
-      );
-    } catch (_) {
-      // ignore
-    }
     if (poiId != null) {
       try {
         final cb = (controller as dynamic).onPoiTap as void Function(String)?;
         cb?.call(poiId);
         return;
-      } catch (e) {
-        debugPrint('⚠️ [POI_TAP] onPoiTap callback error: $e');
+      } catch (_) {
+        // ignore
       }
     }
 

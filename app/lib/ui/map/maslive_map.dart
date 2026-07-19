@@ -34,11 +34,6 @@ class MasLiveMapControllerPoi extends MasLiveMapController {
   /// Callback map: tap sur la carte hors POI.
   void Function(double lat, double lng)? onMapTap;
 
-  /// TEMP DEBUG: diagnostic detaille du hit-test POI (existence des layers,
-  /// nombre de features brutes trouvees, poiId resolu). A retirer une fois
-  /// le bug d'absence de popup POI identifie.
-  void Function(String debugInfo)? onPoiHitTestDebug;
-
   /// @nodoc - usage interne seulement
   set setPoisGeoJsonImpl(
     Future<void> Function(String featureCollectionJson)? impl,

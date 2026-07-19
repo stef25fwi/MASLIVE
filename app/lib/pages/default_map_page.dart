@@ -157,11 +157,6 @@ class _DefaultMapPageState extends State<DefaultMapPage>
   rsp.RouteStyleConfig? _marketRouteStylePro;
   ({double west, double south, double east, double north})? _marketRouteBounds;
   bool _isPoiPopupShowing = false;
-
-  // TEMP DEBUG: bandeau visible pour diagnostiquer le tap POI sans accès aux
-  // devtools (Safari iPad). À retirer une fois le bug identifié.
-  String? _debugLastTapInfo;
-  String? _debugPoiSyncInfo;
   DateTime? _lastPoiPopupAt;
   String? _lastPoiPopupId;
 
@@ -279,22 +274,16 @@ class _DefaultMapPageState extends State<DefaultMapPage>
     if (!_isMasLiveMapReady) return;
 
     final pois = _visibleMarketPoisForCurrentAction();
-    final circuitId = _marketPoiSelection.circuit?.id ?? 'none';
-    debugPrint(
-      '[POI_RENDER] '
-      'circuit=$circuitId '
-      'action=${_selectedAction?.name ?? 'none'} '
-      'mapReady=$_isMasLiveMapReady '
-      'received=${_marketPois.length} '
-      'rendered=${pois.length}',
-    );
-    if (mounted) {
-      setState(() {
-        _debugPoiSyncInfo =
-            'Sync POIs: action=${_selectedAction?.name ?? 'none'} '
-            'reçus=${_marketPois.length} visibles=${pois.length} '
-            '${pois.isNotEmpty ? 'coords=${pois.map((p) => '${p.id}@${p.lat.toStringAsFixed(5)},${p.lng.toStringAsFixed(5)}').join(' | ')}' : ''}';
-      });
+    if (kDebugMode) {
+      final circuitId = _marketPoiSelection.circuit?.id ?? 'none';
+      debugPrint(
+        '[POI_RENDER] '
+        'circuit=$circuitId '
+        'action=${_selectedAction?.name ?? 'none'} '
+        'mapReady=$_isMasLiveMapReady '
+        'received=${_marketPois.length} '
+        'rendered=${pois.length}',
+      );
     }
 
     if (pois.isEmpty) {
@@ -629,14 +618,7 @@ class _DefaultMapPageState extends State<DefaultMapPage>
         break;
       }
     }
-    if (poi == null || !mounted) {
-      final msg =
-          'onPoiTap($poiId) mais aucun POI visible correspondant '
-          '(visibles=${_visibleMarketPoisForCurrentAction().length})';
-      debugPrint('🗺️ [POI_TAP] $msg');
-      if (mounted) setState(() => _debugLastTapInfo = msg);
-      return;
-    }
+    if (poi == null || !mounted) return;
 
     final type = (poi.type ?? poi.layerId).trim();
     final title = poi.name.trim().isEmpty
@@ -652,35 +634,18 @@ class _DefaultMapPageState extends State<DefaultMapPage>
       hasImage: hasImage,
     );
 
-    debugPrint(
-      '🗺️ [POI_TAP] candidat=$poiId title=$title type=$type popupEnabled=$popupEnabled',
-    );
-    setState(() {
-      _debugLastTapInfo =
-          'POI trouvé: id=$poiId title=$title type=$type popupEnabled=$popupEnabled';
-    });
-
     // La fiche doit toujours pouvoir s'ouvrir au tap (avec logo par défaut si
     // pas de photo/description) : seul popupEnabled (flag explicite ou défaut
     // par type, ex: WC désactivé) décide, plus de condition sur le volume de
     // données déjà renseignées.
-    if (!popupEnabled) {
-      debugPrint('🗺️ [POI_TAP] bloqué: popupEnabled=false pour $poiId');
-      return;
-    }
+    if (!popupEnabled) return;
 
     final now = DateTime.now();
     final lastAt = _lastPoiPopupAt;
-    if (_isPoiPopupShowing) {
-      debugPrint('🗺️ [POI_TAP] bloqué: _isPoiPopupShowing déjà true');
-      setState(() => _debugLastTapInfo = 'Bloqué: popup déjà affichée (_isPoiPopupShowing)');
-      return;
-    }
+    if (_isPoiPopupShowing) return;
     if (lastAt != null &&
         now.difference(lastAt) < _poiPopupDebounce &&
         _lastPoiPopupId == poiId) {
-      debugPrint('🗺️ [POI_TAP] bloqué: debounce sur $poiId');
-      setState(() => _debugLastTapInfo = 'Bloqué: debounce sur $poiId');
       return;
     }
 
@@ -712,8 +677,9 @@ class _DefaultMapPageState extends State<DefaultMapPage>
         poiId: poi.id,
       );
     } catch (e) {
-      debugPrint('⚠️ [POI_TAP] erreur affichage polaroid: $e');
-      if (mounted) setState(() => _debugLastTapInfo = 'Erreur showPolaroidPoiSheet: $e');
+      if (kDebugMode) {
+        debugPrint('⚠️ POI polaroid display error: $e');
+      }
     } finally {
       _isPoiPopupShowing = false;
     }
@@ -812,13 +778,9 @@ class _DefaultMapPageState extends State<DefaultMapPage>
 
   void _handleMapStyleFallback() {
     unawaited(_clearPersistedLastHomeStyleUrl());
-    debugPrint('⚠️ DefaultMapPage: style fallback déclenché (style=$_styleUrl)');
     if (!mounted) return;
 
     final defaultStyleUrl = _resolvedStartupHomeStyleUrl;
-    setState(() {
-      _debugPoiSyncInfo = 'STYLE FALLBACK: $_styleUrl -> $defaultStyleUrl';
-    });
     if (_styleUrl == defaultStyleUrl) return;
 
     setState(() {
@@ -947,10 +909,6 @@ class _DefaultMapPageState extends State<DefaultMapPage>
     _isTracking = _geo.isTracking;
     _listenHomeControlsThemeConfig();
     _mapController.onPoiTap = _handleMarketPoiTap;
-    _mapController.onPoiHitTestDebug = (info) {
-      if (!mounted) return;
-      setState(() => _debugLastTapInfo = 'hitTest: $info');
-    };
 
     // Initialiser le drapeau de langue dès initState (pas de délai)
     _updateLanguageFlag();
@@ -1037,9 +995,6 @@ class _DefaultMapPageState extends State<DefaultMapPage>
   void _handleMapInitError(String message) {
     StartupTrace.log('MAPBOX_WEB', 'map init error: $message');
     debugPrint('⚠️ DefaultMapPage: map init error: $message');
-    if (mounted) {
-      setState(() => _debugPoiSyncInfo = 'MAP INIT ERROR: $message');
-    }
     _notifyMapReady();
   }
 
@@ -2440,42 +2395,6 @@ class _DefaultMapPageState extends State<DefaultMapPage>
                       child: Center(
                         child: ActiveCircuitHeaderBanner(
                           circuitName: activeCircuitName,
-                        ),
-                      ),
-                    ),
-                  ),
-
-                // TEMP DEBUG: bandeau diagnostic tap POI (à retirer une fois
-                // le bug identifié).
-                if (_debugLastTapInfo != null || _debugPoiSyncInfo != null)
-                  Positioned(
-                    left: 12,
-                    right: 12,
-                    bottom: bottomInset + bottomBarHeight + 12,
-                    child: IgnorePointer(
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-                        decoration: BoxDecoration(
-                          color: Colors.black87,
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        child: Column(
-                          mainAxisSize: MainAxisSize.min,
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            if (_debugPoiSyncInfo != null)
-                              Text(
-                                _debugPoiSyncInfo!,
-                                style: const TextStyle(color: Colors.cyanAccent, fontSize: 11, fontWeight: FontWeight.w600),
-                              ),
-                            if (_debugLastTapInfo != null) ...[
-                              const SizedBox(height: 4),
-                              Text(
-                                _debugLastTapInfo!,
-                                style: const TextStyle(color: Colors.yellow, fontSize: 12, fontWeight: FontWeight.w600),
-                              ),
-                            ],
-                          ],
                         ),
                       ),
                     ),
