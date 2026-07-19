@@ -16,6 +16,7 @@ import '../widgets/media_marketplace_metric_card.dart';
 import '../widgets/media_marketplace_section_header.dart';
 import '../widgets/media_marketplace_shell.dart';
 import '../../../../ui/theme/maslive_theme.dart';
+import '../../../../ui/widgets/maslive_button.dart';
 
 class PhotographerDashboardPage extends StatelessWidget {
   const PhotographerDashboardPage({
@@ -346,9 +347,10 @@ class _StripeConnectCardState extends State<_StripeConnectCard> {
               spacing: 8,
               runSpacing: 8,
               children: <Widget>[
-                ElevatedButton(
+                MasliveButton(
+                  label: hasAccount ? 'Reprendre la configuration' : 'Configurer Stripe',
                   onPressed: _loading ? null : _startOrResumeOnboarding,
-                  child: Text(hasAccount ? 'Reprendre la configuration' : 'Configurer Stripe'),
+                  expand: false,
                 ),
                 if (hasAccount)
                   OutlinedButton(

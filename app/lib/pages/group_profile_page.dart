@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../ui/theme/maslive_theme.dart';
+import '../ui/widgets/maslive_button.dart';
 import '../ui/widgets/storage_image.dart';
 import '../ui/widgets/gradient_header.dart';
 import '../ui/widgets/honeycomb_background.dart';
@@ -494,7 +495,9 @@ class _CommerceTab extends StatelessWidget {
         const SizedBox(height: 16),
 
         // Bouton Ajouter un article
-        ElevatedButton.icon(
+        MasliveButton(
+          label: 'Ajouter un article',
+          icon: Icons.add_photo_alternate,
           onPressed: () {
             Navigator.push(
               context,
@@ -503,16 +506,6 @@ class _CommerceTab extends StatelessWidget {
               ),
             );
           },
-          icon: const Icon(Icons.add_photo_alternate),
-          label: const Text('Ajouter un article'),
-          style: ElevatedButton.styleFrom(
-            backgroundColor: Colors.teal,
-            foregroundColor: Colors.white,
-            padding: const EdgeInsets.symmetric(vertical: 16),
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(12),
-            ),
-          ),
         ),
         const SizedBox(height: 24),
 

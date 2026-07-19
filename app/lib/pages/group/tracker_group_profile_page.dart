@@ -9,6 +9,7 @@ import '../../ui/snack/top_snack_bar.dart';
 import 'group_qr_scanner_page.dart';
 import 'group_track_history_page.dart';
 import 'group_export_page.dart';
+import '../../ui/widgets/maslive_button.dart';
 
 class TrackerGroupProfilePage extends StatefulWidget {
   const TrackerGroupProfilePage({super.key});
@@ -234,13 +235,10 @@ class _TrackerGroupProfilePageState extends State<TrackerGroupProfilePage> {
             style: TextStyle(color: Colors.grey),
           ),
           const SizedBox(height: 8),
-          ElevatedButton.icon(
+          MasliveButton(
+            label: 'Se rattacher avec le code',
+            icon: Icons.link,
             onPressed: _isLoading ? null : _linkToAdmin,
-            icon: const Icon(Icons.link),
-            label: const Text('Se rattacher avec le code'),
-            style: ElevatedButton.styleFrom(
-              padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
-            ),
           ),
         ],
       ),

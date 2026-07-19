@@ -13,6 +13,7 @@ import '../../ui/snack/top_snack_bar.dart';
 import '../../widgets/group_map_visibility_widget.dart';
 import '../../services/market_map_service.dart';
 import '../../ui/widgets/marketmap_poi_selector_sheet.dart';
+import '../../ui/widgets/maslive_empty_state.dart';
 import 'group_map_live_page.dart';
 import 'group_track_history_page.dart';
 import 'group_export_page.dart';
@@ -263,33 +264,11 @@ class _AdminGroupDashboardPageState extends State<AdminGroupDashboardPage> {
       return Scaffold(
         appBar: AppBar(title: const Text('Admin Groupe')),
         body: Center(
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              const Icon(
-                Icons.admin_panel_settings,
-                size: 100,
-                color: Colors.grey,
-              ),
-              const SizedBox(height: 24),
-              const Text(
-                'Vous n\'avez pas encore de profil\nAdministrateur Groupe',
-                textAlign: TextAlign.center,
-                style: TextStyle(fontSize: 18),
-              ),
-              const SizedBox(height: 32),
-              ElevatedButton.icon(
-                onPressed: _createAdminProfile,
-                icon: const Icon(Icons.add),
-                label: const Text('Créer mon profil Admin'),
-                style: ElevatedButton.styleFrom(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 32,
-                    vertical: 16,
-                  ),
-                ),
-              ),
-            ],
+          child: MasliveEmptyState(
+            icon: Icons.admin_panel_settings,
+            title: 'Vous n\'avez pas encore de profil\nAdministrateur Groupe',
+            actionLabel: 'Créer mon profil Admin',
+            onAction: _createAdminProfile,
           ),
         ),
       );
