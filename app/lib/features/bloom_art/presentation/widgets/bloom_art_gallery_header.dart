@@ -17,15 +17,7 @@ class BloomArtGalleryHeader extends StatelessWidget {
       padding: const EdgeInsets.all(22),
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(30),
-        gradient: const LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: <Color>[
-            Color(0xFFFFF5E7),
-            Color(0xFFF9E8D7),
-            Color(0xFFF2DED5),
-          ],
-        ),
+        color: MasliveTokens.bg,
         boxShadow: const <BoxShadow>[
           BoxShadow(
             color: Color(0x14000000),
@@ -47,7 +39,7 @@ class BloomArtGalleryHeader extends StatelessWidget {
               'Galerie Bloom Art',
               style: TextStyle(
                 fontWeight: FontWeight.w800,
-                color: Color(0xFF6D4C41),
+                color: MasliveTokens.textMuted,
               ),
             ),
           ),
@@ -67,7 +59,7 @@ class BloomArtGalleryHeader extends StatelessWidget {
             style: TextStyle(
               fontSize: 15,
               height: 1.45,
-              color: Color(0xFF5F564F),
+              color: MasliveTokens.textMuted,
             ),
           ),
           const SizedBox(height: 18),

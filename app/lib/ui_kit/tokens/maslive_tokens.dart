@@ -50,13 +50,6 @@ class MasliveTokens {
   static const Color warning = Color(0xFFC9820B);
   static const Color danger = Color(0xFFD63A3A);
 
-  // ---------- Surface éditoriale (Bloom Art) ----------
-  /// Identité crème/artisan assumée pour Bloom Art — volontairement
-  /// distincte de [bg], pas une divergence à corriger.
-  static const Color surfaceEditorial = Color(0xFFFFFBF7);
-  static const Color lineEditorial = Color(0xFFE9DED1);
-  static const Color textEditorialMuted = Color(0xFF6A645E);
-
   // ---------- Radius ----------
   static const double rS = 10;
   static const double rM = 14;

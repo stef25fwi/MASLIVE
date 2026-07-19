@@ -208,9 +208,9 @@ class _BloomArtJeMeLanceFormPageState
   Widget build(BuildContext context) {
     final guide = _guide;
     return Scaffold(
-      backgroundColor: MasliveTokens.surfaceEditorial,
+      backgroundColor: MasliveTokens.surface,
       appBar: AppBar(
-        backgroundColor: MasliveTokens.surfaceEditorial,
+        backgroundColor: MasliveTokens.surface,
         elevation: 0,
         title: const Text(
           'Je me lance',
@@ -527,7 +527,7 @@ class _BloomArtLaunchHero extends StatelessWidget {
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(28),
-        border: Border.all(color: MasliveTokens.lineEditorial),
+        border: Border.all(color: MasliveTokens.line),
       ),
       child: const Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -539,7 +539,7 @@ class _BloomArtLaunchHero extends StatelessWidget {
           SizedBox(height: 8),
           Text(
             'Inspiré du parcours personnalisé iliprestō : région, activité et statut servent à générer le guide avant activation du vendeur Bloom Art. Aucune œuvre ne peut être déposée tant que le SIRET n’est pas vérifié.',
-            style: TextStyle(color: MasliveTokens.textEditorialMuted, height: 1.45),
+            style: TextStyle(color: MasliveTokens.textMuted, height: 1.45),
           ),
         ],
       ),
@@ -565,14 +565,14 @@ class _MenuCard extends StatelessWidget {
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(24),
-        border: Border.all(color: MasliveTokens.lineEditorial),
+        border: Border.all(color: MasliveTokens.line),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: <Widget>[
           Text(title, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w900)),
           const SizedBox(height: 6),
-          Text(subtitle, style: const TextStyle(color: MasliveTokens.textEditorialMuted, height: 1.45)),
+          Text(subtitle, style: const TextStyle(color: MasliveTokens.textMuted, height: 1.45)),
           const SizedBox(height: 14),
           ...children,
         ],
@@ -591,7 +591,7 @@ class _GuideSummaryCard extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
-        color: const Color(0xFFF7EEE5),
+        color: MasliveTokens.bg,
         borderRadius: BorderRadius.circular(24),
       ),
       child: Column(
@@ -606,7 +606,7 @@ class _GuideSummaryCard extends StatelessWidget {
           const SizedBox(height: 6),
           Text(
             guide.recommendedLegalStatus['why'].toString(),
-            style: const TextStyle(color: MasliveTokens.textEditorialMuted, height: 1.45),
+            style: const TextStyle(color: MasliveTokens.textMuted, height: 1.45),
           ),
           if (guide.blockingAlerts.isNotEmpty) ...<Widget>[
             const SizedBox(height: 12),
@@ -614,9 +614,9 @@ class _GuideSummaryCard extends StatelessWidget {
               (alert) => Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: <Widget>[
-                  const Icon(Icons.warning_amber_rounded, size: 18, color: Color(0xFFB45309)),
+                  Icon(Icons.warning_amber_rounded, size: 18, color: MasliveTokens.warning),
                   const SizedBox(width: 8),
-                  Expanded(child: Text(alert, style: const TextStyle(color: Color(0xFF7C2D12)))),
+                  Expanded(child: Text(alert, style: const TextStyle(color: MasliveTokens.danger))),
                 ],
               ),
             ),
@@ -693,7 +693,7 @@ class _GuideListCard extends StatelessWidget {
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(24),
-        border: Border.all(color: MasliveTokens.lineEditorial),
+        border: Border.all(color: MasliveTokens.line),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -723,7 +723,7 @@ class _GuideListCard extends StatelessWidget {
                   const SizedBox(height: 4),
                   Text(
                     (item['body'] ?? '').toString(),
-                    style: const TextStyle(color: MasliveTokens.textEditorialMuted, height: 1.4),
+                    style: const TextStyle(color: MasliveTokens.textMuted, height: 1.4),
                   ),
                 ],
               ),

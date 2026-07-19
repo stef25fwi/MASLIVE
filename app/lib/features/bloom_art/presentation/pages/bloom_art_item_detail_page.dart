@@ -20,7 +20,7 @@ class BloomArtItemDetailPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: MasliveTokens.surfaceEditorial,
+      backgroundColor: MasliveTokens.surface,
       body: StreamBuilder<BloomArtItem?>(
         stream: _repository.watchItem(itemId),
         builder: (context, snapshot) {
@@ -47,7 +47,7 @@ class BloomArtItemDetailPage extends StatelessWidget {
           return CustomScrollView(
             slivers: <Widget>[
               SliverAppBar(
-                backgroundColor: MasliveTokens.surfaceEditorial,
+                backgroundColor: MasliveTokens.surface,
                 pinned: true,
                 elevation: 0,
                 title: Text(
@@ -68,7 +68,7 @@ class BloomArtItemDetailPage extends StatelessWidget {
                         decoration: BoxDecoration(
                           color: Colors.white,
                           borderRadius: BorderRadius.circular(28),
-                          border: Border.all(color: MasliveTokens.lineEditorial),
+                          border: Border.all(color: MasliveTokens.line),
                         ),
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
@@ -78,7 +78,7 @@ class BloomArtItemDetailPage extends StatelessWidget {
                               style: const TextStyle(
                                 letterSpacing: 1.2,
                                 fontWeight: FontWeight.w800,
-                                color: Color(0xFF8E6D4F),
+                                color: MasliveTokens.textMuted,
                               ),
                             ),
                             const SizedBox(height: 10),
@@ -95,7 +95,7 @@ class BloomArtItemDetailPage extends StatelessWidget {
                               Text(
                                 item.sellerDisplayName,
                                 style: const TextStyle(
-                                  color: MasliveTokens.textEditorialMuted,
+                                  color: MasliveTokens.textMuted,
                                   fontWeight: FontWeight.w700,
                                 ),
                               ),
@@ -103,7 +103,7 @@ class BloomArtItemDetailPage extends StatelessWidget {
                             Text(
                               item.description,
                               style: const TextStyle(
-                                color: Color(0xFF1D1D1D),
+                                color: MasliveTokens.text,
                                 height: 1.55,
                               ),
                             ),
@@ -159,14 +159,14 @@ class _BloomArtHeroImages extends StatelessWidget {
       return Container(
         height: 320,
         decoration: BoxDecoration(
-          color: const Color(0xFFF7EEE5),
+          color: MasliveTokens.bg,
           borderRadius: BorderRadius.circular(32),
         ),
         child: const Center(
           child: Icon(
             Icons.palette_outlined,
             size: 64,
-            color: Color(0xFF8E6D4F),
+            color: MasliveTokens.textMuted,
           ),
         ),
       );
@@ -237,15 +237,7 @@ class _BloomArtPublicCtaCard extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(22),
       decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: <Color>[
-            Color(0xFFFFF5E7),
-            Color(0xFFF7E9DD),
-            Color(0xFFF1E2DA),
-          ],
-        ),
+        color: MasliveTokens.bg,
         borderRadius: BorderRadius.circular(28),
       ),
       child: Column(
@@ -258,7 +250,7 @@ class _BloomArtPublicCtaCard extends StatelessWidget {
           const SizedBox(height: 8),
           Text(
             subtitle,
-            style: const TextStyle(color: MasliveTokens.textEditorialMuted, height: 1.45),
+            style: const TextStyle(color: MasliveTokens.textMuted, height: 1.45),
           ),
           const SizedBox(height: 18),
           if (isOwner)

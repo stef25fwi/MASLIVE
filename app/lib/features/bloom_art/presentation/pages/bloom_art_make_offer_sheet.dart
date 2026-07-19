@@ -168,7 +168,7 @@ class _BloomArtMakeOfferSheetState extends State<BloomArtMakeOfferSheet> {
       padding: EdgeInsets.only(bottom: bottomInset),
       child: Container(
         decoration: const BoxDecoration(
-          color: MasliveTokens.surfaceEditorial,
+          color: MasliveTokens.surface,
           borderRadius: BorderRadius.vertical(top: Radius.circular(34)),
         ),
         padding: const EdgeInsets.fromLTRB(20, 18, 20, 24),
@@ -182,7 +182,7 @@ class _BloomArtMakeOfferSheetState extends State<BloomArtMakeOfferSheet> {
                   width: 48,
                   height: 5,
                   decoration: BoxDecoration(
-                    color: const Color(0xFFD7CABD),
+                    color: MasliveTokens.line,
                     borderRadius: BorderRadius.circular(999),
                   ),
                 ),
@@ -200,7 +200,7 @@ class _BloomArtMakeOfferSheetState extends State<BloomArtMakeOfferSheet> {
               const Text(
                 'Le prix de référence reste privé. Saisissez votre meilleure proposition et un message pour le vendeur.',
                 style: TextStyle(
-                  color: MasliveTokens.textEditorialMuted,
+                  color: MasliveTokens.textMuted,
                   height: 1.45,
                 ),
               ),

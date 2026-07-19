@@ -27,7 +27,7 @@ class BloomArtItemCard extends StatelessWidget {
         decoration: BoxDecoration(
           color: Colors.white,
           borderRadius: BorderRadius.circular(28),
-          border: Border.all(color: MasliveTokens.lineEditorial),
+          border: Border.all(color: MasliveTokens.line),
           boxShadow: const <BoxShadow>[
             BoxShadow(
               color: Color(0x12000000),
@@ -45,11 +45,11 @@ class BloomArtItemCard extends StatelessWidget {
                 aspectRatio: 1.15,
                 child: cover == null
                     ? Container(
-                        color: const Color(0xFFF6EEE5),
+                        color: MasliveTokens.bg,
                         child: const Icon(
                           Icons.palette_outlined,
                           size: 48,
-                          color: Color(0xFF9A836D),
+                          color: MasliveTokens.textMuted,
                         ),
                       )
                     : StorageImage(
@@ -69,7 +69,7 @@ class BloomArtItemCard extends StatelessWidget {
                     style: const TextStyle(
                       fontSize: 11,
                       letterSpacing: 1.1,
-                      color: Color(0xFF8E6D4F),
+                      color: MasliveTokens.textMuted,
                       fontWeight: FontWeight.w800,
                     ),
                   ),
@@ -90,7 +90,7 @@ class BloomArtItemCard extends StatelessWidget {
                     maxLines: 3,
                     overflow: TextOverflow.ellipsis,
                     style: const TextStyle(
-                      color: Color(0xFF5F564F),
+                      color: MasliveTokens.textMuted,
                       height: 1.45,
                     ),
                   ),
@@ -99,7 +99,7 @@ class BloomArtItemCard extends StatelessWidget {
                     Text(
                       item.sellerDisplayName,
                       style: const TextStyle(
-                        color: MasliveTokens.textEditorialMuted,
+                        color: MasliveTokens.textMuted,
                         fontWeight: FontWeight.w700,
                       ),
                     ),

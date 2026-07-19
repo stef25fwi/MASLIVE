@@ -121,9 +121,9 @@ class _BloomArtOfferDetailPageState extends State<BloomArtOfferDetailPage> {
     }
 
     return Scaffold(
-      backgroundColor: MasliveTokens.surfaceEditorial,
+      backgroundColor: MasliveTokens.surface,
       appBar: AppBar(
-        backgroundColor: MasliveTokens.surfaceEditorial,
+        backgroundColor: MasliveTokens.surface,
         elevation: 0,
         title: const Text(
           'Detail de l\'offre',
@@ -156,7 +156,7 @@ class _BloomArtOfferDetailPageState extends State<BloomArtOfferDetailPage> {
                     decoration: BoxDecoration(
                       color: Colors.white,
                       borderRadius: BorderRadius.circular(28),
-                      border: Border.all(color: MasliveTokens.lineEditorial),
+                      border: Border.all(color: MasliveTokens.line),
                     ),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
@@ -188,14 +188,14 @@ class _BloomArtOfferDetailPageState extends State<BloomArtOfferDetailPage> {
                           Text(
                             offer.buyerMessage,
                             style: const TextStyle(
-                              color: MasliveTokens.textEditorialMuted,
+                              color: MasliveTokens.textMuted,
                               height: 1.45,
                             ),
                           )
                         else
                           const Text(
                             'Aucun message ajoute a cette offre.',
-                            style: TextStyle(color: MasliveTokens.textEditorialMuted),
+                            style: TextStyle(color: MasliveTokens.textMuted),
                           ),
                         const SizedBox(height: 18),
                         _MetaLine(
@@ -276,7 +276,7 @@ class _ActionPanel extends StatelessWidget {
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(28),
-        border: Border.all(color: MasliveTokens.lineEditorial),
+        border: Border.all(color: MasliveTokens.line),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -288,7 +288,7 @@ class _ActionPanel extends StatelessWidget {
           const SizedBox(height: 8),
           Text(
             subtitle,
-            style: const TextStyle(color: MasliveTokens.textEditorialMuted, height: 1.45),
+            style: const TextStyle(color: MasliveTokens.textMuted, height: 1.45),
           ),
           const SizedBox(height: 18),
           if (isSeller && offer.isPending) ...<Widget>[
@@ -349,7 +349,7 @@ class _MetaLine extends StatelessWidget {
             child: Text(
               label,
               style: const TextStyle(
-                color: Color(0xFF7D7067),
+                color: MasliveTokens.textMuted,
                 fontWeight: FontWeight.w700,
               ),
             ),

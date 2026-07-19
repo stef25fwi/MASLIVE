@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import 'package:masslive/ui_kit/tokens/maslive_tokens.dart';
+
 class BloomArtOfferStatusBadge extends StatelessWidget {
   const BloomArtOfferStatusBadge({
     super.key,
@@ -41,7 +43,7 @@ class BloomArtOfferStatusBadge extends StatelessWidget {
         return const _BadgeStyle('Payee', Color(0xFFEAF7F3), Color(0xFF0D7A5F));
       case 'pending':
       default:
-        return const _BadgeStyle('En attente', Color(0xFFF1EDE7), Color(0xFF6A5A4C));
+        return const _BadgeStyle('En attente', MasliveTokens.bg, MasliveTokens.textMuted);
     }
   }
 }

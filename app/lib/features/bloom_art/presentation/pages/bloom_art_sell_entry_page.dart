@@ -92,9 +92,9 @@ class _BloomArtSellEntryPageState extends State<BloomArtSellEntryPage> {
     final user = FirebaseAuth.instance.currentUser;
 
     return Scaffold(
-      backgroundColor: MasliveTokens.surfaceEditorial,
+      backgroundColor: MasliveTokens.surface,
       appBar: AppBar(
-        backgroundColor: MasliveTokens.surfaceEditorial,
+        backgroundColor: MasliveTokens.surface,
         elevation: 0,
         title: const Text(
           'Vendre dans Bloom Art',
@@ -134,7 +134,7 @@ class _BloomArtSellEntryPageState extends State<BloomArtSellEntryPage> {
                         decoration: BoxDecoration(
                           color: Colors.white,
                           borderRadius: BorderRadius.circular(28),
-                          border: Border.all(color: MasliveTokens.lineEditorial),
+                          border: Border.all(color: MasliveTokens.line),
                           boxShadow: const <BoxShadow>[
                             BoxShadow(
                               color: Color(0x12000000),
@@ -153,7 +153,7 @@ class _BloomArtSellEntryPageState extends State<BloomArtSellEntryPage> {
                             SizedBox(height: 8),
                             Text(
                               'Bloom Art distingue les artistes déjà déclarés des créateurs qui doivent encore obtenir leur SIRET. Le dépôt d’œuvre est réservé aux comptes vérifiés.',
-                              style: TextStyle(color: MasliveTokens.textEditorialMuted, height: 1.45),
+                              style: TextStyle(color: MasliveTokens.textMuted, height: 1.45),
                             ),
                           ],
                         ),
@@ -178,12 +178,12 @@ class _BloomArtSellEntryPageState extends State<BloomArtSellEntryPage> {
                       Container(
                         padding: const EdgeInsets.all(18),
                         decoration: BoxDecoration(
-                          color: const Color(0xFFF7EEE5),
+                          color: MasliveTokens.bg,
                           borderRadius: BorderRadius.circular(24),
                         ),
                         child: const Text(
                           'Une fois le SIRET vérifié, vous pourrez gérer votre galerie, déposer des photos, définir le prix de référence privé, publier vos fiches et recevoir des offres.',
-                          style: TextStyle(color: MasliveTokens.textEditorialMuted, height: 1.45),
+                          style: TextStyle(color: MasliveTokens.textMuted, height: 1.45),
                         ),
                       ),
                     ],

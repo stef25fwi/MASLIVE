@@ -25,7 +25,7 @@ class SellerProfileChoiceCard extends StatelessWidget {
         decoration: BoxDecoration(
           color: Colors.white,
           borderRadius: BorderRadius.circular(24),
-          border: Border.all(color: MasliveTokens.lineEditorial),
+          border: Border.all(color: MasliveTokens.line),
           boxShadow: const <BoxShadow>[
             BoxShadow(
               color: Color(0x0F000000),
@@ -41,9 +41,9 @@ class SellerProfileChoiceCard extends StatelessWidget {
               width: 52,
               decoration: const BoxDecoration(
                 shape: BoxShape.circle,
-                color: Color(0xFFF7EEE5),
+                color: MasliveTokens.bg,
               ),
-              child: Icon(icon, color: const Color(0xFF7A5C45)),
+              child: Icon(icon, color: MasliveTokens.textMuted),
             ),
             const SizedBox(width: 14),
             Expanded(
@@ -61,7 +61,7 @@ class SellerProfileChoiceCard extends StatelessWidget {
                   Text(
                     subtitle,
                     style: const TextStyle(
-                      color: MasliveTokens.textEditorialMuted,
+                      color: MasliveTokens.textMuted,
                       height: 1.35,
                     ),
                   ),
