@@ -23,6 +23,22 @@ class PhotoPackTier {
   double get unitPrice => price / photoCount;
 }
 
+class PhotoPackQuote {
+  const PhotoPackQuote({
+    required this.requestedPhotoCount,
+    required this.billedPhotoCount,
+    required this.packs,
+    required this.total,
+  });
+
+  final int requestedPhotoCount;
+  final int billedPhotoCount;
+  final List<PhotoPackTier> packs;
+  final double total;
+
+  int get bonusPhotoSlots => billedPhotoCount - requestedPhotoCount;
+}
+
 class PhotographerPlanSpec {
   const PhotographerPlanSpec({
     required this.id,
@@ -306,22 +322,66 @@ class MediaMarketplacePricing {
     return null;
   }
 
-  static List<PhotoPackTier> bestPackCombination(int photoCount) {
-    if (photoCount <= 0) return const <PhotoPackTier>[];
-    final sorted = [...buyerPacks]
-      ..sort((a, b) => b.photoCount.compareTo(a.photoCount));
-    var remaining = photoCount;
-    final result = <PhotoPackTier>[];
-    for (final tier in sorted) {
-      while (remaining >= tier.photoCount) {
-        result.add(tier);
-        remaining -= tier.photoCount;
+  static PhotoPackQuote quoteForPhotoCount(int photoCount) {
+    if (photoCount <= 0) {
+      return const PhotoPackQuote(
+        requestedPhotoCount: 0,
+        billedPhotoCount: 0,
+        packs: <PhotoPackTier>[],
+        total: 0,
+      );
+    }
+
+    final maxPackSize = buyerPacks
+        .map((tier) => tier.photoCount)
+        .reduce((a, b) => a > b ? a : b);
+    final maxBilledCount = photoCount + maxPackSize - 1;
+    final bestPrices = List<double>.filled(maxBilledCount + 1, double.infinity);
+    final bestCombinations = List<List<PhotoPackTier>?>.filled(
+      maxBilledCount + 1,
+      null,
+    );
+    bestPrices[0] = 0;
+    bestCombinations[0] = const <PhotoPackTier>[];
+
+    for (var count = 1; count <= maxBilledCount; count++) {
+      for (final tier in buyerPacks) {
+        final previous = count - tier.photoCount;
+        if (previous < 0 || bestCombinations[previous] == null) continue;
+        final candidate = bestPrices[previous] + tier.price;
+        if (candidate < bestPrices[count] - 0.0001) {
+          bestPrices[count] = candidate;
+          bestCombinations[count] = <PhotoPackTier>[
+            ...bestCombinations[previous]!,
+            tier,
+          ];
+        }
       }
     }
-    return result;
+
+    var chosenCount = photoCount;
+    for (var count = photoCount; count <= maxBilledCount; count++) {
+      final candidate = bestCombinations[count];
+      if (candidate == null) continue;
+      if (bestCombinations[chosenCount] == null ||
+          bestPrices[count] < bestPrices[chosenCount] - 0.0001 ||
+          ((bestPrices[count] - bestPrices[chosenCount]).abs() < 0.0001 &&
+              count < chosenCount)) {
+        chosenCount = count;
+      }
+    }
+
+    return PhotoPackQuote(
+      requestedPhotoCount: photoCount,
+      billedPhotoCount: chosenCount,
+      packs: List<PhotoPackTier>.unmodifiable(bestCombinations[chosenCount]!),
+      total: double.parse(bestPrices[chosenCount].toStringAsFixed(2)),
+    );
   }
 
-  static double priceForPhotoCount(int photoCount) => bestPackCombination(
-        photoCount,
-      ).fold<double>(0, (total, tier) => total + tier.price);
+  static List<PhotoPackTier> bestPackCombination(int photoCount) =>
+      quoteForPhotoCount(photoCount).packs;
+
+  static double priceForPhotoCount(int photoCount) =>
+      quoteForPhotoCount(photoCount).total;
 }
