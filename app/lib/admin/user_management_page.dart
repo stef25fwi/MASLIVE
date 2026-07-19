@@ -5,6 +5,7 @@ import '../services/user_repo.dart';
 import '../services/auth_claims_service.dart';
 import '../theme/maslive_theme.dart';
 import 'user_edit_page.dart';
+import '../ui/widgets/maslive_empty_state.dart';
 
 class UserManagementPage extends StatefulWidget {
   const UserManagementPage({super.key});
@@ -385,19 +386,10 @@ class _UserManagementPageState extends State<UserManagementPage> {
   }
 
   Widget _buildEmptyState() {
-    return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(Icons.people_outline, size: 64, color: Colors.grey[400]),
-          const SizedBox(height: 16),
-          Text(
-            'Aucun utilisateur trouvé',
-            style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                  color: Colors.grey[600],
-                ),
-          ),
-        ],
+    return const Center(
+      child: MasliveEmptyState(
+        icon: Icons.people_outline,
+        title: 'Aucun utilisateur trouvé',
       ),
     );
   }

@@ -8,6 +8,7 @@ import '../../models/group_admin.dart';
 import '../../services/group/group_average_service.dart';
 import '../../ui/map/maslive_map.dart';
 import '../../ui/map/maslive_map_controller.dart';
+import '../../ui/widgets/maslive_empty_state.dart';
 
 class GroupMapLivePage extends StatefulWidget {
   final String adminGroupId;
@@ -74,22 +75,11 @@ class _GroupMapLivePageState extends State<GroupMapLivePage> {
           final avgPos = snapshot.data;
 
           if (avgPos == null) {
-            return Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(Icons.location_off, size: 100, color: Colors.grey[400]),
-                  const SizedBox(height: 16),
-                  const Text(
-                    'Aucune position disponible',
-                    style: TextStyle(fontSize: 18),
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    'Démarrez le tracking',
-                    style: TextStyle(color: Colors.grey[600]),
-                  ),
-                ],
+            return const Center(
+              child: MasliveEmptyState(
+                icon: Icons.location_off,
+                title: 'Aucune position disponible',
+                message: 'Démarrez le tracking',
               ),
             );
           }

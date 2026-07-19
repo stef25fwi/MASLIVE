@@ -14,6 +14,7 @@ import '../widgets/cart/cart_icon_badge.dart';
 import '../widgets/language_switcher.dart';
 import '../l10n/app_localizations.dart';
 import 'package:masslive/ui_kit/tokens/maslive_tokens.dart';
+import '../ui/widgets/maslive_empty_state.dart';
 
 class ShopPixelPerfectPage extends StatefulWidget {
   const ShopPixelPerfectPage({super.key, this.shopId});
@@ -605,29 +606,10 @@ class _ShopPixelPerfectPageState extends State<ShopPixelPerfectPage> {
                 docs = _filterProductsByTags(docs);
 
                 if (docs.isEmpty) {
-                  return SliverToBoxAdapter(
-                    child: Padding(
-                      padding: const EdgeInsets.all(40),
-                      child: Center(
-                        child: Column(
-                          children: const [
-                            Icon(
-                              Icons.inventory_2_outlined,
-                              size: 64,
-                              color: Color(0xFFCBD5E1),
-                            ),
-                            SizedBox(height: 16),
-                            Text(
-                              'Aucun produit disponible',
-                              style: TextStyle(
-                                fontSize: 16,
-                                fontWeight: FontWeight.w600,
-                                color: MasliveTokens.textMuted,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
+                  return const SliverToBoxAdapter(
+                    child: MasliveEmptyState(
+                      icon: Icons.inventory_2_outlined,
+                      title: 'Aucun produit disponible',
                     ),
                   );
                 }

@@ -5,6 +5,7 @@ import '../controllers/product_controller.dart';
 import '../widgets/change_notifier_provider_lite.dart';
 import '../../../../ui/snack/top_snack_bar.dart';
 import '../../../../ui/widgets/storage_image.dart';
+import '../../../../ui/widgets/maslive_empty_state.dart';
 import 'package:masslive/ui_kit/tokens/maslive_tokens.dart';
 
 class BoutiquePage extends StatefulWidget {
@@ -160,8 +161,9 @@ class _BoutiquePageState extends State<BoutiquePage> {
 
                             final products = snapshot.data!;
                             if (products.isEmpty) {
-                              return const Center(
-                                child: Text('Aucun produit disponible'),
+                              return const MasliveEmptyState(
+                                icon: Icons.inventory_2_outlined,
+                                title: 'Aucun produit disponible',
                               );
                             }
 

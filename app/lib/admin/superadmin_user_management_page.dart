@@ -5,6 +5,7 @@ import 'package:flutter/services.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 
 import '../services/superadmin_user_management_service.dart';
+import '../ui/widgets/maslive_empty_state.dart';
 import 'admin_gate.dart';
 
 class SuperAdminUserManagementPage extends StatefulWidget {
@@ -204,7 +205,12 @@ class _SuperAdminUserManagementPageState
       );
     }
     if (_users.isEmpty) {
-      return const Center(child: Text('Aucun utilisateur trouvé.'));
+      return const Center(
+        child: MasliveEmptyState(
+          icon: Icons.people_outline,
+          title: 'Aucun utilisateur trouvé',
+        ),
+      );
     }
     return RefreshIndicator(
       onRefresh: _loadUsers,

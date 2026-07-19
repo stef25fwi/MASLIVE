@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import '../models/order_model.dart';
 import '../services/order_service.dart';
 import '../ui/snack/top_snack_bar.dart';
+import '../ui/widgets/maslive_empty_state.dart';
 import 'admin_gate.dart';
 
 class AdminOrdersPage extends StatefulWidget {
@@ -116,7 +117,12 @@ class _AdminOrdersPageState extends State<AdminOrdersPage> {
                       .toList();
 
                   if (orders.isEmpty) {
-                    return const Center(child: Text('Aucune commande trouvée'));
+                    return const Center(
+                      child: MasliveEmptyState(
+                        icon: Icons.receipt_long_outlined,
+                        title: 'Aucune commande trouvée',
+                      ),
+                    );
                   }
 
                   return ListView.separated(
