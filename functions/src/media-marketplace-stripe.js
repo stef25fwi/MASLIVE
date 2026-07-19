@@ -58,6 +58,7 @@
  */
 
 const createImplementation = require("./media-marketplace-stripe-profitability")
+const { mediaDeliveryQuote } = require("./media-marketplace-pricing")
 
 function databaseWithTransactionFallback(db) {
   if (typeof db?.runTransaction === "function") return db
@@ -117,6 +118,39 @@ async function preservePurchasedPhotos({ db, admin, orderId }) {
       purgeAt,
       soldRetentionDays: 730,
       updatedAt: now,
+    }, { merge: true })
+  }
+  await batch.commit()
+}
+
+async function enforceDeliveryEntitlements({ db, orderId, serverTimestamp }) {
+  if (!orderId) return
+  const orderSnapshot = await db.collection("orders").doc(orderId).get()
+  if (!orderSnapshot.exists) return
+  const order = orderSnapshot.data() || {}
+  const deliveryOptions = order.mediaDeliveryOptions
+
+  // Legacy orders did not persist delivery options and already promised HD/original.
+  // Keep those rights unchanged to avoid a regression for previous customers.
+  if (!deliveryOptions || typeof deliveryOptions !== "object") return
+
+  const quote = mediaDeliveryQuote({
+    subtotal: number(order.baseMediaSubtotal, number(order.subtotal)),
+    hdUpgrade: deliveryOptions.hdUpgrade === true,
+  })
+  const snapshot = await db.collection("media_entitlements")
+    .where("orderId", "==", orderId)
+    .get()
+  if (snapshot.empty) return
+
+  const batch = db.batch()
+  for (const document of snapshot.docs || []) {
+    batch.set(document.ref, {
+      allowedVariants: [...quote.allowedVariants],
+      hdUpgrade: quote.hdUpgrade,
+      hdUpgradeAmount: quote.hdUpgradeAmount,
+      deliveryPolicyVersion: 1,
+      updatedAt: serverTimestamp(),
     }, { merge: true })
   }
   await batch.commit()
@@ -184,6 +218,7 @@ module.exports = function createMediaMarketplaceStripe(dependencies) {
 
   async function finalize(orderId) {
     await preservePurchasedPhotos({ db, admin: dependencies.admin, orderId })
+    await enforceDeliveryEntitlements({ db, orderId, serverTimestamp })
     await settleOrderPayouts({
       db,
       getStripe: dependencies.getStripe,
