@@ -16,14 +16,16 @@ class PhotographerSubscriptionController extends ChangeNotifier {
     PhotographerSubscriptionRepository? photographerSubscriptionRepository,
     FirebaseFunctions? functions,
     FirebaseAuth? auth,
-  }) : _photographerRepository =
-           photographerRepository ?? PhotographerRepository(),
-       _photographerPlanRepository =
-           photographerPlanRepository ?? PhotographerPlanRepository(),
-       _photographerSubscriptionRepository =
-           photographerSubscriptionRepository ?? PhotographerSubscriptionRepository(),
-       _functions = functions ?? FirebaseFunctions.instance,
-       _auth = auth ?? FirebaseAuth.instance;
+  })  : _photographerRepository =
+            photographerRepository ?? PhotographerRepository(),
+        _photographerPlanRepository =
+            photographerPlanRepository ?? PhotographerPlanRepository(),
+        _photographerSubscriptionRepository =
+            photographerSubscriptionRepository ??
+                PhotographerSubscriptionRepository(),
+        _functions = functions ??
+            FirebaseFunctions.instanceFor(region: 'us-east1'),
+        _auth = auth ?? FirebaseAuth.instance;
 
   final PhotographerRepository _photographerRepository;
   final PhotographerPlanRepository _photographerPlanRepository;
@@ -33,6 +35,7 @@ class PhotographerSubscriptionController extends ChangeNotifier {
 
   bool loading = false;
   bool processingCheckout = false;
+  bool activatedWithoutCheckout = false;
   Object? error;
   PhotographerProfileModel? profile;
   PhotographerSubscriptionModel? activeSubscription;
@@ -53,7 +56,6 @@ class PhotographerSubscriptionController extends ChangeNotifier {
     loading = true;
     error = null;
     notifyListeners();
-
     try {
       final results = await Future.wait<dynamic>(<Future<dynamic>>[
         _photographerRepository.getByOwnerUid(user.uid),
@@ -63,9 +65,8 @@ class PhotographerSubscriptionController extends ChangeNotifier {
       plans = results[1] as List<PhotographerPlanModel>;
       activeSubscription = profile == null
           ? null
-          : await _photographerSubscriptionRepository.getActiveByPhotographerId(
-              profile!.photographerId,
-            );
+          : await _photographerSubscriptionRepository
+              .getActiveByPhotographerId(profile!.photographerId);
     } catch (err) {
       error = err;
     } finally {
@@ -83,29 +84,33 @@ class PhotographerSubscriptionController extends ChangeNotifier {
     final currentProfile = profile;
     final user = _auth.currentUser;
     if (user == null || currentProfile == null) {
-      error = StateError('Photographe non charge');
+      error = StateError('Photographe non chargé');
       notifyListeners();
       return null;
     }
 
     processingCheckout = true;
+    activatedWithoutCheckout = false;
     error = null;
     checkoutUrl = null;
     notifyListeners();
 
     try {
-      final callable = _functions.httpsCallable(
-        'createPhotographerSubscriptionCheckoutSession',
-      );
-      final response = await callable.call(<String, dynamic>{
+      final response = await _functions
+          .httpsCallable('createPhotographerSubscriptionCheckoutSession')
+          .call(<String, dynamic>{
         'photographerId': currentProfile.photographerId,
         'planId': planId,
         'billingInterval': billingInterval,
-        'successUrl': ?successUrl,
-        'cancelUrl': ?cancelUrl,
+        if (successUrl != null) 'successUrl': successUrl,
+        if (cancelUrl != null) 'cancelUrl': cancelUrl,
       });
       final data = Map<String, dynamic>.from(response.data as Map);
       checkoutUrl = data['checkoutUrl']?.toString();
+      activatedWithoutCheckout = data['activated'] == true;
+      if (activatedWithoutCheckout) {
+        await loadForCurrentOwner();
+      }
       return checkoutUrl;
     } catch (err) {
       error = err;
