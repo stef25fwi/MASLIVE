@@ -27,13 +27,16 @@ class UnifiedCheckoutService {
   /// - merch seul  → flux Storex,
   /// - media seul  → createMediaMarketplaceCheckout,
   /// - mixte       → createMixedCartCheckoutSession.
+  ///
+  /// Lorsque [mediaHdUpgrade] est omis, le choix Web inclus ou HD à 2,90 €
+  /// est demandé explicitement avant l'ouverture de Stripe.
   static Future<void> startCartCheckout(
     BuildContext context,
     CartProvider cart, {
     int shippingCents = 0,
     String shippingMethod = 'flat_rate',
     String? promoCode,
-    bool mediaHdUpgrade = false,
+    bool? mediaHdUpgrade,
   }) async {
     final hasMerch = cart.merchCheckoutItems.isNotEmpty;
     final hasMedia = cart.mediaCheckoutItems.isNotEmpty;
