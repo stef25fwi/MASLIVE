@@ -1748,9 +1748,19 @@ class _MasLiveMapWebState extends State<MasLiveMapWeb> {
     }
 
     try {
-      final point = map.callMethod('project', [
+      // IMPORTANT: on extrait x/y et on repasse un tableau JS *plain* plutôt
+      // que l'objet Point renvoyé par project(). Ce Point n'est pas reconnu
+      // par `instanceof Point` côté queryRenderedFeatures à travers la
+      // frontière d'interop JS (probable duplication de module dans le
+      // bundle), ce qui faisait retomber Mapbox GL JS sur une interprétation
+      // LngLat et jeter "Invalid LngLat object: (NaN, NaN)" à chaque tap.
+      final projected = map.callMethod('project', [
         [lng, lat],
       ]);
+      final px = projected['x'];
+      final py = projected['y'];
+      final point = js.JsObject.jsify([px, py]);
+
       final feats = map.callMethod('queryRenderedFeatures', [
         point,
         js.JsObject.jsify({'layers': layerIds}),
