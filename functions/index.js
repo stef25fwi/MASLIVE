@@ -5117,21 +5117,6 @@ exports.approveCommerceSubmission = onCall(
     throw new HttpsError("failed-precondition", `Submission status is ${submission.status}, must be pending`);
   }
 
-  // Revalide la capacité de reversement au dernier moment. Un compte Stripe
-  // peut devenir non payable entre la soumission et la décision du modérateur.
-  const sellerReadiness = await createCommerceSubmissionHandlers.evaluateSellerReadiness({
-    db,
-    uid: submission.ownerUid,
-    ownerRole: submission.ownerRole,
-  });
-  if (!sellerReadiness.ready) {
-    throw new HttpsError("failed-precondition", sellerReadiness.message, {
-      code: sellerReadiness.code,
-      message: sellerReadiness.message,
-      actionRoute: sellerReadiness.actionRoute,
-    });
-  }
-
   // Vérifier les permissions du modérateur
   const userDoc = await admin.firestore().collection("users").doc(uid).get();
   if (!userDoc.exists) {
@@ -5152,6 +5137,21 @@ exports.approveCommerceSubmission = onCall(
 
   if (!canModerate && !canModerateScope) {
     throw new HttpsError("permission-denied", "User cannot moderate this submission");
+  }
+
+  // Revalide la capacité de reversement au dernier moment. Un compte Stripe
+  // peut devenir non payable entre la soumission et la décision du modérateur.
+  const sellerReadiness = await createCommerceSubmissionHandlers.evaluateSellerReadiness({
+    db,
+    uid: submission.ownerUid,
+    ownerRole: submission.ownerRole,
+  });
+  if (!sellerReadiness.ready) {
+    throw new HttpsError("failed-precondition", sellerReadiness.message, {
+      code: sellerReadiness.code,
+      message: sellerReadiness.message,
+      actionRoute: sellerReadiness.actionRoute,
+    });
   }
 
   // Déterminer la collection cible

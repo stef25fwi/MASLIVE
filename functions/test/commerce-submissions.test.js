@@ -122,6 +122,24 @@ test("evaluateSellerReadiness bloque les virements Stripe désactivés", async (
   assert.equal(result.code, "stripe_connect_not_payable");
 });
 
+test("evaluateSellerReadiness bloque un créateur refusé", async () => {
+  const { db } = buildDb({
+    user: { role: "user", activities: ["createur_digital"] },
+    photographer: {
+      ownerUid: "creator-1",
+      status: "rejected",
+      stripe: payableStripe,
+    },
+  });
+  const result = await evaluateSellerReadiness({
+    db,
+    uid: "creator-1",
+    ownerRole: "createur_digital",
+  });
+  assert.equal(result.ready, false);
+  assert.equal(result.code, "photographer_verification_required");
+});
+
 test("authorizeDeclaredOwnerRole refuse un faux superadmin", async () => {
   const { db } = buildDb({
     user: { role: "user", isAdmin: false },
@@ -239,6 +257,7 @@ test("le câblage interdit la transition client directe vers pending", () => {
   );
 
   assert.match(indexSource, /exports\.submitCommerceForReview/);
+  assert.match(indexSource, /createCommerceSubmissionHandlers\.evaluateSellerReadiness/);
   assert.match(rulesSource, /request\.resource\.data\.status == 'draft'/);
   assert.match(rulesSource, /request\.resource\.data\.status == resource\.data\.status/);
   assert.match(rulesSource, /request\.resource\.data\.ownerRole == resource\.data\.ownerRole/);
