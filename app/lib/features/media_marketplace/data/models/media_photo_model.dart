@@ -28,6 +28,14 @@ double _photoDouble(dynamic value, {double fallback = 0}) {
   return fallback;
 }
 
+String _publicPreviewPath(Map<String, dynamic> map) {
+  final watermarked = map['watermarkedPath']?.toString().trim() ?? '';
+  if (watermarked.isNotEmpty) return watermarked;
+  final preview = map['previewPath']?.toString().trim() ?? '';
+  if (preview.isNotEmpty) return preview;
+  return map['thumbnailPath']?.toString().trim() ?? '';
+}
+
 /// Photo vendable ou consultable dans la marketplace.
 class MediaPhotoModel {
   final String photoId;
@@ -120,7 +128,7 @@ class MediaPhotoModel {
       circuitName: map['circuitName']?.toString(),
       eventName: map['eventName']?.toString(),
       originalPath: map['originalPath']?.toString() ?? '',
-      previewPath: map['previewPath']?.toString() ?? '',
+      previewPath: _publicPreviewPath(map),
       thumbnailPath: map['thumbnailPath']?.toString() ?? '',
       watermarkedPath: map['watermarkedPath']?.toString() ?? '',
       downloadFileName: map['downloadFileName']?.toString() ?? '',
@@ -135,8 +143,12 @@ class MediaPhotoModel {
       bibNumber: map['bibNumber']?.toString(),
       sequenceNo: _photoNullableInt(map['sequenceNo']),
       shotAt: TimestampMapper.fromFirestore(map['shotAt']),
-      moderationStatus: moderationStatusFromString(map['moderationStatus']?.toString()),
-      lifecycleStatus: photoLifecycleStatusFromString(map['lifecycleStatus']?.toString()),
+      moderationStatus: moderationStatusFromString(
+        map['moderationStatus']?.toString(),
+      ),
+      lifecycleStatus: photoLifecycleStatusFromString(
+        map['lifecycleStatus']?.toString(),
+      ),
       visibility: mediaVisibilityFromString(map['visibility']?.toString()),
       isPublished: map['isPublished'] as bool? ?? false,
       isForSale: map['isForSale'] as bool? ?? false,
@@ -150,7 +162,10 @@ class MediaPhotoModel {
   factory MediaPhotoModel.fromDocument(
     DocumentSnapshot<Map<String, dynamic>> doc,
   ) {
-    return MediaPhotoModel.fromMap(doc.data() ?? const <String, dynamic>{}, photoId: doc.id);
+    return MediaPhotoModel.fromMap(
+      doc.data() ?? const <String, dynamic>{},
+      photoId: doc.id,
+    );
   }
 
   Map<String, dynamic> toMap() {
