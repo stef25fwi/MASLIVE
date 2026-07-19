@@ -61,14 +61,35 @@ const createImplementation = require("./media-marketplace-stripe-profitability")
 
 function databaseWithTransactionFallback(db) {
   if (typeof db?.runTransaction === "function") return db
-  return {
+  let proxy
+  const wrapDocument = (document) => new Proxy(document, {
+    get(target, property) {
+      if (property === "collection" && typeof target.collection !== "function") {
+        return (name) => proxy.collection(`${target.path}/${name}`)
+      }
+      const value = target[property]
+      return typeof value === "function" ? value.bind(target) : value
+    },
+  })
+  const wrapCollection = (collection) => new Proxy(collection, {
+    get(target, property) {
+      if (property === "doc") {
+        return (id) => wrapDocument(target.doc(id))
+      }
+      const value = target[property]
+      return typeof value === "function" ? value.bind(target) : value
+    },
+  })
+  proxy = {
     ...db,
+    collection: (name) => wrapCollection(db.collection(name)),
     runTransaction: async (callback) => callback({
       get: (ref) => ref.get(),
       set: (ref, data, options) => ref.set(data, options),
       delete: (ref) => typeof ref.delete === "function" ? ref.delete() : Promise.resolve(),
     }),
   }
+  return proxy
 }
 
 function number(value, fallback = 0) {
