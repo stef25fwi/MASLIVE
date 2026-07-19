@@ -12,6 +12,7 @@ import 'cart/unified_cart_page.dart';
 import '../ui/snack/top_snack_bar.dart';
 import 'package:masslive/ui_kit/tokens/maslive_tokens.dart';
 import '../ui/widgets/maslive_empty_state.dart';
+import '../ui/widgets/maslive_skeleton.dart';
 
 class ShopBodyUnderHeader extends StatefulWidget {
   const ShopBodyUnderHeader({
@@ -446,10 +447,14 @@ class _ShopBodyUnderHeaderState extends State<ShopBodyUnderHeader> {
           builder: (context, snapshot) {
             if (snapshot.connectionState == ConnectionState.waiting) {
               return const SliverToBoxAdapter(
-                child: Center(
-                  child: Padding(
-                    padding: EdgeInsets.all(32),
-                    child: CircularProgressIndicator(),
+                child: Padding(
+                  padding: EdgeInsets.symmetric(horizontal: 16),
+                  child: Column(
+                    children: [
+                      MasliveSkeletonListTile(),
+                      MasliveSkeletonListTile(),
+                      MasliveSkeletonListTile(),
+                    ],
                   ),
                 ),
               );

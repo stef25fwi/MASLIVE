@@ -5,6 +5,7 @@ import '../models/order_model.dart';
 import '../services/order_service.dart';
 import '../ui/snack/top_snack_bar.dart';
 import '../ui/widgets/maslive_empty_state.dart';
+import '../ui/widgets/maslive_skeleton.dart';
 import 'admin_gate.dart';
 
 class AdminOrdersPage extends StatefulWidget {
@@ -97,7 +98,16 @@ class _AdminOrdersPageState extends State<AdminOrdersPage> {
                     .snapshots(),
                 builder: (context, snap) {
                   if (!snap.hasData) {
-                    return const Center(child: CircularProgressIndicator());
+                    return ListView(
+                      padding: const EdgeInsets.all(16),
+                      children: const [
+                        MasliveSkeletonListTile(),
+                        MasliveSkeletonListTile(),
+                        MasliveSkeletonListTile(),
+                        MasliveSkeletonListTile(),
+                        MasliveSkeletonListTile(),
+                      ],
+                    );
                   }
 
                   final search = _searchCtrl.text.trim().toLowerCase();
