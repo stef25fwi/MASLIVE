@@ -27,19 +27,22 @@ class GroupTrackingConsentService {
     }
 
     final normalizedRole = role == 'admin' ? 'admin' : 'tracker';
-    final collection = normalizedRole == 'admin'
-        ? 'group_admins'
-        : 'group_trackers';
+    final consentId = 'group_$adminGroupId';
 
-    await _firestore.collection(collection).doc(user.uid).set(
+    // L'accord est conservé dans l'espace privé du propriétaire. Le profil
+    // group_tracker reste strictement conforme à sa liste blanche Firestore.
+    await _firestore
+        .collection('users')
+        .doc(user.uid)
+        .collection('tracking_consents')
+        .doc(consentId)
+        .set(
       <String, dynamic>{
-        'trackingConsent': <String, dynamic>{
-          'accepted': true,
-          'version': consentVersion,
-          'adminGroupId': adminGroupId,
-          'role': normalizedRole,
-          'acceptedAt': FieldValue.serverTimestamp(),
-        },
+        'accepted': true,
+        'version': consentVersion,
+        'adminGroupId': adminGroupId,
+        'role': normalizedRole,
+        'acceptedAt': FieldValue.serverTimestamp(),
         'updatedAt': FieldValue.serverTimestamp(),
       },
       SetOptions(merge: true),
