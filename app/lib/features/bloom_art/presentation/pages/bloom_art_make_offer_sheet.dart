@@ -1,5 +1,6 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'package:masslive/pages/login_page.dart';
 
 import '../../data/models/bloom_art_item.dart';
 import '../../data/repositories/bloom_art_offer_repository.dart';
@@ -56,15 +57,30 @@ class _BloomArtMakeOfferSheetState extends State<BloomArtMakeOfferSheet> {
 
   Future<void> _submit() async {
     final rootContext = widget.rootContext;
-    final user = FirebaseAuth.instance.currentUser;
+    var user = FirebaseAuth.instance.currentUser;
     if (user == null) {
-      if (mounted) {
-        Navigator.of(context).pop();
+      final authenticated = await Navigator.of(rootContext).push<bool>(
+        MaterialPageRoute<bool>(
+          builder: (loginContext) => LoginPage(
+            onLoginSuccess: () => Navigator.of(loginContext).pop(true),
+          ),
+        ),
+      );
+
+      if (authenticated != true || !mounted || !rootContext.mounted) {
+        return;
       }
-      if (widget.rootContext.mounted) {
-        Navigator.of(widget.rootContext).pushNamed('/login');
-      }
-      return;
+
+      user = FirebaseAuth.instance.currentUser;
+      if (user == null) return;
+
+      ScaffoldMessenger.of(rootContext).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Connexion réussie. Le montant et votre message ont été conservés.',
+          ),
+        ),
+      );
     }
 
     final proposedPrice = double.tryParse(

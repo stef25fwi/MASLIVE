@@ -10,6 +10,7 @@ import 'package:image_picker/image_picker.dart';
 import '../../models/commerce_submission.dart';
 import '../../security/role_normalizer.dart';
 import '../storage_service.dart';
+import 'seller_publication_readiness_service.dart';
 
 /// Service de gestion des soumissions commerce (produits et médias).
 class CommerceService {
@@ -96,7 +97,10 @@ class CommerceService {
     return doc.id;
   }
 
-  Future<void> updateSubmission(String submissionId, Map<String, dynamic> updates) async {
+  Future<void> updateSubmission(
+    String submissionId,
+    Map<String, dynamic> updates,
+  ) async {
     final user = _currentUser;
     if (user == null) throw Exception('User not authenticated');
     updates['updatedAt'] = FieldValue.serverTimestamp();
@@ -111,24 +115,45 @@ class CommerceService {
     if (!doc.exists) throw Exception('Submission not found');
 
     final submission = CommerceSubmission.fromFirestore(doc);
+    if (submission.ownerUid != user.uid) {
+      throw Exception('Not authorized to submit this publication');
+    }
+
     if (submission.isMedia) {
       final hasSelection =
           (submission.countryId?.trim().isNotEmpty ?? false) &&
           (submission.eventId?.trim().isNotEmpty ?? false) &&
           (submission.circuitId?.trim().isNotEmpty ?? false);
       if (!hasSelection) {
-        throw Exception('Pays, evenement et circuit sont obligatoires pour un media');
+        throw Exception(
+          'Pays, evenement et circuit sont obligatoires pour un media',
+        );
       }
       if ((submission.price ?? 0) <= 0) {
         throw Exception('Le prix photo doit etre superieur a 0');
       }
     }
 
-    await _submissions.doc(submissionId).update({
-      'status': SubmissionStatus.pending.toJson(),
-      'submittedAt': FieldValue.serverTimestamp(),
-      'updatedAt': FieldValue.serverTimestamp(),
-    });
+    final readiness = await SellerPublicationReadinessService.instance.check(
+      ownerRole: submission.ownerRole,
+    );
+    if (!readiness.canPublish) {
+      throw StateError(readiness.message);
+    }
+
+    try {
+      final callable = _functions.httpsCallable('submitCommerceForReview');
+      await callable.call(<String, dynamic>{'submissionId': submissionId});
+    } on FirebaseFunctionsException catch (error) {
+      final details = error.details;
+      final detailsMessage = details is Map ? details['message'] : null;
+      throw StateError(
+        detailsMessage is String && detailsMessage.trim().isNotEmpty
+            ? detailsMessage
+            : error.message ??
+                  'Impossible de vérifier votre capacité de reversement.',
+      );
+    }
   }
 
   Future<void> deleteSubmission(String submissionId) async {
@@ -150,9 +175,15 @@ class CommerceService {
     await _submissions.doc(submissionId).delete();
   }
 
-  Future<void> _deleteStorageFolder(String scopeId, String ownerUid, String submissionId) async {
+  Future<void> _deleteStorageFolder(
+    String scopeId,
+    String ownerUid,
+    String submissionId,
+  ) async {
     try {
-      final folderRef = _storage.ref('commerce/$scopeId/$ownerUid/$submissionId');
+      final folderRef = _storage.ref(
+        'commerce/$scopeId/$ownerUid/$submissionId',
+      );
       final result = await folderRef.listAll();
       for (final item in result.items) {
         await item.delete();
@@ -211,7 +242,9 @@ class CommerceService {
     );
   }
 
-  Stream<List<CommerceSubmission>> watchMySubmissions({SubmissionStatus? status}) {
+  Stream<List<CommerceSubmission>> watchMySubmissions({
+    SubmissionStatus? status,
+  }) {
     final user = _currentUser;
     if (user == null) return Stream.value([]);
 
@@ -227,7 +260,9 @@ class CommerceService {
     }
 
     return query.snapshots().map((snapshot) {
-      return snapshot.docs.map((doc) => CommerceSubmission.fromFirestore(doc)).toList();
+      return snapshot.docs
+          .map((doc) => CommerceSubmission.fromFirestore(doc))
+          .toList();
     });
   }
 
@@ -262,7 +297,9 @@ class CommerceService {
     }
 
     return query.snapshots().map((snapshot) {
-      return snapshot.docs.map((doc) => CommerceSubmission.fromFirestore(doc)).toList();
+      return snapshot.docs
+          .map((doc) => CommerceSubmission.fromFirestore(doc))
+          .toList();
     });
   }
 
@@ -319,9 +356,11 @@ class CommerceService {
     }
 
     if (role == RoleNormalizer.group && scopeId != null) {
-      final managedScopeIds = (data['managedScopeIds'] as List<dynamic>?)?.cast<String>();
+      final managedScopeIds =
+          (data['managedScopeIds'] as List<dynamic>?)?.cast<String>();
       final userGroupId = data['groupId'] as String?;
-      return managedScopeIds?.contains(scopeId) == true || userGroupId == scopeId;
+      return managedScopeIds?.contains(scopeId) == true ||
+          userGroupId == scopeId;
     }
 
     return false;
@@ -348,6 +387,14 @@ class CommerceService {
     if (activities?.contains('createur_digital') == true ||
         activities?.contains('creator_digital') == true) {
       return OwnerRole.createurDigital;
+    }
+
+    final businessDoc = await _firestore
+        .collection('businesses')
+        .doc(user.uid)
+        .get();
+    if (businessDoc.exists) {
+      return OwnerRole.comptePro;
     }
 
     return null;

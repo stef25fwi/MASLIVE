@@ -1,13 +1,15 @@
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../../providers/cart_provider.dart';
-import '../checkout/maslive_ultra_premium_checkout_page.dart';
-import '../user_facing_bottom_bar.dart';
 import '../../widgets/cart/cart_group_section.dart';
 import '../../widgets/cart/cart_item_tile.dart';
 import '../../widgets/cart/cart_summary_card.dart';
 import '../../widgets/cart/empty_cart_view.dart';
+import '../checkout/maslive_ultra_premium_checkout_page.dart';
+import '../login_page.dart';
+import '../user_facing_bottom_bar.dart';
 import 'package:masslive/ui_kit/tokens/maslive_tokens.dart';
 
 class UnifiedCartPage extends StatefulWidget {
@@ -136,7 +138,7 @@ class _UnifiedCartPageState extends State<UnifiedCartPage> {
               grandTotal: cart.grandTotal,
               currency: currency,
               enabled: !cart.isEmpty,
-                onCheckout: () => _handleCheckout(context, cart),
+              onCheckout: () => _handleCheckout(context, cart),
               checkoutLabel:
                   cart.mediaCheckoutItems.isNotEmpty &&
                       cart.merchCheckoutItems.isNotEmpty
@@ -211,6 +213,38 @@ class _UnifiedCartPageState extends State<UnifiedCartPage> {
   ) async {
     if (cart.checkoutEligibleItems.isEmpty) {
       return;
+    }
+
+    var user = FirebaseAuth.instance.currentUser;
+    if (user == null) {
+      final authenticated = await Navigator.of(context).push<bool>(
+        MaterialPageRoute<bool>(
+          builder: (loginContext) => LoginPage(
+            onLoginSuccess: () => Navigator.of(loginContext).pop(true),
+          ),
+        ),
+      );
+
+      if (authenticated != true || !context.mounted) {
+        return;
+      }
+
+      user = FirebaseAuth.instance.currentUser;
+      if (user == null) {
+        return;
+      }
+
+      // CartService transfère automatiquement les articles anonymes dans le
+      // panier Firestore du compte. L'utilisateur reprend donc exactement au
+      // même endroit, sans perdre la fiche ni les articles sélectionnés.
+      await cart.init(user.uid);
+      if (!context.mounted) return;
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Connexion réussie. Votre panier a été conservé.'),
+        ),
+      );
     }
 
     await Navigator.of(context).push(
