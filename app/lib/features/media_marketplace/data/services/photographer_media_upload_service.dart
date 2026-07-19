@@ -1,8 +1,5 @@
-import 'dart:typed_data';
-
 import 'package:cloud_functions/cloud_functions.dart';
 import 'package:firebase_storage/firebase_storage.dart';
-import 'package:image/image.dart' as image_lib;
 import 'package:image_picker/image_picker.dart';
 
 class PhotographerUploadProgress {
@@ -21,18 +18,110 @@ class PhotographerUploadProgress {
   double get fraction => total <= 0 ? 0 : completed / total;
 }
 
+class PhotographerMediaQuota {
+  const PhotographerMediaQuota({
+    required this.planCode,
+    required this.planName,
+    required this.maxPublishedPhotos,
+    required this.maxStorageBytes,
+    required this.maxActiveGalleries,
+    required this.maxBatchUpload,
+    required this.maxFileBytes,
+    required this.maxMegapixels,
+    required this.retentionDays,
+    required this.commissionRate,
+    required this.publishedPhotoCount,
+    required this.storageUsedBytes,
+    required this.activeGalleryCount,
+    required this.photoCapacityRemaining,
+    required this.storageCapacityRemaining,
+    required this.galleryCapacityRemaining,
+  });
+
+  final String planCode;
+  final String planName;
+  final int maxPublishedPhotos;
+  final int maxStorageBytes;
+  final int maxActiveGalleries;
+  final int maxBatchUpload;
+  final int maxFileBytes;
+  final int maxMegapixels;
+  final int retentionDays;
+  final double commissionRate;
+  final int publishedPhotoCount;
+  final int storageUsedBytes;
+  final int activeGalleryCount;
+  final int photoCapacityRemaining;
+  final int storageCapacityRemaining;
+  final int galleryCapacityRemaining;
+
+  double get photoUsageFraction => maxPublishedPhotos <= 0
+      ? 0
+      : (publishedPhotoCount / maxPublishedPhotos).clamp(0, 1).toDouble();
+
+  double get storageUsageFraction => maxStorageBytes <= 0
+      ? 0
+      : (storageUsedBytes / maxStorageBytes).clamp(0, 1).toDouble();
+
+  int get commissionPercent => (commissionRate * 100).round();
+
+  factory PhotographerMediaQuota.fromMap(Map<String, dynamic> map) {
+    final plan = Map<String, dynamic>.from(
+      map['plan'] is Map ? map['plan'] as Map : const <String, dynamic>{},
+    );
+    int readInt(Map<String, dynamic> source, String key) {
+      final value = source[key];
+      return value is num ? value.toInt() : 0;
+    }
+
+    double readDouble(Map<String, dynamic> source, String key) {
+      final value = source[key];
+      return value is num ? value.toDouble() : 0;
+    }
+
+    return PhotographerMediaQuota(
+      planCode: plan['code']?.toString() ?? 'discovery',
+      planName: plan['name']?.toString() ?? 'Découverte',
+      maxPublishedPhotos: readInt(plan, 'maxPublishedPhotos'),
+      maxStorageBytes: readInt(plan, 'maxStorageBytes'),
+      maxActiveGalleries: readInt(plan, 'maxActiveGalleries'),
+      maxBatchUpload: readInt(plan, 'maxBatchUpload'),
+      maxFileBytes: readInt(plan, 'maxFileBytes'),
+      maxMegapixels: readInt(plan, 'maxMegapixels'),
+      retentionDays: readInt(plan, 'retentionDays'),
+      commissionRate: readDouble(plan, 'commissionRate'),
+      publishedPhotoCount: readInt(map, 'publishedPhotoCount'),
+      storageUsedBytes: readInt(map, 'storageUsedBytes'),
+      activeGalleryCount: readInt(map, 'activeGalleryCount'),
+      photoCapacityRemaining: readInt(map, 'photoCapacityRemaining'),
+      storageCapacityRemaining: readInt(map, 'storageCapacityRemaining'),
+      galleryCapacityRemaining: readInt(map, 'galleryCapacityRemaining'),
+    );
+  }
+}
+
 class PhotographerMediaUploadService {
   PhotographerMediaUploadService({
     FirebaseFunctions? functions,
     FirebaseStorage? storage,
     ImagePicker? picker,
-  })  : _functions = functions ?? FirebaseFunctions.instanceFor(region: 'us-east1'),
+  })  : _functions =
+            functions ?? FirebaseFunctions.instanceFor(region: 'us-east1'),
         _storage = storage ?? FirebaseStorage.instance,
         _picker = picker ?? ImagePicker();
 
   final FirebaseFunctions _functions;
   final FirebaseStorage _storage;
   final ImagePicker _picker;
+
+  Future<PhotographerMediaQuota> getQuota(String photographerId) async {
+    final response = await _functions
+        .httpsCallable('getPhotographerMediaQuota')
+        .call(<String, dynamic>{'photographerId': photographerId});
+    return PhotographerMediaQuota.fromMap(
+      Map<String, dynamic>.from(response.data as Map),
+    );
+  }
 
   Future<List<XFile>> selectPhotos({required int maxCount}) async {
     if (maxCount <= 0) return const <XFile>[];
@@ -66,7 +155,11 @@ class PhotographerMediaUploadService {
       'countryName': countryName,
     });
     final data = Map<String, dynamic>.from(response.data as Map);
-    return data['galleryId']?.toString() ?? '';
+    final galleryId = data['galleryId']?.toString() ?? '';
+    if (galleryId.isEmpty) {
+      throw StateError('La galerie n’a pas été créée.');
+    }
+    return galleryId;
   }
 
   Future<void> uploadPhotos({
@@ -102,28 +195,19 @@ class PhotographerMediaUploadService {
             .toList(growable: false);
 
     if (reservations.length != files.length) {
-      throw StateError('Le serveur n\'a pas réservé tous les fichiers.');
+      throw StateError('Le serveur n’a pas réservé tous les fichiers.');
     }
 
     for (var index = 0; index < files.length; index++) {
       final file = files[index];
       final reservation = reservations[index];
-      final bytes = await file.readAsBytes();
-      final decoded = image_lib.decodeImage(bytes);
-      if (decoded == null) {
-        throw StateError('Image illisible : ${file.name}');
-      }
-
-      final preview = decoded.width > 1600
-          ? image_lib.copyResize(decoded, width: 1600)
-          : decoded;
-      final thumb = decoded.width > 480
-          ? image_lib.copyResize(decoded, width: 480)
-          : decoded;
-      final previewBytes =
-          Uint8List.fromList(image_lib.encodeJpg(preview, quality: 82));
-      final thumbBytes =
-          Uint8List.fromList(image_lib.encodeJpg(thumb, quality: 74));
+      final contentType = file.mimeType ?? _guessMimeType(file.name);
+      final customMetadata = <String, String>{
+        'photographerId': photographerId,
+        'galleryId': galleryId,
+        'photoId': reservation['photoId'].toString(),
+        'reservationId': reservation['reservationId'].toString(),
+      };
 
       onProgress(PhotographerUploadProgress(
         completed: index,
@@ -132,66 +216,28 @@ class PhotographerMediaUploadService {
         stage: 'Envoi de l’original',
       ));
 
-      final contentType = file.mimeType ?? _guessMimeType(file.name);
-      final customMetadata = <String, String>{
-        'photographerId': photographerId,
-        'galleryId': galleryId,
-        'photoId': reservation['photoId'].toString(),
-        'reservationId': reservation['reservationId'].toString(),
-      };
-      final originalMetadata = SettableMetadata(
-        contentType: contentType,
-        customMetadata: customMetadata,
-      );
-
       final originalRef = _storage.ref(reservation['originalPath'].toString());
-      await originalRef.putData(bytes, originalMetadata);
+      await originalRef.putData(
+        await file.readAsBytes(),
+        SettableMetadata(
+          contentType: contentType,
+          cacheControl: 'private,no-store',
+          customMetadata: customMetadata,
+        ),
+      );
 
       onProgress(PhotographerUploadProgress(
         completed: index,
         total: files.length,
         fileName: file.name,
-        stage: 'Création des miniatures',
+        stage: 'Optimisation et filigrane',
       ));
-
-      final derivativeMetadata = SettableMetadata(
-        contentType: 'image/jpeg',
-        cacheControl: 'public,max-age=31536000,immutable',
-        customMetadata: customMetadata,
-      );
-      final previewRef = _storage.ref(reservation['previewPath'].toString());
-      final thumbnailRef = _storage.ref(reservation['thumbnailPath'].toString());
-      final watermarkedRef =
-          _storage.ref(reservation['watermarkedPath'].toString());
-
-      await Future.wait<TaskSnapshot>(<Future<TaskSnapshot>>[
-        previewRef.putData(previewBytes, derivativeMetadata),
-        thumbnailRef.putData(thumbBytes, derivativeMetadata),
-        // La boutique superpose également un filigrane visuel. Cette copie basse
-        // définition garantit qu’aucun original n’est exposé publiquement.
-        watermarkedRef.putData(previewBytes, derivativeMetadata),
-      ]);
-
-      final urls = await Future.wait<String>(<Future<String>>[
-        previewRef.getDownloadURL(),
-        thumbnailRef.getDownloadURL(),
-        watermarkedRef.getDownloadURL(),
-      ]);
 
       await _functions
           .httpsCallable('finalizePhotographerMediaUpload')
           .call(<String, dynamic>{
         'reservationId': reservation['reservationId'],
         'photoId': reservation['photoId'],
-        'width': decoded.width,
-        'height': decoded.height,
-        'sizeBytes': bytes.length,
-        'mimeType': contentType,
-        'downloadFileName': file.name,
-        'originalPath': reservation['originalPath'],
-        'previewPath': urls[0],
-        'thumbnailPath': urls[1],
-        'watermarkedPath': urls[2],
         'unitPrice': unitPrice,
       });
 
@@ -228,16 +274,19 @@ class PhotographerMediaUploadService {
     });
   }
 
-  Future<void> createRecommendedPacks({
+  Future<int> createRecommendedPacks({
     required String photographerId,
     required String galleryId,
   }) async {
-    await _functions
+    final response = await _functions
         .httpsCallable('ensurePhotographerGalleryDefaultPacks')
         .call(<String, dynamic>{
       'photographerId': photographerId,
       'galleryId': galleryId,
     });
+    final data = Map<String, dynamic>.from(response.data as Map);
+    final created = data['created'];
+    return created is num ? created.toInt() : 0;
   }
 
   Future<void> deletePhoto({
