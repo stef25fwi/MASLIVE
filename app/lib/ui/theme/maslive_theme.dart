@@ -24,19 +24,26 @@
 
 import 'package:flutter/material.dart';
 
+import '../../ui_kit/tokens/maslive_tokens.dart';
+
+/// Construit le `ThemeData` Material de l'app à partir des tokens uniques
+/// de [MasliveTokens] (couleurs, rayons, espacements). Les gradients de
+/// marque et les ombres "premium" restent définis ici : ce sont des
+/// compositions visuelles propres à ce thème, pas des tokens neutres
+/// réutilisables ailleurs.
 class MasliveTheme {
   MasliveTheme._();
 
-  // ---------- Core colors ----------
-  static const Color surface = Color(0xFFFFFFFF);
-  static const Color surfaceAlt = Color(0xFFF6F7FB);
+  // ---------- Core colors (alias des tokens uniques) ----------
+  static const Color surface = MasliveTokens.surface;
+  static const Color surfaceAlt = MasliveTokens.bg;
 
-  static const Color textPrimary = Color(0xFF1D2330);
-  static const Color textSecondary = Color(0xFF6E7787);
+  static const Color textPrimary = MasliveTokens.text;
+  static const Color textSecondary = MasliveTokens.textMuted;
 
   static const Color pink = Color(0xFFFF6BB5);
 
-  static const Color divider = Color(0xFFE9EDF5);
+  static const Color divider = MasliveTokens.line;
 
   // ---------- Gradients (mockup pastel) ----------
   static const LinearGradient headerGradient = LinearGradient(
@@ -69,18 +76,18 @@ class MasliveTheme {
     colors: [Color(0xFFFDFDFF), Color(0xFFF6F7FB)],
   );
 
-  // ---------- Radius ----------
-  static const double rHeader = 28.0;
-  static const double rCard = 20.0;
-  static const double rTile = 16.0;
-  static const double rPill = 999.0;
+  // ---------- Radius (alias de l'échelle unique MasliveTokens) ----------
+  static const double rHeader = MasliveTokens.rXL;
+  static const double rCard = MasliveTokens.rL;
+  static const double rTile = MasliveTokens.rM;
+  static const double rPill = MasliveTokens.rPill;
 
-  // ---------- Spacing ----------
-  static const double s8 = 8;
-  static const double s12 = 12;
-  static const double s16 = 16;
-  static const double s20 = 20;
-  static const double s24 = 24;
+  // ---------- Spacing (alias de l'échelle unique MasliveTokens) ----------
+  static const double s8 = MasliveTokens.xs;
+  static const double s12 = MasliveTokens.s;
+  static const double s16 = MasliveTokens.m;
+  static const double s20 = 20; // valeur intermédiaire encore utilisée, hors échelle
+  static const double s24 = MasliveTokens.l;
 
   // ---------- Shadows ----------
   // Soft card shadow like the mockup
