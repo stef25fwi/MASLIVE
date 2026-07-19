@@ -54,13 +54,17 @@ class CartCheckoutService {
 
   static Future<void> startMediaCheckout(
     BuildContext context,
-    CartProvider cart,
-  ) async {
+    CartProvider cart, {
+    bool hdUpgrade = false,
+  }) async {
     final callable = FirebaseFunctions.instanceFor(region: 'us-east1')
         .httpsCallable('createMediaMarketplaceCheckout');
 
     final response = await callable.call<Map<String, dynamic>>(<String, dynamic>{
       'checkoutPayload': cart.buildCheckoutPayload(),
+      'mediaDeliveryOptions': <String, dynamic>{
+        'hdUpgrade': hdUpgrade,
+      },
     });
 
     final data = Map<String, dynamic>.from(response.data);
@@ -75,7 +79,13 @@ class CartCheckoutService {
     if (!context.mounted) return;
     TopSnackBar.show(
       context,
-      const SnackBar(content: Text('Checkout media ouvert dans Stripe')),
+      SnackBar(
+        content: Text(
+          hdUpgrade
+              ? 'Checkout média HD ouvert dans Stripe'
+              : 'Checkout média ouvert dans Stripe',
+        ),
+      ),
     );
   }
 
@@ -85,6 +95,7 @@ class CartCheckoutService {
     required int shippingCents,
     required String shippingMethod,
     String? promoCode,
+    bool mediaHdUpgrade = false,
   }) async {
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) {
@@ -104,6 +115,9 @@ class CartCheckoutService {
         'address': shippingAddress,
         'promoCode': promoCode ?? '',
         'checkoutPayload': cart.buildCheckoutPayload(),
+        'mediaDeliveryOptions': <String, dynamic>{
+          'hdUpgrade': mediaHdUpgrade,
+        },
         'successUrl': _webRouteUrl('/storex/paymentComplete'),
         'cancelUrl': _webRouteUrl('/cart'),
         'continueToRoute': '/cart',
@@ -131,6 +145,9 @@ class CartCheckoutService {
       'address': shippingAddress,
       'promoCode': promoCode ?? '',
       'checkoutPayload': cart.buildCheckoutPayload(),
+      'mediaDeliveryOptions': <String, dynamic>{
+        'hdUpgrade': mediaHdUpgrade,
+      },
     });
 
     final data = Map<String, dynamic>.from(response.data);
