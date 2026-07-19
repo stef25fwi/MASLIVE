@@ -4,11 +4,13 @@ const test = require("node:test")
 const assert = require("node:assert/strict")
 
 const {
+  MEDIA_HD_UPGRADE_PRICE,
   PHOTO_PACKS,
   PHOTOGRAPHER_PLANS,
   STORAGE_EXTENSIONS,
   quoteForPhotoCount,
   photoSelectionPrice,
+  mediaDeliveryQuote,
   stripeFeeEstimate,
   quotaSnapshot,
   planFor,
@@ -53,6 +55,31 @@ test("automatic pricing is never more expensive than single photos", () => {
   for (let count = 1; count <= 100; count += 1) {
     assert.ok(photoSelectionPrice(count) <= (count * 6.90), `${count} photos`)
   }
+})
+
+test("HD upgrade costs exactly 2.90 euros per order", () => {
+  assert.equal(MEDIA_HD_UPGRADE_PRICE, 2.90)
+  assert.deepEqual(
+    mediaDeliveryQuote({ subtotal: 19.90, hdUpgrade: true }),
+    {
+      hdUpgrade: true,
+      hdUpgradeAmount: 2.90,
+      allowedVariants: ["original", "hd", "preview", "web"],
+      total: 22.80,
+    },
+  )
+})
+
+test("standard delivery never grants original or HD variants", () => {
+  assert.deepEqual(
+    mediaDeliveryQuote({ subtotal: 19.90, hdUpgrade: false }),
+    {
+      hdUpgrade: false,
+      hdUpgradeAmount: 0,
+      allowedVariants: ["preview", "web"],
+      total: 19.90,
+    },
+  )
 })
 
 test("photographer plans keep exact quotas, quality and commissions", () => {
