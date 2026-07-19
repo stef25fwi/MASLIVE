@@ -5,6 +5,7 @@ import '../../data/models/bloom_art_seller_profile.dart';
 import '../../data/repositories/bloom_art_repository.dart';
 import '../widgets/bloom_art_cta_button.dart';
 import 'package:masslive/ui_kit/tokens/maslive_tokens.dart';
+import '../../../../ui/widgets/maslive_text_field.dart';
 
 class BloomArtJeMeLanceFormPage extends StatefulWidget {
   const BloomArtJeMeLanceFormPage({super.key});
@@ -752,17 +753,12 @@ class _BloomArtTextField extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return TextFormField(
+    return MasliveTextField(
       controller: controller,
+      label: label,
       maxLines: maxLines,
       keyboardType: keyboardType,
       validator: validator,
-      decoration: InputDecoration(
-        labelText: label,
-        border: const OutlineInputBorder(),
-        filled: true,
-        fillColor: Colors.white,
-      ),
     );
   }
 }

@@ -30,6 +30,9 @@ class MasliveTextField extends StatelessWidget {
     this.autocorrect = true,
     this.enableSuggestions = true,
     this.initialValue,
+    this.onTap,
+    this.errorText,
+    this.prefixText,
   });
 
   final TextEditingController? controller;
@@ -53,6 +56,9 @@ class MasliveTextField extends StatelessWidget {
   final bool autocorrect;
   final bool enableSuggestions;
   final String? initialValue;
+  final VoidCallback? onTap;
+  final String? errorText;
+  final String? prefixText;
 
   @override
   Widget build(BuildContext context) {
@@ -72,12 +78,15 @@ class MasliveTextField extends StatelessWidget {
       readOnly: readOnly,
       enabled: enabled,
       autofocus: autofocus,
+      onTap: onTap,
       inputFormatters: inputFormatters,
       style: const TextStyle(color: MasliveTokens.text, fontSize: 15),
       decoration: InputDecoration(
         labelText: label,
         hintText: hint,
         helperText: helperText,
+        errorText: errorText,
+        prefixText: prefixText,
         prefixIcon: icon == null ? null : Icon(icon, color: MasliveTokens.textFaint, size: 20),
         suffixIcon: suffix,
         filled: true,

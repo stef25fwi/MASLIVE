@@ -12,6 +12,7 @@ import '../../../../ui/snack/top_snack_bar.dart';
 import '../../../../ui/widgets/storage_image.dart';
 import 'shop_media_gallery_page.dart';
 import 'package:masslive/ui_kit/tokens/maslive_tokens.dart';
+import '../../../../ui/widgets/maslive_text_field.dart';
 
 // ---------------------------------------------------------------------------
 // ProductManagementPage — Admin UI
@@ -967,12 +968,12 @@ class _ProductEditDialogState extends State<ProductEditDialog> {
     String? Function(String?)? validator,
     TextInputType? keyboardType,
   }) {
-    return TextFormField(
+    return MasliveTextField(
       controller: controller,
+      label: label,
       maxLines: maxLines,
       validator: validator,
       keyboardType: keyboardType,
-      decoration: _decor(label),
     );
   }
 
