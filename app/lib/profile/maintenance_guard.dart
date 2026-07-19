@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import '../ui/widgets/maslive_text_field.dart';
 
 /// Guard pour vérifier si l'application est en mode maintenance
 class MaintenanceGuard extends StatelessWidget {
@@ -399,14 +400,11 @@ class _MaintenanceManagementPageState extends State<MaintenanceManagementPage> {
                 ),
               ),
               const SizedBox(height: 24),
-              TextFormField(
+              MasliveTextField(
                 controller: _titleController,
                 enabled: !_isSaving,
-                decoration: const InputDecoration(
-                  labelText: 'Titre',
-                  border: OutlineInputBorder(),
-                  prefixIcon: Icon(Icons.title),
-                ),
+                label: 'Titre',
+                icon: Icons.title,
                 validator: (value) {
                   if (!_isEnabled && (value == null || value.trim().isEmpty)) {
                     return 'Le titre est requis';
@@ -415,14 +413,11 @@ class _MaintenanceManagementPageState extends State<MaintenanceManagementPage> {
                 },
               ),
               const SizedBox(height: 16),
-              TextFormField(
+              MasliveTextField(
                 controller: _messageController,
-                decoration: const InputDecoration(
-                  labelText: 'Message',
-                  border: OutlineInputBorder(),
-                  prefixIcon: Icon(Icons.message),
-                  helperText: 'Message affiché aux utilisateurs',
-                ),
+                label: 'Message',
+                icon: Icons.message,
+                helperText: 'Message affiché aux utilisateurs',
                 maxLines: 4,
                 validator: (value) {
                   if (!_isEnabled && (value == null || value.trim().isEmpty)) {

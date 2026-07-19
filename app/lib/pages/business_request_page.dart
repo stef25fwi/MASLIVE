@@ -3,6 +3,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../ui/widgets/maslive_button.dart';
+import '../ui/widgets/maslive_text_field.dart';
 
 class BusinessRequestPage extends StatefulWidget {
   const BusinessRequestPage({super.key});
@@ -301,25 +302,21 @@ class _BusinessRequestPageState extends State<BusinessRequestPage> {
             key: _formKey,
             child: Column(
               children: [
-                TextFormField(
+                MasliveTextField(
                   controller: _companyCtrl,
                   enabled: !_loading && !locked,
-                  decoration: const InputDecoration(
-                    labelText: 'Nom entreprise *',
-                    prefixIcon: Icon(Icons.business_outlined),
-                  ),
+                  label: 'Nom entreprise *',
+                  icon: Icons.business_outlined,
                   validator: (v) => (v == null || v.trim().isEmpty)
                       ? 'Nom entreprise requis'
                       : null,
                 ),
                 const SizedBox(height: 12),
-                TextFormField(
+                MasliveTextField(
                   controller: _siretCtrl,
                   enabled: !_loading && !locked,
-                  decoration: const InputDecoration(
-                    labelText: 'SIRET *',
-                    prefixIcon: Icon(Icons.numbers),
-                  ),
+                  label: 'SIRET *',
+                  icon: Icons.numbers,
                   keyboardType: TextInputType.number,
                   inputFormatters: [
                     FilteringTextInputFormatter.digitsOnly,

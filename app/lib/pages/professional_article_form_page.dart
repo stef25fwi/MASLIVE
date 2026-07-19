@@ -3,6 +3,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 
 import '../ui/widgets/storage_image.dart';
+import '../ui/widgets/maslive_text_field.dart';
 
 class ProfessionalArticleFormPage extends StatefulWidget {
   final String? articleId;
@@ -173,23 +174,17 @@ class _ProfessionalArticleFormPageState extends State<ProfessionalArticleFormPag
                   if (_error != null) const SizedBox(height: 16),
 
                   _buildSection('Informations de base', [
-                    TextFormField(
+                    MasliveTextField(
                       controller: _titleCtrl,
-                      decoration: InputDecoration(
-                        labelText: 'Titre de l\'article *',
-                        prefixIcon: const Icon(Icons.title),
-                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
-                      ),
+                      label: 'Titre de l\'article *',
+                      icon: Icons.title,
                       validator: (v) => v?.trim().isEmpty ?? true ? 'Titre requis' : null,
                     ),
                     const SizedBox(height: 12),
-                    TextFormField(
+                    MasliveTextField(
                       controller: _descriptionCtrl,
-                      decoration: InputDecoration(
-                        labelText: 'Description',
-                        prefixIcon: const Icon(Icons.description),
-                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
-                      ),
+                      label: 'Description',
+                      icon: Icons.description,
                       maxLines: 4,
                     ),
                   ]),
@@ -199,13 +194,10 @@ class _ProfessionalArticleFormPageState extends State<ProfessionalArticleFormPag
                     Row(
                       children: [
                         Expanded(
-                          child: TextFormField(
+                          child: MasliveTextField(
                             controller: _priceCtrl,
-                            decoration: InputDecoration(
-                              labelText: 'Prix (€) *',
-                              prefixIcon: const Icon(Icons.euro),
-                              border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
-                            ),
+                            label: 'Prix (€) *',
+                            icon: Icons.euro,
                             keyboardType: const TextInputType.numberWithOptions(decimal: true),
                             validator: (v) {
                               if (v?.trim().isEmpty ?? true) return 'Prix requis';
@@ -220,13 +212,10 @@ class _ProfessionalArticleFormPageState extends State<ProfessionalArticleFormPag
                         ),
                         const SizedBox(width: 12),
                         Expanded(
-                          child: TextFormField(
+                          child: MasliveTextField(
                             controller: _stockCtrl,
-                            decoration: InputDecoration(
-                              labelText: 'Stock *',
-                              prefixIcon: const Icon(Icons.inventory),
-                              border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
-                            ),
+                            label: 'Stock *',
+                            icon: Icons.inventory,
                             keyboardType: TextInputType.number,
                             validator: (v) {
                               if (v?.trim().isEmpty ?? true) return 'Stock requis';
@@ -245,13 +234,10 @@ class _ProfessionalArticleFormPageState extends State<ProfessionalArticleFormPag
                   const SizedBox(height: 24),
 
                   _buildSection('Image', [
-                    TextFormField(
+                    MasliveTextField(
                       controller: _imageUrlCtrl,
-                      decoration: InputDecoration(
-                        labelText: 'URL de l\'image',
-                        prefixIcon: const Icon(Icons.image),
-                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
-                      ),
+                      label: 'URL de l\'image',
+                      icon: Icons.image,
                     ),
                     const SizedBox(height: 12),
                     if (_imageUrlCtrl.text.isNotEmpty)

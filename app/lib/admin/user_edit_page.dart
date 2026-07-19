@@ -5,6 +5,7 @@ import '../services/user_repo.dart';
 import '../services/permission_service.dart';
 import '../services/auth_claims_service.dart';
 import '../theme/maslive_theme.dart';
+import '../ui/widgets/maslive_text_field.dart';
 
 class UserEditPage extends StatefulWidget {
   final AppUser user;
@@ -291,13 +292,10 @@ class _UserEditPageState extends State<UserEditPage> {
               if (!canEdit) const SizedBox(height: 16),
 
               // Nom d'affichage
-              TextFormField(
+              MasliveTextField(
                 controller: _displayNameController,
-                decoration: const InputDecoration(
-                  labelText: 'Nom d\'affichage',
-                  border: OutlineInputBorder(),
-                  prefixIcon: Icon(Icons.person),
-                ),
+                label: 'Nom d\'affichage',
+                icon: Icons.person,
                 enabled: canEdit || isCurrentUser,
                 validator: (value) {
                   if (value == null || value.trim().isEmpty) {
@@ -309,25 +307,19 @@ class _UserEditPageState extends State<UserEditPage> {
               const SizedBox(height: 16),
 
               // Email (lecture seule)
-              TextFormField(
+              MasliveTextField(
                 controller: _emailController,
-                decoration: const InputDecoration(
-                  labelText: 'Email',
-                  border: OutlineInputBorder(),
-                  prefixIcon: Icon(Icons.email),
-                ),
+                label: 'Email',
+                icon: Icons.email,
                 enabled: false,
               ),
               const SizedBox(height: 16),
 
               // Téléphone
-              TextFormField(
+              MasliveTextField(
                 controller: _phoneController,
-                decoration: const InputDecoration(
-                  labelText: 'Téléphone',
-                  border: OutlineInputBorder(),
-                  prefixIcon: Icon(Icons.phone),
-                ),
+                label: 'Téléphone',
+                icon: Icons.phone,
                 enabled: canEdit || isCurrentUser,
                 keyboardType: TextInputType.phone,
               ),
@@ -366,14 +358,11 @@ class _UserEditPageState extends State<UserEditPage> {
               const SizedBox(height: 16),
 
               // Groupe ID
-              TextFormField(
+              MasliveTextField(
                 controller: _groupIdController,
-                decoration: const InputDecoration(
-                  labelText: 'ID du groupe (optionnel)',
-                  border: OutlineInputBorder(),
-                  prefixIcon: Icon(Icons.group),
-                  helperText: 'Pour les rôles Tracker et Groupe Admin',
-                ),
+                label: 'ID du groupe (optionnel)',
+                icon: Icons.group,
+                helperText: 'Pour les rôles Tracker et Groupe Admin',
                 enabled: canEdit,
               ),
               const SizedBox(height: 16),

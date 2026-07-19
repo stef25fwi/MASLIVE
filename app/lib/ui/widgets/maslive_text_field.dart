@@ -12,6 +12,7 @@ class MasliveTextField extends StatelessWidget {
     this.controller,
     required this.label,
     this.hint,
+    this.helperText,
     this.icon,
     this.suffix,
     this.obscureText = false,
@@ -20,15 +21,21 @@ class MasliveTextField extends StatelessWidget {
     this.validator,
     this.onChanged,
     this.maxLines = 1,
+    this.minLines,
     this.readOnly = false,
     this.enabled = true,
     this.inputFormatters,
     this.autofocus = false,
+    this.textCapitalization = TextCapitalization.none,
+    this.autocorrect = true,
+    this.enableSuggestions = true,
+    this.initialValue,
   });
 
   final TextEditingController? controller;
   final String label;
   final String? hint;
+  final String? helperText;
   final IconData? icon;
   final Widget? suffix;
   final bool obscureText;
@@ -37,21 +44,31 @@ class MasliveTextField extends StatelessWidget {
   final String? Function(String?)? validator;
   final void Function(String)? onChanged;
   final int maxLines;
+  final int? minLines;
   final bool readOnly;
   final bool enabled;
   final List<TextInputFormatter>? inputFormatters;
   final bool autofocus;
+  final TextCapitalization textCapitalization;
+  final bool autocorrect;
+  final bool enableSuggestions;
+  final String? initialValue;
 
   @override
   Widget build(BuildContext context) {
     return TextFormField(
       controller: controller,
+      initialValue: initialValue,
       obscureText: obscureText,
+      textCapitalization: textCapitalization,
+      autocorrect: autocorrect,
+      enableSuggestions: enableSuggestions,
       keyboardType: keyboardType,
       textInputAction: textInputAction,
       validator: validator,
       onChanged: onChanged,
       maxLines: obscureText ? 1 : maxLines,
+      minLines: obscureText ? null : minLines,
       readOnly: readOnly,
       enabled: enabled,
       autofocus: autofocus,
@@ -60,6 +77,7 @@ class MasliveTextField extends StatelessWidget {
       decoration: InputDecoration(
         labelText: label,
         hintText: hint,
+        helperText: helperText,
         prefixIcon: icon == null ? null : Icon(icon, color: MasliveTokens.textFaint, size: 20),
         suffixIcon: suffix,
         filled: true,

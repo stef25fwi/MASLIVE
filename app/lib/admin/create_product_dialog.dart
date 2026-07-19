@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 
 import '../ui/snack/top_snack_bar.dart';
+import '../ui/widgets/maslive_text_field.dart';
 
 /// Popup 10/10 "Créer un produit" : UI premium + validation + photos (galerie/caméra)
 Future<void> showCreateProductDialog({
@@ -73,28 +74,6 @@ class _CreateProductDialogState extends State<_CreateProductDialog> {
   }
 
   // ---------- UI helpers ----------
-  InputDecoration _decoration(String label, {String? hint, IconData? icon}) {
-    return InputDecoration(
-      labelText: label,
-      hintText: hint,
-      prefixIcon: icon == null ? null : Icon(icon),
-      filled: true,
-      fillColor: const Color(0xFFF7F7FB),
-      contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
-      border: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(18),
-        borderSide: BorderSide.none,
-      ),
-      focusedBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(18),
-        borderSide: BorderSide(
-          color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.45),
-          width: 1.4,
-        ),
-      ),
-    );
-  }
-
   double _parsePrice(String s) {
     final cleaned = s.trim().replaceAll(',', '.');
     return double.tryParse(cleaned) ?? -1;
@@ -347,14 +326,12 @@ class _CreateProductDialogState extends State<_CreateProductDialog> {
                         child: Column(
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            TextFormField(
+                            MasliveTextField(
                               controller: _nameCtrl,
                               textInputAction: TextInputAction.next,
-                              decoration: _decoration(
-                                'Nom du produit',
-                                hint: 'Ex: T-shirt MAS\'LIVE',
-                                icon: Icons.shopping_bag_rounded,
-                              ),
+                              label: 'Nom du produit',
+                              hint: 'Ex: T-shirt MAS\'LIVE',
+                              icon: Icons.shopping_bag_rounded,
                               validator: (v) {
                                 final s = (v ?? '').trim();
                                 if (s.isEmpty) return 'Le nom est obligatoire';
@@ -364,32 +341,28 @@ class _CreateProductDialogState extends State<_CreateProductDialog> {
                             ),
                             const SizedBox(height: 10),
 
-                            TextFormField(
+                            MasliveTextField(
                               controller: _descCtrl,
                               minLines: 2,
                               maxLines: 4,
-                              decoration: _decoration(
-                                'Description',
-                                hint: 'Détails, matière, coupe, etc.',
-                                icon: Icons.subject_rounded,
-                              ),
+                              label: 'Description',
+                              hint: 'Détails, matière, coupe, etc.',
+                              icon: Icons.subject_rounded,
                             ),
                             const SizedBox(height: 10),
 
                             Row(
                               children: [
                                 Expanded(
-                                  child: TextFormField(
+                                  child: MasliveTextField(
                                     controller: _priceCtrl,
                                     keyboardType:
                                         const TextInputType.numberWithOptions(
                                           decimal: true,
                                         ),
-                                    decoration: _decoration(
-                                      'Prix (€)',
-                                      hint: 'Ex: 25.00',
-                                      icon: Icons.euro_rounded,
-                                    ),
+                                    label: 'Prix (€)',
+                                    hint: 'Ex: 25.00',
+                                    icon: Icons.euro_rounded,
                                     validator: (v) {
                                       final p = _parsePrice(v ?? '');
                                       if (p < 0) return 'Prix invalide';
@@ -400,14 +373,12 @@ class _CreateProductDialogState extends State<_CreateProductDialog> {
                                 ),
                                 const SizedBox(width: 10),
                                 Expanded(
-                                  child: TextFormField(
+                                  child: MasliveTextField(
                                     controller: _stockCtrl,
                                     keyboardType: TextInputType.number,
-                                    decoration: _decoration(
-                                      'Stock',
-                                      hint: 'Ex: 10',
-                                      icon: Icons.inventory_2_rounded,
-                                    ),
+                                    label: 'Stock',
+                                    hint: 'Ex: 10',
+                                    icon: Icons.inventory_2_rounded,
                                     validator: (v) {
                                       final s = _parseInt(v ?? '');
                                       if (s < 0) return 'Stock invalide';

@@ -8,6 +8,7 @@ import '../../models/commerce_submission.dart';
 import '../../services/commerce/commerce_service.dart';
 import '../../ui/widgets/rainbow_loading_indicator.dart';
 import '../../ui/widgets/maslive_button.dart';
+import '../../ui/widgets/maslive_text_field.dart';
 
 /// Page de création/édition d'un produit
 class CreateProductPage extends StatefulWidget {
@@ -674,25 +675,16 @@ class _CreateProductPageState extends State<CreateProductPage> {
                         padding: const EdgeInsets.all(16),
                         children: [
                           // Titre
-                          TextFormField(
+                          MasliveTextField(
                             controller: _titleController,
+                            label: 'Titre du produit *',
                             textCapitalization: TextCapitalization.sentences,
-                            autocorrect: true,
-                            enableSuggestions: true,
                             onChanged: (value) {
                               final normalized = _normalizeTitle(value);
                               if (normalized != value) {
                                 _setControllerValue(_titleController, normalized);
                               }
                             },
-                            decoration: InputDecoration(
-                              labelText: 'Titre du produit *',
-                              border: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(12),
-                              ),
-                              filled: true,
-                              fillColor: Colors.white,
-                            ),
                             validator: (v) => v == null || v.trim().isEmpty
                                 ? 'Titre obligatoire'
                                 : null,
@@ -700,12 +692,11 @@ class _CreateProductPageState extends State<CreateProductPage> {
                           const SizedBox(height: 16),
 
                           // Description
-                          TextFormField(
+                          MasliveTextField(
                             controller: _descriptionController,
+                            label: 'Description *',
                             maxLines: 4,
                             textCapitalization: TextCapitalization.sentences,
-                            autocorrect: true,
-                            enableSuggestions: true,
                             onChanged: (value) {
                               final normalized = _normalizeDescription(value);
                               if (normalized != value) {
@@ -715,14 +706,6 @@ class _CreateProductPageState extends State<CreateProductPage> {
                                 );
                               }
                             },
-                            decoration: InputDecoration(
-                              labelText: 'Description *',
-                              border: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(12),
-                              ),
-                              filled: true,
-                              fillColor: Colors.white,
-                            ),
                             validator: (v) => v == null || v.trim().isEmpty
                                 ? 'Description obligatoire'
                                 : null,
@@ -733,8 +716,9 @@ class _CreateProductPageState extends State<CreateProductPage> {
                           Row(
                             children: [
                               Expanded(
-                                child: TextFormField(
+                                child: MasliveTextField(
                                   controller: _priceController,
+                                  label: 'Prix ($_currency) *',
                                   keyboardType: TextInputType.number,
                                   inputFormatters: [
                                     FilteringTextInputFormatter.allow(
@@ -750,14 +734,6 @@ class _CreateProductPageState extends State<CreateProductPage> {
                                       );
                                     }
                                   },
-                                  decoration: InputDecoration(
-                                    labelText: 'Prix ($_currency) *',
-                                    border: OutlineInputBorder(
-                                      borderRadius: BorderRadius.circular(12),
-                                    ),
-                                    filled: true,
-                                    fillColor: Colors.white,
-                                  ),
                                   validator: (v) {
                                     if (v == null || v.trim().isEmpty) {
                                       return 'Prix obligatoire';
@@ -771,8 +747,9 @@ class _CreateProductPageState extends State<CreateProductPage> {
                               ),
                               const SizedBox(width: 16),
                               Expanded(
-                                child: TextFormField(
+                                child: MasliveTextField(
                                   controller: _stockController,
+                                  label: 'Stock *',
                                   keyboardType: TextInputType.number,
                                   inputFormatters: [
                                     FilteringTextInputFormatter.digitsOnly,
@@ -786,14 +763,6 @@ class _CreateProductPageState extends State<CreateProductPage> {
                                       );
                                     }
                                   },
-                                  decoration: InputDecoration(
-                                    labelText: 'Stock *',
-                                    border: OutlineInputBorder(
-                                      borderRadius: BorderRadius.circular(12),
-                                    ),
-                                    filled: true,
-                                    fillColor: Colors.white,
-                                  ),
                                   validator: (v) {
                                     if (v == null || v.trim().isEmpty) {
                                       return 'Stock obligatoire';
@@ -835,16 +804,9 @@ class _CreateProductPageState extends State<CreateProductPage> {
                           const SizedBox(height: 16),
 
                           // Scope ID
-                          TextFormField(
+                          MasliveTextField(
                             initialValue: _scopeId,
-                            decoration: InputDecoration(
-                              labelText: 'Scope ID (optionnel)',
-                              border: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(12),
-                              ),
-                              filled: true,
-                              fillColor: Colors.white,
-                            ),
+                            label: 'Scope ID (optionnel)',
                             onChanged: (val) => _scopeId = val.trim(),
                           ),
                           const SizedBox(height: 16),
