@@ -1,8 +1,7 @@
 rules_version = '2';
 service firebase.storage {
   match /b/{bucket}/o {
-    
-    // Helper functions
+
     function isAuthenticated() {
       return request.auth != null;
     }
@@ -53,90 +52,164 @@ service firebase.storage {
     function canManageMarketplaceMedia(photographerId) {
       return isMasterAdmin() || isPhotographerOwner(photographerId);
     }
-    
+
     function isOwner(userId) {
       return isAuthenticated() && request.auth.uid == userId;
     }
-    
+
     function isValidImageType() {
       return request.resource != null
         && request.resource.contentType != null
         && request.resource.contentType.matches('image/(jpeg|jpg|png|webp|gif|heic|heif)');
     }
-    
+
     function isValidImageSize() {
-      return request.resource.size < 5 * 1024 * 1024; // 5MB max
+      return request.resource.size < 5 * 1024 * 1024;
     }
-    
-    // ✅ Images de profil utilisateurs
+
+    function hasValidPhotographerReservation(
+      photographerId,
+      eventId,
+      galleryId,
+      storagePath,
+      originalUpload
+    ) {
+      let reservationId = request.resource.metadata.reservationId;
+      let reservationPath = /databases/(default)/documents/media_upload_reservations/$(reservationId);
+      let reservation = firestore.get(reservationPath).data;
+      return isAuthenticated()
+        && request.resource.metadata != null
+        && reservationId is string
+        && reservationId.size() > 0
+        && firestore.exists(reservationPath)
+        && reservation.status == 'reserved'
+        && reservation.ownerUid == request.auth.uid
+        && reservation.photographerId == photographerId
+        && reservation.galleryId == galleryId
+        && reservation.eventId == eventId
+        && reservation.photoId == request.resource.metadata.photoId
+        && request.resource.metadata.photographerId == photographerId
+        && request.resource.metadata.galleryId == galleryId
+        && (
+          reservation.originalPath == storagePath
+          || reservation.previewPath == storagePath
+          || reservation.thumbnailPath == storagePath
+          || reservation.watermarkedPath == storagePath
+        )
+        && request.resource.size > 0
+        && request.resource.size <= reservation.maxFileBytes
+        && (!originalUpload || request.resource.size <= reservation.reservedBytes);
+    }
+
     match /users/{userId}/profile/{imageId} {
       allow read: if true;
-      allow write: if isOwner(userId) && 
-                      isValidImageType() && 
-                      isValidImageSize();
+      allow write: if isOwner(userId)
+                    && isValidImageType()
+                    && isValidImageSize();
       allow delete: if isOwner(userId);
     }
-    
-    // ✅ Images de groupes (inclut sous-dossiers, ex: products/{productId}/1.jpg)
+
     match /groups/{groupId}/{allPaths=**} {
       allow read: if true;
-      allow write: if (isMasterAdmin() || isGroupAdmin(groupId)) && 
-                      isValidImageType() && 
-                      isValidImageSize();
+      allow write: if (isMasterAdmin() || isGroupAdmin(groupId))
+                    && isValidImageType()
+                    && isValidImageSize();
       allow delete: if isMasterAdmin() || isGroupAdmin(groupId);
     }
-    
-    // ✅ Images de places (admin seulement)
-    // Utilisé par ImageManagementService: places/{placeId}/images/{imageId}/...
+
     match /places/{placeId}/{allPaths=**} {
       allow read: if true;
-      allow write: if isMasterAdmin() && 
-                      isValidImageType() && 
-                      isValidImageSize();
+      allow write: if isMasterAdmin()
+                    && isValidImageType()
+                    && isValidImageSize();
       allow delete: if isMasterAdmin();
     }
 
-    // ✅ Images produits boutique (admin seulement)
-    // Utilisé par le dialog de création produit: shops/{shopId}/products/{productId}/...
     match /shops/{shopId}/{allPaths=**} {
       allow read: if true;
-      allow write: if isMasterAdmin() &&
-                      isValidImageType() &&
-                      isValidImageSize();
+      allow write: if isMasterAdmin()
+                    && isValidImageType()
+                    && isValidImageSize();
       allow delete: if isMasterAdmin();
     }
 
-    // ✅ Produits admin (créés par StorageService)
-    // Chemin: products/{shopId}/{productId}/original/{filename}
     match /products/{shopId}/{allPaths=**} {
       allow read: if true;
-      allow write: if isMasterAdmin() &&
-                      isValidImageType() &&
-                      isValidImageSize();
+      allow write: if isMasterAdmin()
+                    && isValidImageType()
+                    && isValidImageSize();
       allow delete: if isMasterAdmin();
     }
 
-    // ✅ Média générique (photos, articles, etc.)
-    // Chemin: media/{scopeId}/{mediaId}/original/{filename}
     match /media/{scopeId}/{allPaths=**} {
       allow read: if isMasterAdmin();
-      allow write: if isMasterAdmin() &&
-                      isValidImageType() &&
-                      isValidImageSize();
+      allow write: if isMasterAdmin()
+                    && isValidImageType()
+                    && isValidImageSize();
       allow delete: if isMasterAdmin();
     }
 
-    // ✅ Média marketplace photographes
-    // Chemin: photographers/{photographerId}/events/{eventId}/galleries/{galleryId}/...
-    match /photographers/{photographerId}/events/{eventId}/galleries/{galleryId}/{allPaths=**} {
-      allow read: if isAuthenticated() && canManageMarketplaceMedia(photographerId);
-      allow write: if canManageMarketplaceMedia(photographerId) &&
-                      isValidImageType() &&
-                      request.resource.size < 25 * 1024 * 1024;
+    // Originaux privés : seuls le propriétaire et les administrateurs peuvent
+    // les lire. Chaque création doit correspondre à une réservation serveur.
+    match /photographers/{photographerId}/events/{eventId}/galleries/{galleryId}/originals/{fileName} {
+      allow read: if canManageMarketplaceMedia(photographerId);
+      allow create, update: if canManageMarketplaceMedia(photographerId)
+                            && isValidImageType()
+                            && request.resource.size <= 70 * 1024 * 1024
+                            && hasValidPhotographerReservation(
+                              photographerId,
+                              eventId,
+                              galleryId,
+                              'photographers/' + photographerId + '/events/' + eventId + '/galleries/' + galleryId + '/originals/' + fileName,
+                              true
+                            );
       allow delete: if canManageMarketplaceMedia(photographerId);
     }
-    
-    // ✅ Tout refuser par défaut
+
+    // Miniatures et aperçus : lecture publique pour la boutique. L’écriture
+    // reste limitée au propriétaire pendant la réservation active du lot.
+    match /photographers/{photographerId}/events/{eventId}/galleries/{galleryId}/thumbs/{fileName} {
+      allow read: if true;
+      allow create, update: if canManageMarketplaceMedia(photographerId)
+                            && isValidImageType()
+                            && hasValidPhotographerReservation(
+                              photographerId,
+                              eventId,
+                              galleryId,
+                              'photographers/' + photographerId + '/events/' + eventId + '/galleries/' + galleryId + '/thumbs/' + fileName,
+                              false
+                            );
+      allow delete: if canManageMarketplaceMedia(photographerId);
+    }
+
+    match /photographers/{photographerId}/events/{eventId}/galleries/{galleryId}/previews/{fileName} {
+      allow read: if true;
+      allow create, update: if canManageMarketplaceMedia(photographerId)
+                            && isValidImageType()
+                            && hasValidPhotographerReservation(
+                              photographerId,
+                              eventId,
+                              galleryId,
+                              'photographers/' + photographerId + '/events/' + eventId + '/galleries/' + galleryId + '/previews/' + fileName,
+                              false
+                            );
+      allow delete: if canManageMarketplaceMedia(photographerId);
+    }
+
+    match /photographers/{photographerId}/events/{eventId}/galleries/{galleryId}/watermarked/{fileName} {
+      allow read: if true;
+      allow create, update: if canManageMarketplaceMedia(photographerId)
+                            && isValidImageType()
+                            && hasValidPhotographerReservation(
+                              photographerId,
+                              eventId,
+                              galleryId,
+                              'photographers/' + photographerId + '/events/' + eventId + '/galleries/' + galleryId + '/watermarked/' + fileName,
+                              false
+                            );
+      allow delete: if canManageMarketplaceMedia(photographerId);
+    }
+
     match /{allPaths=**} {
       allow read, write: if false;
     }

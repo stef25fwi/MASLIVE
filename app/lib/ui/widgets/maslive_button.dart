@@ -41,49 +41,54 @@ class MasliveButton extends StatelessWidget {
       MasliveButtonVariant.ghost => MasliveTokens.primary,
     };
 
-    final content = Row(
-      mainAxisSize: expand ? MainAxisSize.max : MainAxisSize.min,
-      mainAxisAlignment: MainAxisAlignment.center,
-      children: [
-        if (loading)
-          SizedBox(
+    final labelWidget = Text(
+      label,
+      maxLines: 1,
+      overflow: TextOverflow.ellipsis,
+      textAlign: TextAlign.center,
+      style: TextStyle(
+        color: fg,
+        fontSize: 15,
+        fontWeight: FontWeight.w600,
+        letterSpacing: 0.1,
+      ),
+    );
+
+    final content = loading
+        ? SizedBox(
             width: 18,
             height: 18,
             child: CircularProgressIndicator(strokeWidth: 2.2, color: fg),
           )
-        else ...[
-          if (icon != null) ...[
-            Icon(icon, size: 19, color: fg),
-            const SizedBox(width: 8),
-          ],
-          Text(
-            label,
-            style: TextStyle(
-              color: fg,
-              fontSize: 15,
-              fontWeight: FontWeight.w600,
-              letterSpacing: 0.1,
-            ),
-          ),
-        ],
-      ],
-    );
+        : Row(
+            mainAxisSize: expand ? MainAxisSize.max : MainAxisSize.min,
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: <Widget>[
+              if (icon != null) ...<Widget>[
+                Icon(icon, size: 19, color: fg),
+                const SizedBox(width: 8),
+              ],
+              if (expand) Expanded(child: labelWidget) else labelWidget,
+            ],
+          );
 
     final decoration = switch (variant) {
       MasliveButtonVariant.primary => BoxDecoration(
-        color: _disabled ? MasliveTokens.primary.withValues(alpha: 0.4) : MasliveTokens.primary,
-        borderRadius: BorderRadius.circular(MasliveTokens.rM),
-      ),
+          color: _disabled
+              ? MasliveTokens.primary.withValues(alpha: 0.4)
+              : MasliveTokens.primary,
+          borderRadius: BorderRadius.circular(MasliveTokens.rM),
+        ),
       MasliveButtonVariant.gradient => BoxDecoration(
-        gradient: _disabled ? null : MasliveTheme.actionGradient,
-        color: _disabled ? MasliveTokens.textFaint : null,
-        borderRadius: BorderRadius.circular(MasliveTokens.rM),
-      ),
+          gradient: _disabled ? null : MasliveTheme.actionGradient,
+          color: _disabled ? MasliveTokens.textFaint : null,
+          borderRadius: BorderRadius.circular(MasliveTokens.rM),
+        ),
       MasliveButtonVariant.secondary => BoxDecoration(
-        color: MasliveTokens.surface,
-        borderRadius: BorderRadius.circular(MasliveTokens.rM),
-        border: Border.all(color: MasliveTokens.line, width: 1.2),
-      ),
+          color: MasliveTokens.surface,
+          borderRadius: BorderRadius.circular(MasliveTokens.rM),
+          border: Border.all(color: MasliveTokens.line, width: 1.2),
+        ),
       MasliveButtonVariant.ghost => const BoxDecoration(),
     };
 
@@ -97,6 +102,9 @@ class MasliveButton extends StatelessWidget {
           child: Container(
             height: 52,
             width: expand ? double.infinity : null,
+            constraints: expand
+                ? null
+                : const BoxConstraints(maxWidth: 360),
             padding: const EdgeInsets.symmetric(horizontal: 20),
             decoration: decoration,
             alignment: Alignment.center,
