@@ -1751,9 +1751,16 @@ class _MasLiveMapWebState extends State<MasLiveMapWeb> {
     num? px;
     num? py;
     try {
-      projected = map.callMethod('project', [
-        [lng, lat],
-      ]);
+      // IMPORTANT: on construit explicitement le tableau JS via
+      // js.JsArray.from plutôt que de passer un literal Dart [lng, lat]
+      // imbriqué dans les arguments de callMethod. La conversion implicite
+      // de callMethod ne propage pas correctement les valeurs numeriques a
+      // travers un List<List<double>> imbrique (le tableau JS obtenu a la
+      // bonne longueur mais des elements undefined/NaN), ce qui faisait
+      // planter project() avec "Invalid LngLat object: (NaN, NaN)" sur
+      // TOUT tap, quelle que soit la plateforme (repro Android + iPad).
+      final lngLatArray = js.JsArray<num>.from(<num>[lng, lat]);
+      projected = map.callMethod('project', [lngLatArray]);
       px = (projected as js.JsObject)['x'] as num?;
       py = projected['y'] as num?;
     } catch (e) {
