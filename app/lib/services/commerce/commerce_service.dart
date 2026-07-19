@@ -141,11 +141,19 @@ class CommerceService {
       throw StateError(readiness.message);
     }
 
-    await _submissions.doc(submissionId).update({
-      'status': SubmissionStatus.pending.toJson(),
-      'submittedAt': FieldValue.serverTimestamp(),
-      'updatedAt': FieldValue.serverTimestamp(),
-    });
+    try {
+      final callable = _functions.httpsCallable('submitCommerceForReview');
+      await callable.call(<String, dynamic>{'submissionId': submissionId});
+    } on FirebaseFunctionsException catch (error) {
+      final details = error.details;
+      final detailsMessage = details is Map ? details['message'] : null;
+      throw StateError(
+        detailsMessage is String && detailsMessage.trim().isNotEmpty
+            ? detailsMessage
+            : error.message ??
+                  'Impossible de vérifier votre capacité de reversement.',
+      );
+    }
   }
 
   Future<void> deleteSubmission(String submissionId) async {

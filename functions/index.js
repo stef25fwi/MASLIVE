@@ -22,6 +22,7 @@ const createMediaMarketplaceMedia = require("./src/media-marketplace-media");
 const createPoiImageWebpHandlers = require("./src/poi-image-webp");
 const createRestaurantLiveTablesHandlers = require("./src/restaurant-live-tables");
 const createBloomArtHandlers = require("./src/bloom-art");
+const createCommerceSubmissionHandlers = require("./src/commerce-submissions");
 const createSuperAdminUserManagementHandlers = require("./src/superadmin-user-management");
 
 const STRIPE_SECRET_KEY = defineSecret("STRIPE_SECRET_KEY");
@@ -812,6 +813,12 @@ const bloomArtHandlers = createBloomArtHandlers({
   isAllowedRedirectUrl,
   resolveStripeConnectCountry,
 });
+const commerceSubmissionHandlers = createCommerceSubmissionHandlers({
+  admin,
+  db,
+  onCall,
+  HttpsError,
+});
 
 exports.createMediaMarketplaceCheckout =
   mediaMarketplaceStripe.createMediaMarketplaceCheckout;
@@ -848,6 +855,8 @@ exports.createBloomArtConnectOnboardingLink =
 exports.refreshBloomArtConnectStatus =
   bloomArtHandlers.refreshBloomArtConnectStatus;
 exports.verifyBloomArtSiret = bloomArtHandlers.verifyBloomArtSiret;
+exports.submitCommerceForReview =
+  commerceSubmissionHandlers.submitCommerceForReview;
 
 function assertNumber(n, name) {
   if (typeof n !== "number" || Number.isNaN(n) || !Number.isFinite(n)) {

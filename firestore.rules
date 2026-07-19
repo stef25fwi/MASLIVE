@@ -917,8 +917,10 @@ service cloud.firestore {
 
     // ========== COLLECTION: COMMERCE SUBMISSIONS (Soumissions commerce) ==========
     match /commerce_submissions/{submissionId} {
-      // Helper: vérifier si l'utilisateur peut soumettre du commerce
-      function canSubmitCommerce() {
+      // Les vendeurs légitimes peuvent créer et modifier des brouillons.
+      // La transition vers pending est exclusivement réalisée par la callable
+      // submitCommerceForReview avec l'Admin SDK après contrôle du reversement.
+      function canSubmitCommerceDraft() {
         return hasUserDoc() && (
           isMasterAdmin()
           || userRole() == 'group'
@@ -927,6 +929,15 @@ service cloud.firestore {
           || userRole() == 'admin_groupe'
           || userRole() == 'superAdmin'
           || userRole() == 'superadmin'
+          || (
+            getUserData().keys().hasAny(['activities'])
+            && getUserData().activities is list
+            && getUserData().activities.hasAny([
+              'createur_digital',
+              'creator_digital'
+            ])
+          )
+          || exists(/databases/$(database)/documents/businesses/$(request.auth.uid))
         );
       }
 
@@ -955,15 +966,19 @@ service cloud.firestore {
         || isMasterAdmin()
       );
 
-      // Création:
-      // - Utilisateur autorisé avec un rôle valide
-      // - Doit définir ownerUid = request.auth.uid
-      // - Statut initial = 'draft' ou 'pending'
-      allow create: if isSignedIn() 
-        && canSubmitCommerce()
+      // Le client ne peut créer qu'un brouillon. Toute soumission à la
+      // modération passe par la callable serveur après vérification Stripe.
+      allow create: if isSignedIn()
+        && canSubmitCommerceDraft()
         && request.resource.data.ownerUid == request.auth.uid
-        && request.resource.data.status in ['draft', 'pending']
-        && !request.resource.data.keys().hasAny(['moderatedBy', 'moderatedAt', 'publishedRef']);
+        && request.resource.data.status == 'draft'
+        && !request.resource.data.keys().hasAny([
+          'moderatedBy',
+          'moderatedAt',
+          'publishedRef',
+          'submittedAt',
+          'submissionGuard'
+        ]);
 
       // Mise à jour:
       // - Propriétaire peut modifier ses soumissions draft ou rejected
@@ -973,8 +988,14 @@ service cloud.firestore {
         // Propriétaire peut modifier draft/rejected
         (resource.data.ownerUid == request.auth.uid
          && resource.data.status in ['draft', 'rejected']
-         && !request.resource.data.diff(resource.data).affectedKeys().hasAny(['moderatedBy', 'moderatedAt', 'publishedRef'])
-         && request.resource.data.status != 'approved')
+         && request.resource.data.status == resource.data.status
+         && !request.resource.data.diff(resource.data).affectedKeys().hasAny([
+           'moderatedBy',
+           'moderatedAt',
+           'publishedRef',
+           'submittedAt',
+           'submissionGuard'
+         ]))
         ||
         // Modérateurs peuvent approuver/refuser
         (canModerate() || isMasterAdmin())
