@@ -812,9 +812,13 @@ class _DefaultMapPageState extends State<DefaultMapPage>
 
   void _handleMapStyleFallback() {
     unawaited(_clearPersistedLastHomeStyleUrl());
+    debugPrint('⚠️ DefaultMapPage: style fallback déclenché (style=$_styleUrl)');
     if (!mounted) return;
 
     final defaultStyleUrl = _resolvedStartupHomeStyleUrl;
+    setState(() {
+      _debugPoiSyncInfo = 'STYLE FALLBACK: $_styleUrl -> $defaultStyleUrl';
+    });
     if (_styleUrl == defaultStyleUrl) return;
 
     setState(() {
@@ -1033,6 +1037,9 @@ class _DefaultMapPageState extends State<DefaultMapPage>
   void _handleMapInitError(String message) {
     StartupTrace.log('MAPBOX_WEB', 'map init error: $message');
     debugPrint('⚠️ DefaultMapPage: map init error: $message');
+    if (mounted) {
+      setState(() => _debugPoiSyncInfo = 'MAP INIT ERROR: $message');
+    }
     _notifyMapReady();
   }
 
