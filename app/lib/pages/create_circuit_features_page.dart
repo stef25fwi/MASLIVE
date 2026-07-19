@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../services/auth_claims_service.dart';
 import 'package:masslive/ui_kit/tokens/maslive_tokens.dart';
+import '../ui/widgets/maslive_empty_state.dart';
 
 class CreateCircuitFeaturesPage extends StatefulWidget {
   const CreateCircuitFeaturesPage({super.key});
@@ -46,26 +47,12 @@ class _CreateCircuitFeaturesPageState extends State<CreateCircuitFeaturesPage> {
           title: const Text('Accès refusé'),
         ),
         body: Center(
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              const Icon(Icons.lock, size: 64, color: Colors.red),
-              const SizedBox(height: 16),
-              const Text(
-                'Accès réservé aux Super Admins',
-                style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700),
-              ),
-              const SizedBox(height: 8),
-              const Text(
-                'Vous n\'avez pas les permissions nécessaires',
-                style: TextStyle(color: Colors.grey),
-              ),
-              const SizedBox(height: 24),
-              ElevatedButton(
-                onPressed: () => Navigator.pop(context),
-                child: const Text('Retour'),
-              ),
-            ],
+          child: MasliveEmptyState(
+            icon: Icons.lock,
+            title: 'Accès réservé aux Super Admins',
+            message: 'Vous n\'avez pas les permissions nécessaires',
+            actionLabel: 'Retour',
+            onAction: () => Navigator.pop(context),
           ),
         ),
       );

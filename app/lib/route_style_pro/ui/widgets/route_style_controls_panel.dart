@@ -9,6 +9,7 @@ import 'building_opacity_control.dart';
 import 'color_picker_tile.dart';
 import 'route_style_slider.dart';
 import 'toggle_tile.dart';
+import '../../../ui/widgets/maslive_button.dart';
 
 class RouteStyleControlsPanel extends StatefulWidget {
   final RouteStyleConfig config;
@@ -561,9 +562,9 @@ class _RouteStyleControlsPanelState extends State<RouteStyleControlsPanel> {
                 ),
                 const SizedBox(width: 12),
                 Expanded(
-                  child: ElevatedButton(
+                  child: MasliveButton(
+                    label: 'Appliquer / Enregistrer',
                     onPressed: widget.onSave,
-                    child: const Text('Appliquer / Enregistrer'),
                   ),
                 ),
               ],

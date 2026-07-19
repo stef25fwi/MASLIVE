@@ -50,6 +50,7 @@ import 'home_vertical_nav.dart';
 import 'storex_shop_page.dart';
 import 'splash_wrapper_page.dart' show mapReadyNotifier;
 import 'package:masslive/ui_kit/tokens/maslive_tokens.dart';
+import '../ui/widgets/maslive_empty_state.dart';
 
 // Menu vertical: modes/actions (filtrage POIs)
 enum _MapAction { visiter, food, assistance, parking, wc }
@@ -3942,33 +3943,12 @@ class _HomeMapPage3DState extends State<HomeMapPage3D>
       return Scaffold(
         appBar: AppBar(title: const Text('Carte 3D')),
         body: Center(
-          child: Padding(
-            padding: const EdgeInsets.all(24),
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                const Icon(
-                  Icons.warning_amber_rounded,
-                  size: 64,
-                  color: Colors.orange,
-                ),
-                const SizedBox(height: 24),
-                const Text(
-                  'Token Mapbox requis',
-                  style: TextStyle(fontSize: 20, fontWeight: FontWeight.w700),
-                ),
-                const SizedBox(height: 12),
-                const Text(
-                  'Configure MAPBOX_ACCESS_TOKEN pour activer la carte 3D.',
-                  textAlign: TextAlign.center,
-                ),
-                const SizedBox(height: 24),
-                ElevatedButton(
-                  onPressed: () => Navigator.pop(context),
-                  child: const Text('Retour'),
-                ),
-              ],
-            ),
+          child: MasliveEmptyState(
+            icon: Icons.warning_amber_rounded,
+            title: 'Token Mapbox requis',
+            message: 'Configure MAPBOX_ACCESS_TOKEN pour activer la carte 3D.',
+            actionLabel: 'Retour',
+            onAction: () => Navigator.pop(context),
           ),
         ),
       );

@@ -14,6 +14,7 @@ import '../ui/map/maslive_map_controller.dart';
 import '../ui/widgets/country_autocomplete_field.dart';
 import '../ui/snack/top_snack_bar.dart';
 import 'circuit_wizard_pro_page.dart';
+import '../ui/widgets/maslive_button.dart';
 
 class CircuitWizardEntryPage extends StatefulWidget {
   const CircuitWizardEntryPage({super.key});
@@ -89,13 +90,10 @@ class _CircuitWizardEntryPageState extends State<CircuitWizardEntryPage> {
                   style: TextStyle(color: Colors.grey, fontSize: 14),
                 ),
                 const SizedBox(height: 20),
-                ElevatedButton.icon(
+                MasliveButton(
+                  label: 'Nouveau circuit',
+                  icon: Icons.add_circle,
                   onPressed: _canWriteMapProjects ? _createNewProject : _showWriteDenied,
-                  icon: const Icon(Icons.add_circle),
-                  label: const Text('+ Nouveau Circuit'),
-                  style: ElevatedButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(vertical: 12),
-                  ),
                 ),
               ],
             ),
@@ -956,31 +954,28 @@ class _NewCircuitInputDialogState extends State<_NewCircuitInputDialog> {
                     ],
                   ),
                   const SizedBox(height: 16),
-                  SizedBox(
-                    width: double.infinity,
-                    child: ElevatedButton(
-                      onPressed: !_isValid
-                          ? null
-                          : () {
-                              final country = resolvedCountryInput;
-                              if (country == null) return;
+                  MasliveButton(
+                    label: 'Continuer',
+                    onPressed: !_isValid
+                        ? null
+                        : () {
+                            final country = resolvedCountryInput;
+                            if (country == null) return;
 
-                              Navigator.pop(
-                                context,
-                                _NewCircuitInput(
-                                  countryId: country.id,
-                                  countryName: country.name,
-                                  countryIso2: country.iso2,
-                                  eventId: _resolvedEvent().id,
-                                  eventName: _resolvedEvent().name,
-                                  name: _nameController.text.trim(),
-                                  startDate: _startDate,
-                                  endDate: _endDate,
-                                ),
-                              );
-                            },
-                      child: const Text('Continuer'),
-                    ),
+                            Navigator.pop(
+                              context,
+                              _NewCircuitInput(
+                                countryId: country.id,
+                                countryName: country.name,
+                                countryIso2: country.iso2,
+                                eventId: _resolvedEvent().id,
+                                eventName: _resolvedEvent().name,
+                                name: _nameController.text.trim(),
+                                startDate: _startDate,
+                                endDate: _endDate,
+                              ),
+                            );
+                          },
                   ),
                   ],
                 ),

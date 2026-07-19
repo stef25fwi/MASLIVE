@@ -10,6 +10,7 @@ import '../../models/market_country.dart';
 import '../../models/market_event.dart';
 import '../../services/commerce/commerce_service.dart';
 import '../../ui/widgets/marketmap_poi_selector_sheet.dart';
+import '../../ui/widgets/maslive_button.dart';
 
 /// Page de création/édition d'un média
 class CreateMediaPage extends StatefulWidget {
@@ -781,16 +782,10 @@ class _CreateMediaPageState extends State<CreateMediaPage> {
                             ),
                             const SizedBox(height: 16),
                           ],
-                          ElevatedButton.icon(
+                          MasliveButton(
+                            label: 'Ajouter des médias',
+                            icon: Icons.add_photo_alternate,
                             onPressed: _isLoading ? null : _pickImages,
-                            icon: const Icon(Icons.add_photo_alternate),
-                            label: const Text('Ajouter des médias'),
-                            style: ElevatedButton.styleFrom(
-                              padding: const EdgeInsets.all(16),
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(12),
-                              ),
-                            ),
                           ),
                           const SizedBox(height: 16),
                           if (_isLoading && _uploadProgress > 0) ...[
@@ -817,39 +812,18 @@ class _CreateMediaPageState extends State<CreateMediaPage> {
                           Row(
                             children: [
                               Expanded(
-                                child: OutlinedButton(
+                                child: MasliveButton(
+                                  label: 'Enregistrer brouillon',
+                                  variant: MasliveButtonVariant.secondary,
                                   onPressed: _isLoading ? null : _saveDraft,
-                                  style: OutlinedButton.styleFrom(
-                                    padding: const EdgeInsets.all(16),
-                                    shape: RoundedRectangleBorder(
-                                      borderRadius: BorderRadius.circular(12),
-                                    ),
-                                  ),
-                                  child: const Text('Enregistrer brouillon'),
                                 ),
                               ),
                               const SizedBox(width: 16),
                               Expanded(
-                                child: ElevatedButton(
-                                  onPressed: _isLoading
-                                      ? null
-                                      : _submitForReview,
-                                  style: ElevatedButton.styleFrom(
-                                    padding: const EdgeInsets.all(16),
-                                    shape: RoundedRectangleBorder(
-                                      borderRadius: BorderRadius.circular(12),
-                                    ),
-                                  ),
-                                  child: _isLoading
-                                      ? const SizedBox(
-                                          height: 20,
-                                          width: 20,
-                                          child: CircularProgressIndicator(
-                                            strokeWidth: 2,
-                                            color: Colors.white,
-                                          ),
-                                        )
-                                      : const Text('Soumettre'),
+                                child: MasliveButton(
+                                  label: 'Soumettre',
+                                  loading: _isLoading,
+                                  onPressed: _isLoading ? null : _submitForReview,
                                 ),
                               ),
                             ],

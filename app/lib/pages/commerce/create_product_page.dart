@@ -7,6 +7,7 @@ import 'package:permission_handler/permission_handler.dart';
 import '../../models/commerce_submission.dart';
 import '../../services/commerce/commerce_service.dart';
 import '../../ui/widgets/rainbow_loading_indicator.dart';
+import '../../ui/widgets/maslive_button.dart';
 
 /// Page de création/édition d'un produit
 class CreateProductPage extends StatefulWidget {
@@ -980,36 +981,20 @@ class _CreateProductPageState extends State<CreateProductPage> {
                           Row(
                             children: [
                               Expanded(
-                                child: ElevatedButton.icon(
+                                child: MasliveButton(
+                                  label: 'Galerie',
+                                  icon: Icons.photo_library,
                                   onPressed: _isLoading ? null : _pickFromGallery,
-                                  icon: const Icon(Icons.photo_library),
-                                  label: const Text('Galerie'),
-                                  style: ElevatedButton.styleFrom(
-                                    backgroundColor: Colors.grey[800],
-                                    padding: const EdgeInsets.all(16),
-                                    shape: RoundedRectangleBorder(
-                                      borderRadius: BorderRadius.circular(12),
-                                    ),
-                                  ),
                                 ),
                               ),
                               if (!kIsWeb) ...[
                                 const SizedBox(width: 12),
                                 Expanded(
-                                  child: OutlinedButton.icon(
+                                  child: MasliveButton(
+                                    label: 'Caméra',
+                                    icon: Icons.photo_camera,
+                                    variant: MasliveButtonVariant.secondary,
                                     onPressed: _isLoading ? null : _pickFromCamera,
-                                    icon: const Icon(Icons.photo_camera),
-                                    label: const Text('Caméra'),
-                                    style: OutlinedButton.styleFrom(
-                                      foregroundColor: Colors.grey[700],
-                                      side: BorderSide(
-                                        color: Colors.grey[700]!,
-                                      ),
-                                      padding: const EdgeInsets.all(16),
-                                      shape: RoundedRectangleBorder(
-                                        borderRadius: BorderRadius.circular(12),
-                                      ),
-                                    ),
                                   ),
                                 ),
                               ],
@@ -1034,42 +1019,18 @@ class _CreateProductPageState extends State<CreateProductPage> {
                           Row(
                             children: [
                               Expanded(
-                                child: OutlinedButton(
+                                child: MasliveButton(
+                                  label: 'Enregistrer brouillon',
+                                  variant: MasliveButtonVariant.secondary,
                                   onPressed: _isLoading ? null : _saveDraft,
-                                  style: OutlinedButton.styleFrom(
-                                    foregroundColor: Colors.grey[700],
-                                    side: BorderSide(color: Colors.grey[700]!),
-                                    padding: const EdgeInsets.all(16),
-                                    shape: RoundedRectangleBorder(
-                                      borderRadius: BorderRadius.circular(12),
-                                    ),
-                                  ),
-                                  child: const Text('Enregistrer brouillon'),
                                 ),
                               ),
                               const SizedBox(width: 16),
                               Expanded(
-                                child: ElevatedButton(
+                                child: MasliveButton(
+                                  label: 'Soumettre',
+                                  loading: _isLoading,
                                   onPressed: _isLoading ? null : _submitForReview,
-                                  style: ElevatedButton.styleFrom(
-                                    backgroundColor: Colors.grey[800],
-                                    padding: const EdgeInsets.all(16),
-                                    shape: RoundedRectangleBorder(
-                                      borderRadius: BorderRadius.circular(12),
-                                    ),
-                                  ),
-                                  child: _isLoading
-                                      ? const SizedBox(
-                                          height: 20,
-                                          width: 20,
-                                          child: CircularProgressIndicator(
-                                            strokeWidth: 2.5,
-                                            valueColor: AlwaysStoppedAnimation<Color>(
-                                              Colors.white,
-                                            ),
-                                          ),
-                                        )
-                                      : const Text('Soumettre'),
                                 ),
                               ),
                             ],

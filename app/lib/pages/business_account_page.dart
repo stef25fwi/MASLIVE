@@ -6,6 +6,7 @@ import 'package:url_launcher/url_launcher.dart';
 
 import '../features/restaurant_live_tables/widgets/business_live_table_manager_card.dart';
 import '../ui/snack/top_snack_bar.dart';
+import '../ui/widgets/maslive_button.dart';
 
 class BusinessAccountPage extends StatefulWidget {
   const BusinessAccountPage({super.key});
@@ -99,9 +100,9 @@ class _BusinessAccountPageState extends State<BusinessAccountPage> {
                 style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
               ),
               const SizedBox(height: 12),
-              ElevatedButton(
+              MasliveButton(
+                label: 'Se connecter',
                 onPressed: () => Navigator.pushNamed(context, '/login'),
-                child: const Text('Se connecter'),
               ),
             ],
           ),
@@ -154,11 +155,11 @@ class _BusinessAccountPageState extends State<BusinessAccountPage> {
                     style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
                   ),
                   const SizedBox(height: 12),
-                  ElevatedButton.icon(
+                  MasliveButton(
+                    label: 'Faire une demande',
+                    icon: Icons.business_outlined,
                     onPressed: () =>
                         Navigator.pushNamed(context, '/business-request'),
-                    icon: const Icon(Icons.business_outlined),
-                    label: const Text('Faire une demande'),
                   ),
                   const SizedBox(height: 8),
                   Text(
@@ -260,10 +261,11 @@ class _BusinessAccountPageState extends State<BusinessAccountPage> {
                           style: TextStyle(color: Colors.grey.shade700),
                         ),
                         const SizedBox(height: 8),
-                        ElevatedButton(
+                        MasliveButton(
+                          label: 'Modifier (reste en attente)',
+                          expand: false,
                           onPressed: () =>
                               Navigator.pushNamed(context, '/business-request'),
-                          child: const Text('Modifier (reste en attente)'),
                         ),
                       ],
                     ),
@@ -291,10 +293,11 @@ class _BusinessAccountPageState extends State<BusinessAccountPage> {
                           style: TextStyle(color: Colors.grey.shade700),
                         ),
                         const SizedBox(height: 8),
-                        ElevatedButton(
+                        MasliveButton(
+                          label: 'Modifier et re-soumettre',
+                          expand: false,
                           onPressed: () =>
                               Navigator.pushNamed(context, '/business-request'),
-                          child: const Text('Modifier et re-soumettre'),
                         ),
                       ],
                     ),
@@ -343,16 +346,14 @@ class _BusinessAccountPageState extends State<BusinessAccountPage> {
                         Row(
                           children: [
                             Expanded(
-                              child: ElevatedButton.icon(
+                              child: MasliveButton(
+                                label: accountId == null
+                                    ? 'Configurer Stripe'
+                                    : 'Ouvrir Stripe',
+                                icon: Icons.open_in_new,
                                 onPressed: _loadingStripe
                                     ? null
                                     : _startOrResumeOnboarding,
-                                icon: const Icon(Icons.open_in_new),
-                                label: Text(
-                                  accountId == null
-                                      ? 'Configurer Stripe'
-                                      : 'Ouvrir Stripe',
-                                ),
                               ),
                             ),
                             const SizedBox(width: 12),

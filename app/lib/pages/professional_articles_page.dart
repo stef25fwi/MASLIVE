@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'professional_article_form_page.dart';
 import '../ui/widgets/storage_image.dart';
 import '../ui/snack/top_snack_bar.dart';
+import '../ui/widgets/maslive_button.dart';
 
 class ProfessionalArticlesPage extends StatefulWidget {
   const ProfessionalArticlesPage({super.key});
@@ -318,7 +319,10 @@ class _ProfessionalArticlesPageState extends State<ProfessionalArticlesPage> {
                           'Gestion des articles',
                           style: TextStyle(fontSize: 20, fontWeight: FontWeight.w700),
                         ),
-                        ElevatedButton.icon(
+                        MasliveButton(
+                          label: 'Ajouter',
+                          icon: Icons.add,
+                          expand: false,
                           onPressed: () {
                             Navigator.pop(context);
                             Navigator.push(
@@ -328,12 +332,6 @@ class _ProfessionalArticlesPageState extends State<ProfessionalArticlesPage> {
                               ),
                             );
                           },
-                          icon: const Icon(Icons.add, size: 18),
-                          label: const Text('Ajouter'),
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: Colors.blue,
-                            foregroundColor: Colors.white,
-                          ),
                         ),
                       ],
                     ),
