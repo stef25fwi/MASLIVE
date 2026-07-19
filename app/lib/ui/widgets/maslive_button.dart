@@ -62,13 +62,18 @@ class MasliveButton extends StatelessWidget {
             Icon(icon, size: 19, color: fg),
             const SizedBox(width: 8),
           ],
-          Text(
-            label,
-            style: TextStyle(
-              color: fg,
-              fontSize: 15,
-              fontWeight: FontWeight.w600,
-              letterSpacing: 0.1,
+          Flexible(
+            child: Text(
+              label,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                color: fg,
+                fontSize: 15,
+                fontWeight: FontWeight.w600,
+                letterSpacing: 0.1,
+              ),
             ),
           ),
         ],
