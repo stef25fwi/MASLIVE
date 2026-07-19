@@ -1174,7 +1174,7 @@ class _CircuitMapEditorState extends State<CircuitMapEditor> {
                         style: const TextStyle(
                           fontSize: 10,
                           color: Colors.white,
-                          fontWeight: FontWeight.bold,
+                          fontWeight: FontWeight.w700,
                         ),
                       ),
                     ),
@@ -1184,7 +1184,7 @@ class _CircuitMapEditorState extends State<CircuitMapEditor> {
                         fontSize: 12,
                         fontWeight: role == 'Point'
                             ? FontWeight.w600
-                            : FontWeight.bold,
+                            : FontWeight.w700,
                         color: MasliveTokens.text,
                       ),
                     ),

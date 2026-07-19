@@ -109,7 +109,7 @@ class LanguageSelectionPage extends StatelessWidget {
                     name,
                     style: TextStyle(
                       fontSize: 18,
-                      fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                      fontWeight: isSelected ? FontWeight.w700 : FontWeight.normal,
                     ),
                   ),
                   trailing: isSelected
@@ -195,7 +195,7 @@ class LanguageSelectionDialog extends StatelessWidget {
                             style: TextStyle(
                               fontSize: 16,
                               fontWeight: isSelected
-                                  ? FontWeight.bold
+                                  ? FontWeight.w700
                                   : FontWeight.normal,
                             ),
                           ),

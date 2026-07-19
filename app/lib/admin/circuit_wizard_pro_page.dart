@@ -8563,7 +8563,7 @@ class _CircuitWizardProPageState extends State<CircuitWizardProPage>
                       'PUBLIER LE CIRCUIT',
                       style: TextStyle(
                         color: Colors.white,
-                        fontWeight: FontWeight.bold,
+                        fontWeight: FontWeight.w700,
                       ),
                     ),
                   ),

@@ -82,7 +82,7 @@ class _RouteStyleControlsPanelState extends State<RouteStyleControlsPanel> {
             ExpansionTile(
               title: const Text(
                 'Base',
-                style: TextStyle(fontWeight: FontWeight.bold),
+                style: TextStyle(fontWeight: FontWeight.w700),
               ),
               initiallyExpanded: true,
               children: [
@@ -138,7 +138,7 @@ class _RouteStyleControlsPanelState extends State<RouteStyleControlsPanel> {
             ExpansionTile(
               title: const Text(
                 'Waze-like',
-                style: TextStyle(fontWeight: FontWeight.bold),
+                style: TextStyle(fontWeight: FontWeight.w700),
               ),
               children: [
                 RouteStyleSlider(
@@ -270,7 +270,7 @@ class _RouteStyleControlsPanelState extends State<RouteStyleControlsPanel> {
             ExpansionTile(
               title: const Text(
                 'Glow / Ombre',
-                style: TextStyle(fontWeight: FontWeight.bold),
+                style: TextStyle(fontWeight: FontWeight.w700),
               ),
               children: [
                 ToggleTile(
@@ -349,7 +349,7 @@ class _RouteStyleControlsPanelState extends State<RouteStyleControlsPanel> {
             ExpansionTile(
               title: const Text(
                 'Gradient & Rainbow',
-                style: TextStyle(fontWeight: FontWeight.bold),
+                style: TextStyle(fontWeight: FontWeight.w700),
               ),
               children: [
                 ToggleTile(
@@ -400,7 +400,7 @@ class _RouteStyleControlsPanelState extends State<RouteStyleControlsPanel> {
             ExpansionTile(
               title: const Text(
                 'Traffic / Segments',
-                style: TextStyle(fontWeight: FontWeight.bold),
+                style: TextStyle(fontWeight: FontWeight.w700),
               ),
               children: [
                 ToggleTile(
@@ -444,7 +444,7 @@ class _RouteStyleControlsPanelState extends State<RouteStyleControlsPanel> {
             ExpansionTile(
               title: const Text(
                 'Presets',
-                style: TextStyle(fontWeight: FontWeight.bold),
+                style: TextStyle(fontWeight: FontWeight.w700),
               ),
               children: [
                 Wrap(
@@ -470,7 +470,7 @@ class _RouteStyleControlsPanelState extends State<RouteStyleControlsPanel> {
             ExpansionTile(
               title: const Text(
                 'Snap & Qualité',
-                style: TextStyle(fontWeight: FontWeight.bold),
+                style: TextStyle(fontWeight: FontWeight.w700),
               ),
               children: [
                 RouteStyleSlider(

@@ -64,7 +64,7 @@ class SubmissionTile extends StatelessWidget {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(submission.title, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                      Text(submission.title, style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 16)),
                       const SizedBox(height: 4),
                       Text(
                         submission.isProduct
@@ -85,7 +85,7 @@ class SubmissionTile extends StatelessWidget {
                   ),
                   child: Text(
                     _statusLabel,
-                    style: TextStyle(color: _statusColor, fontSize: 12, fontWeight: FontWeight.bold),
+                    style: TextStyle(color: _statusColor, fontSize: 12, fontWeight: FontWeight.w700),
                   ),
                 ),
               ],

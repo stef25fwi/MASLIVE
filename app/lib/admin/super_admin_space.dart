@@ -258,7 +258,7 @@ class _SuperAdminSpaceState extends State<SuperAdminSpace> {
                 style: TextStyle(
                   color: Colors.white,
                   fontSize: 24,
-                  fontWeight: FontWeight.bold,
+                  fontWeight: FontWeight.w700,
                 ),
               ),
             ],
@@ -284,7 +284,7 @@ class _SuperAdminSpaceState extends State<SuperAdminSpace> {
       children: [
         const Text(
           'Statistiques',
-          style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+          style: TextStyle(fontSize: 20, fontWeight: FontWeight.w700),
         ),
         const SizedBox(height: 12),
         Row(
@@ -366,7 +366,7 @@ class _SuperAdminSpaceState extends State<SuperAdminSpace> {
                 value,
                 style: TextStyle(
                   fontSize: 24,
-                  fontWeight: FontWeight.bold,
+                  fontWeight: FontWeight.w700,
                   color: color,
                 ),
               ),
@@ -385,7 +385,7 @@ class _SuperAdminSpaceState extends State<SuperAdminSpace> {
       children: [
         const Text(
           'Actions rapides',
-          style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+          style: TextStyle(fontSize: 20, fontWeight: FontWeight.w700),
         ),
         const SizedBox(height: 12),
         GridView.count(
@@ -481,7 +481,7 @@ class _SuperAdminSpaceState extends State<SuperAdminSpace> {
       children: [
         const Text(
           'Gestion Système',
-          style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+          style: TextStyle(fontSize: 20, fontWeight: FontWeight.w700),
         ),
         const SizedBox(height: 12),
         _buildManagementTile(
@@ -558,7 +558,7 @@ class _SuperAdminSpaceState extends State<SuperAdminSpace> {
                       'Style de carte au démarrage',
                       style: TextStyle(
                         fontSize: 18,
-                        fontWeight: FontWeight.bold,
+                        fontWeight: FontWeight.w700,
                       ),
                     ),
                     SizedBox(height: 4),
@@ -716,7 +716,7 @@ class _SuperAdminSpaceState extends State<SuperAdminSpace> {
           children: [
             const Text(
               'Catégories d\'utilisateurs',
-              style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+              style: TextStyle(fontSize: 20, fontWeight: FontWeight.w700),
             ),
             TextButton.icon(
               onPressed: () =>

@@ -289,7 +289,7 @@ class _PresetCard extends StatelessWidget {
                       child: Text(
                         'v${preset.version}',
                         style: const TextStyle(
-                          fontWeight: FontWeight.bold,
+                          fontWeight: FontWeight.w700,
                           color: Colors.blue,
                         ),
                       ),
@@ -304,7 +304,7 @@ class _PresetCard extends StatelessWidget {
                           preset.name,
                           style: const TextStyle(
                             fontSize: 16,
-                            fontWeight: FontWeight.bold,
+                            fontWeight: FontWeight.w700,
                           ),
                         ),
                         const SizedBox(height: 4),

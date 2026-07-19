@@ -264,7 +264,7 @@ class _AdminLogsPageState extends State<AdminLogsPage> with SingleTickerProvider
                         severity.toUpperCase(),
                         style: TextStyle(
                           fontSize: 10,
-                          fontWeight: FontWeight.bold,
+                          fontWeight: FontWeight.w700,
                           color: color,
                         ),
                       ),
@@ -380,7 +380,7 @@ class _AdminLogsPageState extends State<AdminLogsPage> with SingleTickerProvider
           Text(
             label,
             style: TextStyle(
-              fontWeight: FontWeight.bold,
+              fontWeight: FontWeight.w700,
               color: Colors.grey[700],
             ),
           ),

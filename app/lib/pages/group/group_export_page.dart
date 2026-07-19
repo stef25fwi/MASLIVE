@@ -143,7 +143,7 @@ class _GroupExportPageState extends State<GroupExportPage> {
                       children: [
                         const Text(
                           'Export global',
-                          style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                          style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700),
                         ),
                         const SizedBox(height: 12),
                         Row(
@@ -172,7 +172,7 @@ class _GroupExportPageState extends State<GroupExportPage> {
                 const SizedBox(height: 16),
                 const Text(
                   'Sessions individuelles',
-                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700),
                 ),
                 const SizedBox(height: 12),
                 StreamBuilder<List<TrackSession>>(

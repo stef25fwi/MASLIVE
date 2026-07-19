@@ -296,7 +296,7 @@ class _BusinessRequestsPageState extends State<BusinessRequestsPage> with Single
                       children: [
                         Text(
                           company,
-                          style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                          style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
                         ),
                         const SizedBox(height: 4),
                         Text(
@@ -315,7 +315,7 @@ class _BusinessRequestsPageState extends State<BusinessRequestsPage> with Single
                       ),
                       child: const Text(
                         'En attente',
-                        style: TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold),
+                        style: TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.w700),
                       ),
                     )
                   else
@@ -327,7 +327,7 @@ class _BusinessRequestsPageState extends State<BusinessRequestsPage> with Single
                       ),
                       child: const Text(
                         'Actif',
-                        style: TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold),
+                        style: TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.w700),
                       ),
                     ),
                 ],
@@ -437,7 +437,7 @@ class _BusinessRequestsPageState extends State<BusinessRequestsPage> with Single
                       Expanded(
                         child: Text(
                           data['companyName'] ?? 'N/A',
-                          style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+                          style: const TextStyle(fontSize: 24, fontWeight: FontWeight.w700),
                         ),
                       ),
                     ],
@@ -528,7 +528,7 @@ class _BusinessRequestsPageState extends State<BusinessRequestsPage> with Single
       children: [
         Text(
           title,
-          style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.blue),
+          style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w700, color: Colors.blue),
         ),
         const SizedBox(height: 12),
         ...items,

@@ -3955,7 +3955,7 @@ class _HomeMapPage3DState extends State<HomeMapPage3D>
                 const SizedBox(height: 24),
                 const Text(
                   'Token Mapbox requis',
-                  style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                  style: TextStyle(fontSize: 20, fontWeight: FontWeight.w700),
                 ),
                 const SizedBox(height: 12),
                 const Text(

@@ -247,7 +247,7 @@ class InboxPage extends StatelessWidget {
                   m.title,
                   style: TextStyle(
                     fontWeight:
-                        m.read ? FontWeight.normal : FontWeight.bold,
+                        m.read ? FontWeight.normal : FontWeight.w700,
                   ),
                 ),
                 subtitle: Text(m.body),
@@ -320,7 +320,7 @@ class OrderDetailsPage extends StatelessWidget {
                 const SizedBox(height: 16),
                 const Text(
                   'Articles',
-                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
                 ),
                 const SizedBox(height: 8),
                 Expanded(

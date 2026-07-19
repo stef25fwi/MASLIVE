@@ -22,7 +22,7 @@ class CommerceSectionCard extends StatelessWidget {
               children: [
                 Icon(Icons.storefront, size: 28, color: Colors.deepPurple),
                 const SizedBox(width: 12),
-                const Text('Commerce', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+                const Text('Commerce', style: TextStyle(fontSize: 20, fontWeight: FontWeight.w700)),
               ],
             ),
             const SizedBox(height: 16),

@@ -486,7 +486,7 @@ class _CreateMediaPageState extends State<CreateMediaPage> {
           _isEditing ? 'Modifier le média' : 'Nouveau média',
           style: const TextStyle(
             color: Colors.black87,
-            fontWeight: FontWeight.bold,
+            fontWeight: FontWeight.w700,
           ),
         ),
         iconTheme: const IconThemeData(color: Colors.black87),
@@ -671,7 +671,7 @@ class _CreateMediaPageState extends State<CreateMediaPage> {
                             const Text(
                               'Médias actuels',
                               style: TextStyle(
-                                fontWeight: FontWeight.bold,
+                                fontWeight: FontWeight.w700,
                                 fontSize: 16,
                               ),
                             ),
@@ -715,7 +715,7 @@ class _CreateMediaPageState extends State<CreateMediaPage> {
                             const Text(
                               'Nouveaux médias',
                               style: TextStyle(
-                                fontWeight: FontWeight.bold,
+                                fontWeight: FontWeight.w700,
                                 fontSize: 16,
                               ),
                             ),

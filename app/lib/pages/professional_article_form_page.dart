@@ -324,7 +324,7 @@ class _ProfessionalArticleFormPageState extends State<ProfessionalArticleFormPag
       children: [
         Text(
           title,
-          style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.blue),
+          style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: Colors.blue),
         ),
         const SizedBox(height: 12),
         ...children,

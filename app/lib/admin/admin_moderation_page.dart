@@ -24,7 +24,7 @@ class _AdminModerationPageState extends State<AdminModerationPage> {
       appBar: AppBar(
         backgroundColor: Colors.white,
         elevation: 0,
-        title: const Text('Modération Commerce', style: TextStyle(color: Colors.black87, fontWeight: FontWeight.bold)),
+        title: const Text('Modération Commerce', style: TextStyle(color: Colors.black87, fontWeight: FontWeight.w700)),
         iconTheme: const IconThemeData(color: Colors.black87),
         actions: [
           PopupMenuButton<SubmissionType?>(

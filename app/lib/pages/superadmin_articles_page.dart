@@ -162,7 +162,7 @@ class _SuperadminArticlesPageState extends State<SuperadminArticlesPage> {
               ),
               labelStyle: TextStyle(
                 color: isSelected ? Colors.deepPurple : Colors.black,
-                fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                fontWeight: isSelected ? FontWeight.w700 : FontWeight.normal,
               ),
             ),
           );
@@ -226,7 +226,7 @@ class _SuperadminArticlesPageState extends State<SuperadminArticlesPage> {
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
                   style: const TextStyle(
-                    fontWeight: FontWeight.bold,
+                    fontWeight: FontWeight.w700,
                     fontSize: 12,
                   ),
                 ),
@@ -235,7 +235,7 @@ class _SuperadminArticlesPageState extends State<SuperadminArticlesPage> {
                   '${article.price.toStringAsFixed(2)}€',
                   style: TextStyle(
                     color: Colors.deepPurple,
-                    fontWeight: FontWeight.bold,
+                    fontWeight: FontWeight.w700,
                     fontSize: 11,
                   ),
                 ),

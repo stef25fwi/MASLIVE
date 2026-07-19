@@ -210,7 +210,7 @@ class _AdminGroupsPageState extends State<AdminGroupsPage> {
                                   style: Theme.of(context)
                                       .textTheme
                                       .titleMedium
-                                      ?.copyWith(fontWeight: FontWeight.bold),
+                                      ?.copyWith(fontWeight: FontWeight.w700),
                                 ),
                                 const SizedBox(height: 6),
                                 Text(
