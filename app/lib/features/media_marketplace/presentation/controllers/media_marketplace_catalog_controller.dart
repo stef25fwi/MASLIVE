@@ -55,9 +55,12 @@ class MediaMarketplaceCatalogController extends ChangeNotifier {
         countryId: countryId,
         circuitId: circuitId,
       );
+      await _selectFirstGalleryByDefault();
     } catch (err) {
       error = err;
       galleries = const <MediaGalleryModel>[];
+      photos = const <MediaPhotoModel>[];
+      packs = const <MediaPackModel>[];
     } finally {
       loading = false;
       notifyListeners();
@@ -77,14 +80,29 @@ class MediaMarketplaceCatalogController extends ChangeNotifier {
     notifyListeners();
 
     try {
-      galleries = await _mediaGalleryRepository.getByPhotographer(photographerId);
+      galleries =
+          await _mediaGalleryRepository.getByPhotographer(photographerId);
+      await _selectFirstGalleryByDefault();
     } catch (err) {
       error = err;
       galleries = const <MediaGalleryModel>[];
+      photos = const <MediaPhotoModel>[];
+      packs = const <MediaPackModel>[];
     } finally {
       loading = false;
       notifyListeners();
     }
+  }
+
+  Future<void> _selectFirstGalleryByDefault() async {
+    if (galleries.isEmpty) return;
+    selectedGalleryId = galleries.first.galleryId;
+    final results = await Future.wait<dynamic>(<Future<dynamic>>[
+      _mediaPhotoRepository.getPublishedByGallery(selectedGalleryId!),
+      _mediaPackRepository.getActiveByGallery(selectedGalleryId!),
+    ]);
+    photos = results[0] as List<MediaPhotoModel>;
+    packs = results[1] as List<MediaPackModel>;
   }
 
   Future<void> selectGallery(String galleryId) async {
@@ -126,20 +144,20 @@ class MediaMarketplaceCatalogController extends ChangeNotifier {
 
     if (countryId != null && countryId.trim().isNotEmpty) {
       final byCountry = scoped
-          .where((gallery) => gallery.linkedCountry?.trim() == countryId.trim())
+          .where(
+            (gallery) => gallery.linkedCountry?.trim() == countryId.trim(),
+          )
           .toList(growable: false);
-      if (byCountry.isNotEmpty) {
-        scoped = byCountry;
-      }
+      if (byCountry.isNotEmpty) scoped = byCountry;
     }
 
     if (circuitId != null && circuitId.trim().isNotEmpty) {
       final byCircuit = scoped
-          .where((gallery) => gallery.linkedCircuitId?.trim() == circuitId.trim())
+          .where(
+            (gallery) => gallery.linkedCircuitId?.trim() == circuitId.trim(),
+          )
           .toList(growable: false);
-      if (byCircuit.isNotEmpty) {
-        scoped = byCircuit;
-      }
+      if (byCircuit.isNotEmpty) scoped = byCircuit;
     }
 
     return scoped;
