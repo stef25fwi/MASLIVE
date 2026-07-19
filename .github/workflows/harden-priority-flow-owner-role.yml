@@ -37,6 +37,19 @@ jobs:
           cache: npm
           cache-dependency-path: functions/package-lock.json
 
+      - name: Normalize applicator marker
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          path = Path('scripts/harden_priority_flow_owner_role.py')
+          text = path.read_text(encoding='utf-8')
+          text = text.replace(
+              "&& request.resource.data.status == 'draft' '''",
+              "&& request.resource.data.status == 'draft'\n'''",
+          )
+          path.write_text(text, encoding='utf-8')
+          PY
+
       - name: Apply owner role hardening
         run: python3 scripts/harden_priority_flow_owner_role.py
 
