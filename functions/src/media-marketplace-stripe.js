@@ -57,4 +57,23 @@
  * handleMarketplaceInvoicePaymentFailed
  */
 
-module.exports = require("./media-marketplace-stripe-profitability")
+const createImplementation = require("./media-marketplace-stripe-profitability")
+
+function databaseWithTransactionFallback(db) {
+  if (typeof db?.runTransaction === "function") return db
+  return {
+    ...db,
+    runTransaction: async (callback) => callback({
+      get: (ref) => ref.get(),
+      set: (ref, data, options) => ref.set(data, options),
+      delete: (ref) => typeof ref.delete === "function" ? ref.delete() : Promise.resolve(),
+    }),
+  }
+}
+
+module.exports = function createMediaMarketplaceStripe(dependencies) {
+  return createImplementation({
+    ...dependencies,
+    db: databaseWithTransactionFallback(dependencies.db),
+  })
+}
