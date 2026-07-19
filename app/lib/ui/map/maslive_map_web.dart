@@ -1747,20 +1747,31 @@ class _MasLiveMapWebState extends State<MasLiveMapWeb> {
       return (null, 'exception getLayer: $e');
     }
 
+    Object? projected;
+    num? px;
+    num? py;
     try {
-      // IMPORTANT: on extrait x/y et on repasse un tableau JS *plain* plutôt
-      // que l'objet Point renvoyé par project(). Ce Point n'est pas reconnu
-      // par `instanceof Point` côté queryRenderedFeatures à travers la
-      // frontière d'interop JS (probable duplication de module dans le
-      // bundle), ce qui faisait retomber Mapbox GL JS sur une interprétation
-      // LngLat et jeter "Invalid LngLat object: (NaN, NaN)" à chaque tap.
-      final projected = map.callMethod('project', [
+      projected = map.callMethod('project', [
         [lng, lat],
       ]);
-      final px = projected['x'];
-      final py = projected['y'];
-      final point = js.JsObject.jsify([px, py]);
+      px = (projected as js.JsObject)['x'] as num?;
+      py = projected['y'] as num?;
+    } catch (e) {
+      return (null, 'exception project(): $e (projected=$projected)');
+    }
 
+    if (px == null || py == null || px.isNaN || py.isNaN) {
+      return (null, 'project() a renvoyé des pixels invalides: x=$px y=$py (input lng=$lng lat=$lat)');
+    }
+
+    js.JsArray<num>? point;
+    try {
+      point = js.JsArray<num>.from(<num>[px, py]);
+    } catch (e) {
+      return (null, 'exception construction point JS: $e (px=$px py=$py)');
+    }
+
+    try {
       final feats = map.callMethod('queryRenderedFeatures', [
         point,
         js.JsObject.jsify({'layers': layerIds}),
@@ -1804,7 +1815,7 @@ class _MasLiveMapWebState extends State<MasLiveMapWeb> {
         'featsToutesLayers=$anyLayerFeatCount',
       );
     } catch (e) {
-      return (null, 'exception queryRenderedFeatures: $e');
+      return (null, 'exception queryRenderedFeatures: $e (px=$px py=$py)');
     }
   }
 
