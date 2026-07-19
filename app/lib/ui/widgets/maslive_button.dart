@@ -21,6 +21,8 @@ class MasliveButton extends StatelessWidget {
     this.icon,
     this.loading = false,
     this.expand = true,
+    this.backgroundColor,
+    this.foregroundColor,
   });
 
   final String label;
@@ -29,17 +31,21 @@ class MasliveButton extends StatelessWidget {
   final IconData? icon;
   final bool loading;
   final bool expand;
+  final Color? backgroundColor;
+  final Color? foregroundColor;
 
   bool get _disabled => onPressed == null || loading;
 
   @override
   Widget build(BuildContext context) {
-    final Color fg = switch (variant) {
-      MasliveButtonVariant.primary => Colors.white,
-      MasliveButtonVariant.gradient => Colors.white,
-      MasliveButtonVariant.secondary => MasliveTokens.text,
-      MasliveButtonVariant.ghost => MasliveTokens.primary,
-    };
+    final Color fg = foregroundColor ??
+        switch (variant) {
+          MasliveButtonVariant.primary => Colors.white,
+          MasliveButtonVariant.gradient => Colors.white,
+          MasliveButtonVariant.secondary => MasliveTokens.text,
+          MasliveButtonVariant.ghost => MasliveTokens.primary,
+        };
+    final primaryColor = backgroundColor ?? MasliveTokens.primary;
 
     final content = Row(
       mainAxisSize: expand ? MainAxisSize.max : MainAxisSize.min,
@@ -71,7 +77,9 @@ class MasliveButton extends StatelessWidget {
 
     final decoration = switch (variant) {
       MasliveButtonVariant.primary => BoxDecoration(
-        color: _disabled ? MasliveTokens.primary.withValues(alpha: 0.4) : MasliveTokens.primary,
+        color: _disabled
+            ? primaryColor.withValues(alpha: 0.4)
+            : primaryColor,
         borderRadius: BorderRadius.circular(MasliveTokens.rM),
       ),
       MasliveButtonVariant.gradient => BoxDecoration(
@@ -80,7 +88,7 @@ class MasliveButton extends StatelessWidget {
         borderRadius: BorderRadius.circular(MasliveTokens.rM),
       ),
       MasliveButtonVariant.secondary => BoxDecoration(
-        color: MasliveTokens.surface,
+        color: backgroundColor ?? MasliveTokens.surface,
         borderRadius: BorderRadius.circular(MasliveTokens.rM),
         border: Border.all(color: MasliveTokens.line, width: 1.2),
       ),
