@@ -19,13 +19,7 @@ const {
 test("buyer photo packs expose the approved MASLIVE prices", () => {
   assert.deepEqual(
     PHOTO_PACKS.map((pack) => [pack.photoCount, pack.price]),
-    [
-      [1, 6.90],
-      [2, 10.90],
-      [5, 19.90],
-      [10, 29.90],
-      [20, 44.90],
-    ],
+    [[1, 6.90], [2, 10.90], [5, 19.90], [10, 29.90], [20, 44.90]],
   )
   assert.equal(PHOTO_PACKS.find((pack) => pack.highlighted)?.code, "essential")
 })
@@ -38,17 +32,13 @@ test("automatic pricing always uses the cheapest approved offer", () => {
   assert.equal(photoSelectionPrice(9), 29.90)
   assert.equal(photoSelectionPrice(20), 44.90)
   assert.equal(photoSelectionPrice(21), 51.80)
-
-  assert.deepEqual(
-    quoteForPhotoCount(9),
-    {
-      requestedPhotoCount: 9,
-      billedPhotoCount: 10,
-      bonusPhotoSlots: 1,
-      packs: [PHOTO_PACKS.find((pack) => pack.code === "experience")],
-      total: 29.90,
-    },
-  )
+  assert.deepEqual(quoteForPhotoCount(9), {
+    requestedPhotoCount: 9,
+    billedPhotoCount: 10,
+    bonusPhotoSlots: 1,
+    packs: [PHOTO_PACKS.find((pack) => pack.code === "experience")],
+    total: 29.90,
+  })
 })
 
 test("automatic pricing is never more expensive than single photos", () => {
@@ -59,27 +49,27 @@ test("automatic pricing is never more expensive than single photos", () => {
 
 test("HD upgrade costs exactly 2.90 euros per order", () => {
   assert.equal(MEDIA_HD_UPGRADE_PRICE, 2.90)
-  assert.deepEqual(
-    mediaDeliveryQuote({ subtotal: 19.90, hdUpgrade: true }),
-    {
-      hdUpgrade: true,
-      hdUpgradeAmount: 2.90,
-      allowedVariants: ["original", "hd", "preview", "web"],
-      total: 22.80,
-    },
-  )
+  const quote = mediaDeliveryQuote({ subtotal: 19.90, hdUpgrade: true })
+  assert.deepEqual(quote, {
+    hdUpgrade: true,
+    hdUpgradeAmount: 2.90,
+    allowedVariants: ["original", "hd", "preview", "web"],
+    total: 22.80,
+  })
+  assert.equal(Object.isFrozen(quote), true)
+  assert.equal(Object.isFrozen(quote.allowedVariants), true)
 })
 
 test("standard delivery never grants original or HD variants", () => {
-  assert.deepEqual(
-    mediaDeliveryQuote({ subtotal: 19.90, hdUpgrade: false }),
-    {
-      hdUpgrade: false,
-      hdUpgradeAmount: 0,
-      allowedVariants: ["preview", "web"],
-      total: 19.90,
-    },
-  )
+  const quote = mediaDeliveryQuote({ subtotal: 19.90, hdUpgrade: false })
+  assert.deepEqual(quote, {
+    hdUpgrade: false,
+    hdUpgradeAmount: 0,
+    allowedVariants: ["preview", "web"],
+    total: 19.90,
+  })
+  assert.equal(quote.allowedVariants.includes("original"), false)
+  assert.equal(quote.allowedVariants.includes("hd"), false)
 })
 
 test("photographer plans keep exact quotas, quality and commissions", () => {
@@ -102,8 +92,7 @@ test("photographer plans keep exact quotas, quality and commissions", () => {
 })
 
 test("quota snapshots include paid extensions without changing plan commission", () => {
-  const plan = planFor("pro")
-  const quota = quotaSnapshot(plan, {
+  const quota = quotaSnapshot(planFor("pro"), {
     extraPhotos: 1000,
     extraStorageBytes: 10 * (1024 ** 3),
   })
@@ -121,11 +110,7 @@ test("storage extensions match the approved prices", () => {
       extension.extraStorageBytes / (1024 ** 3),
       extension.durationDays || null,
     ]),
-    [
-      ["plus_1000", 5.90, 1000, 10, null],
-      ["plus_5000", 19.90, 5000, 50, null],
-      ["event_30d", 9.90, 5000, 50, 30],
-    ],
+    [["plus_1000", 5.90, 1000, 10, null], ["plus_5000", 19.90, 5000, 50, null], ["event_30d", 9.90, 5000, 50, 30]],
   )
 })
 
