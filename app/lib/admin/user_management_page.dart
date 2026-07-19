@@ -6,6 +6,7 @@ import '../services/auth_claims_service.dart';
 import '../theme/maslive_theme.dart';
 import 'user_edit_page.dart';
 import '../ui/widgets/maslive_empty_state.dart';
+import '../ui/widgets/maslive_skeleton.dart';
 
 class UserManagementPage extends StatefulWidget {
   const UserManagementPage({super.key});
@@ -192,13 +193,21 @@ class _UserManagementPageState extends State<UserManagementPage> {
           _buildSearchBar(),
           _buildFilters(),
           Expanded(
-            child: _isLoading
-                ? const Center(child: CircularProgressIndicator())
-                : _isSearching
-                    ? const Center(child: CircularProgressIndicator())
-                    : _users.isEmpty
-                        ? _buildEmptyState()
-                        : _buildUserList(),
+            child: (_isLoading || _isSearching)
+                ? ListView(
+                    padding: const EdgeInsets.all(16),
+                    children: const [
+                      MasliveSkeletonListTile(),
+                      MasliveSkeletonListTile(),
+                      MasliveSkeletonListTile(),
+                      MasliveSkeletonListTile(),
+                      MasliveSkeletonListTile(),
+                      MasliveSkeletonListTile(),
+                    ],
+                  )
+                : _users.isEmpty
+                    ? _buildEmptyState()
+                    : _buildUserList(),
           ),
         ],
       ),
