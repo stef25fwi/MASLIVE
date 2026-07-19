@@ -11,6 +11,7 @@ import '../widgets/rainbow_header.dart';
 import '../ui/widgets/honeycomb_background.dart';
 import '../ui/widgets/rainbow_loading_indicator.dart';
 import '../ui/snack/top_snack_bar.dart';
+import '../ui/widgets/maslive_empty_state.dart';
 
 class SuperadminArticlesPage extends StatefulWidget {
   const SuperadminArticlesPage({super.key});
@@ -97,15 +98,10 @@ class _SuperadminArticlesPageState extends State<SuperadminArticlesPage> {
                   }
 
                   if (!snapshot.hasData || snapshot.data!.isEmpty) {
-                    return SliverToBoxAdapter(
-                      child: Center(
-                        child: Padding(
-                          padding: const EdgeInsets.symmetric(vertical: 32),
-                          child: Text(
-                            'Aucun article trouvé',
-                            style: Theme.of(context).textTheme.bodyLarge,
-                          ),
-                        ),
+                    return const SliverToBoxAdapter(
+                      child: MasliveEmptyState(
+                        icon: Icons.article_outlined,
+                        title: 'Aucun article trouvé',
                       ),
                     );
                   }

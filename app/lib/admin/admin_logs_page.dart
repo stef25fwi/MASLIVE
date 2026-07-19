@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import '../ui/widgets/maslive_empty_state.dart';
 
 /// Page de logs et audit pour le monitoring système
 class AdminLogsPage extends StatefulWidget {
@@ -167,17 +168,10 @@ class _AdminLogsPageState extends State<AdminLogsPage> with SingleTickerProvider
         final logs = snapshot.data?.docs ?? [];
 
         if (logs.isEmpty) {
-          return Center(
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Icon(Icons.info_outline, size: 64, color: Colors.grey[400]),
-                const SizedBox(height: 16),
-                Text(
-                  'Aucun log disponible',
-                  style: TextStyle(color: Colors.grey[600]),
-                ),
-              ],
+          return const Center(
+            child: MasliveEmptyState(
+              icon: Icons.info_outline,
+              title: 'Aucun log disponible',
             ),
           );
         }

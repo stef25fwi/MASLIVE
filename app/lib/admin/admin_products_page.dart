@@ -12,6 +12,7 @@ import '../pages/storex_shop_page.dart';
 import '../services/commerce/product_repository.dart';
 import '../services/storage_service.dart';
 import '../ui/snack/top_snack_bar.dart';
+import '../ui/widgets/maslive_empty_state.dart';
 
 /// Page de gestion des produits
 class AdminProductsPage extends StatefulWidget {
@@ -516,31 +517,10 @@ class _AdminProductsPageState extends State<AdminProductsPage> {
 
                 if (products.isEmpty) {
                   return Center(
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Icon(
-                          Icons.inventory_2_outlined,
-                          size: 64,
-                          color: Colors.grey[400],
-                        ),
-                        const SizedBox(height: 16),
-                        Text(
-                          'Aucun produit trouvé',
-                          style: TextStyle(
-                            fontSize: 18,
-                            color: Colors.grey[600],
-                          ),
-                        ),
-                        const SizedBox(height: 8),
-                        Text(
-                          '${snapshot.data!.docs.length} produit(s) au total',
-                          style: TextStyle(
-                            fontSize: 14,
-                            color: Colors.grey[500],
-                          ),
-                        ),
-                      ],
+                    child: MasliveEmptyState(
+                      icon: Icons.inventory_2_outlined,
+                      title: 'Aucun produit trouvé',
+                      message: '${snapshot.data!.docs.length} produit(s) au total',
                     ),
                   );
                 }
