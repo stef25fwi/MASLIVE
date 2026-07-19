@@ -79,15 +79,19 @@ class MediaBulkUploadService {
     }
 
     final plan = MediaMarketplacePricing.planFor(profile.activePlanId);
-    final extensionData = profile.metadata?['storageExtensions'];
-    final extensions = extensionData is Map
-        ? Map<String, dynamic>.from(extensionData)
+    final profileSnapshot = await _firestore
+        .collection(MediaMarketplaceCollections.photographers)
+        .doc(profile.photographerId)
+        .get();
+    final rawExtensions = profileSnapshot.data()?['storageExtensions'];
+    final extensions = rawExtensions is Map
+        ? Map<String, dynamic>.from(rawExtensions)
         : const <String, dynamic>{};
-    final maxPhotos = plan.maxPublishedPhotos +
+    final maxPublishedPhotos = plan.maxPublishedPhotos +
         ((extensions['extraPhotos'] as num?)?.toInt() ?? 0);
-    final maxStorage = plan.maxStorageBytes +
+    final maxStorageBytes = plan.maxStorageBytes +
         ((extensions['extraStorageBytes'] as num?)?.toInt() ?? 0);
-    final remainingPhotos = maxPhotos - profile.publishedPhotoCount;
+    final remainingPhotos = maxPublishedPhotos - profile.publishedPhotoCount;
     if (remainingPhotos <= 0) {
       throw StateError(
         'Quota photo atteint. Archive des photos ou ajoute une extension.',
@@ -106,7 +110,7 @@ class MediaBulkUploadService {
       lengths[file] = length;
       requestedBytes += length;
     }
-    final remainingStorage = maxStorage - profile.storageUsedBytes;
+    final remainingStorage = maxStorageBytes - profile.storageUsedBytes;
     if (requestedBytes > remainingStorage) {
       throw StateError(
         'Stockage insuffisant : ${(remainingStorage / (1024 * 1024)).floor()} Mo restant(s).',
