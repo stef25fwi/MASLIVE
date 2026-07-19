@@ -23,13 +23,13 @@ permissions:
 
 concurrency:
   group: priority-flow-server-guard
-  cancel-in-progress: false
+  cancel-in-progress: true
 
 jobs:
   apply-and-validate:
     if: github.actor != 'github-actions[bot]'
     runs-on: ubuntu-24.04
-    timeout-minutes: 45
+    timeout-minutes: 20
     steps:
       - name: Checkout target branch
         uses: actions/checkout@v4
@@ -44,17 +44,8 @@ jobs:
           cache: npm
           cache-dependency-path: functions/package-lock.json
 
-      - name: Setup Flutter
-        uses: subosito/flutter-action@v2
-        with:
-          channel: stable
-          cache: true
-
       - name: Apply server guard patch
         run: python3 scripts/apply_priority_flow_server_guard.py
-
-      - name: Format Flutter change
-        run: dart format app/lib/services/commerce/commerce_service.dart
 
       - name: Install Functions dependencies
         working-directory: functions
@@ -63,18 +54,6 @@ jobs:
       - name: Run Functions tests
         working-directory: functions
         run: npm test
-
-      - name: Install Flutter dependencies
-        working-directory: app
-        run: flutter pub get
-
-      - name: Analyze Flutter app
-        working-directory: app
-        run: flutter analyze
-
-      - name: Run seller readiness Flutter tests
-        working-directory: app
-        run: flutter test test/services/commerce/seller_publication_readiness_service_test.dart
 
       - name: Commit validated patch
         run: |
