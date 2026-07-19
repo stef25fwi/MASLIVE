@@ -73,9 +73,7 @@ function databaseWithTransactionFallback(db) {
   })
   const wrapCollection = (collection) => new Proxy(collection, {
     get(target, property) {
-      if (property === "doc") {
-        return (id) => wrapDocument(target.doc(id))
-      }
+      if (property === "doc") return (id) => wrapDocument(target.doc(id))
       const value = target[property]
       return typeof value === "function" ? value.bind(target) : value
     },
@@ -95,6 +93,33 @@ function databaseWithTransactionFallback(db) {
 function number(value, fallback = 0) {
   const parsed = Number(value)
   return Number.isFinite(parsed) ? parsed : fallback
+}
+
+function unique(values) {
+  return [...new Set((Array.isArray(values) ? values : []).filter(Boolean))]
+}
+
+async function preservePurchasedPhotos({ db, admin, orderId }) {
+  if (!orderId) return
+  const orderSnapshot = await db.collection("orders").doc(orderId).get()
+  if (!orderSnapshot.exists) return
+  const order = orderSnapshot.data() || {}
+  const photoIds = unique((order.items || []).flatMap((item) => item.photoIds || []))
+  if (!photoIds.length) return
+  const batch = db.batch()
+  const FieldValue = admin.firestore.FieldValue
+  const now = FieldValue.serverTimestamp()
+  const purgeAt = admin.firestore.Timestamp.fromMillis(Date.now() + (730 * 86400000))
+  for (const photoId of photoIds) {
+    batch.set(db.collection("media_photos").doc(photoId), {
+      purchaseCount: typeof FieldValue.increment === "function" ? FieldValue.increment(1) : 1,
+      lastPurchasedAt: now,
+      purgeAt,
+      soldRetentionDays: 730,
+      updatedAt: now,
+    }, { merge: true })
+  }
+  await batch.commit()
 }
 
 async function settleOrderPayouts({ db, getStripe, orderId, serverTimestamp }) {
@@ -157,29 +182,29 @@ module.exports = function createMediaMarketplaceStripe(dependencies) {
   const originalCheckoutHandler = handlers.handleMarketplaceCheckoutSessionCompleted
   const originalPaymentIntentHandler = handlers.fulfillMarketplaceOrderFromPaymentIntent
 
+  async function finalize(orderId) {
+    await preservePurchasedPhotos({ db, admin: dependencies.admin, orderId })
+    await settleOrderPayouts({
+      db,
+      getStripe: dependencies.getStripe,
+      orderId,
+      serverTimestamp,
+    })
+  }
+
   return {
     ...handlers,
     handleMarketplaceCheckoutSessionCompleted: async (session) => {
       const fulfilled = await originalCheckoutHandler(session)
       if (fulfilled === true && session?.metadata?.orderId) {
-        await settleOrderPayouts({
-          db,
-          getStripe: dependencies.getStripe,
-          orderId: session.metadata.orderId,
-          serverTimestamp,
-        })
+        await finalize(session.metadata.orderId)
       }
       return fulfilled
     },
     fulfillMarketplaceOrderFromPaymentIntent: async (paymentIntent) => {
       const fulfilled = await originalPaymentIntentHandler(paymentIntent)
       if (fulfilled === true && paymentIntent?.metadata?.orderId) {
-        await settleOrderPayouts({
-          db,
-          getStripe: dependencies.getStripe,
-          orderId: paymentIntent.metadata.orderId,
-          serverTimestamp,
-        })
+        await finalize(paymentIntent.metadata.orderId)
       }
       return fulfilled
     },
