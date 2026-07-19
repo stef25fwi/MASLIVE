@@ -6,36 +6,25 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 
 
-def insert_before_once(path: Path, marker: str, insertion: str, signature: str, label: str) -> None:
-    text = path.read_text(encoding="utf-8")
-    if signature in text:
-        print(f"[ok] {label} déjà appliqué")
-        return
-    count = text.count(marker)
-    if count != 1:
-        raise SystemExit(f"[erreur] {label}: attendu 1 marqueur, trouvé {count}")
-    path.write_text(text.replace(marker, insertion + marker, 1), encoding="utf-8")
-    print(f"[ok] {label}")
-
-
-def insert_after_once(path: Path, marker: str, insertion: str, signature: str, label: str) -> None:
-    text = path.read_text(encoding="utf-8")
-    if signature in text:
-        print(f"[ok] {label} déjà appliqué")
-        return
-    count = text.count(marker)
-    if count != 1:
-        raise SystemExit(f"[erreur] {label}: attendu 1 marqueur, trouvé {count}")
-    path.write_text(text.replace(marker, marker + insertion, 1), encoding="utf-8")
-    print(f"[ok] {label}")
-
-
 def main() -> None:
-    index = ROOT / "functions/index.js"
-    insert_before_once(
-        index,
-        "  // Vérifier les permissions du modérateur",
-        '''  // Revalide la capacité de reversement au dernier moment. Un compte Stripe
+    path = ROOT / "functions/index.js"
+    text = path.read_text(encoding="utf-8")
+    signature = (
+        "const sellerReadiness = await "
+        "createCommerceSubmissionHandlers.evaluateSellerReadiness"
+    )
+    if signature in text:
+        print("[ok] readiness avant approbation déjà appliquée")
+        return
+
+    marker = "  // Vérifier les permissions du modérateur"
+    count = text.count(marker)
+    if count != 1:
+        raise SystemExit(
+            f"[erreur] readiness avant approbation: marqueur trouvé {count} fois"
+        )
+
+    guard = '''  // Revalide la capacité de reversement au dernier moment. Un compte Stripe
   // peut devenir non payable entre la soumission et la décision du modérateur.
   const sellerReadiness = await createCommerceSubmissionHandlers.evaluateSellerReadiness({
     db,
@@ -50,19 +39,9 @@ def main() -> None:
     });
   }
 
-''',
-        "const sellerReadiness = await createCommerceSubmissionHandlers.evaluateSellerReadiness",
-        "readiness avant approbation",
-    )
-
-    tests = ROOT / "functions/test/commerce-submissions.test.js"
-    insert_after_once(
-        tests,
-        "  assert.match(indexSource, /exports\\.submitCommerceForReview/);\n",
-        "  assert.match(indexSource, /createCommerceSubmissionHandlers\\.evaluateSellerReadiness/);\n",
-        "createCommerceSubmissionHandlers\\.evaluateSellerReadiness",
-        "test du contrôle à l'approbation",
-    )
+'''
+    path.write_text(text.replace(marker, guard + marker, 1), encoding="utf-8")
+    print("[ok] readiness avant approbation appliquée")
 
 
 if __name__ == "__main__":
