@@ -8,6 +8,7 @@ import '../../services/group/group_link_qr.dart';
 import '../../models/group_admin.dart';
 import '../../models/group_tracker.dart';
 import '../../services/group/group_link_service.dart';
+import '../../services/group/group_tracking_consent_service.dart';
 import '../../services/group/group_tracking_service.dart';
 import '../../ui/snack/top_snack_bar.dart';
 import '../../widgets/group_map_visibility_widget.dart';
@@ -29,6 +30,7 @@ class AdminGroupDashboardPage extends StatefulWidget {
 class _AdminGroupDashboardPageState extends State<AdminGroupDashboardPage> {
   final _linkService = GroupLinkService.instance;
   final _trackingService = GroupTrackingService.instance;
+  final _consentService = GroupTrackingConsentService.instance;
   final _marketMapService = MarketMapService();
 
   GroupAdmin? _admin;
@@ -117,40 +119,161 @@ class _AdminGroupDashboardPageState extends State<AdminGroupDashboardPage> {
     }
   }
 
+  Future<bool> _requestTrackingConsent() async {
+    final admin = _admin;
+    if (admin == null) return false;
+
+    var accepted = false;
+    final result = await showDialog<bool>(
+      context: context,
+      barrierDismissible: false,
+      builder: (dialogContext) => StatefulBuilder(
+        builder: (dialogContext, setDialogState) => AlertDialog(
+          title: const Text('Autoriser ma position pour le groupe'),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Votre position administrateur sera partagée avec le groupe ${admin.displayName} pendant cette session.',
+                ),
+                const SizedBox(height: 12),
+                const Text(
+                  'Cadence adaptative : environ 15 s en mouvement, 45 s à faible vitesse et 60 s à l’arrêt. L’historique est enregistré moins souvent afin de limiter la batterie et les données.',
+                ),
+                const SizedBox(height: 12),
+                const Text(
+                  'Les trackers rattachés au groupe peuvent apparaître sur la carte live selon leur propre consentement. Vous pouvez arrêter votre partage à tout moment.',
+                ),
+                const SizedBox(height: 12),
+                CheckboxListTile(
+                  value: accepted,
+                  contentPadding: EdgeInsets.zero,
+                  controlAffinity: ListTileControlAffinity.leading,
+                  title: const Text(
+                    'J’accepte de partager ma position pour cette session.',
+                  ),
+                  onChanged: (value) {
+                    setDialogState(() => accepted = value == true);
+                  },
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(dialogContext).pop(false),
+              child: const Text('Annuler'),
+            ),
+            FilledButton.icon(
+              onPressed: accepted
+                  ? () => Navigator.of(dialogContext).pop(true)
+                  : null,
+              icon: const Icon(Icons.gps_fixed),
+              label: const Text('Autoriser et démarrer'),
+            ),
+          ],
+        ),
+      ),
+    );
+    return result == true;
+  }
+
   Future<void> _toggleTracking() async {
-    if (_admin == null) return;
+    final admin = _admin;
+    if (admin == null) return;
+
+    if (_isTracking) {
+      await _stopTracking();
+      return;
+    }
+
+    final accepted = await _requestTrackingConsent();
+    if (!accepted || !mounted) return;
 
     setState(() => _isLoading = true);
     try {
-      if (_isTracking) {
-        await _trackingService.stopTracking();
-        setState(() => _isTracking = false);
-        if (mounted) {
-          TopSnackBar.show(
-            context,
-            const SnackBar(content: Text('Tracking arrêté')),
-          );
-        }
-      } else {
-        await _trackingService.startTracking(
-          adminGroupId: _admin!.adminGroupId,
-          role: 'admin',
-        );
-        setState(() => _isTracking = true);
-        if (mounted) {
-          TopSnackBar.show(
-            context,
-            const SnackBar(content: Text('Tracking démarré')),
-          );
-        }
-      }
-    } catch (e) {
+      await _consentService.recordAcceptance(
+        adminGroupId: admin.adminGroupId,
+        role: 'admin',
+      );
+      await _trackingService.startTracking(
+        adminGroupId: admin.adminGroupId,
+        role: 'admin',
+      );
+      if (!mounted) return;
+      setState(() => _isTracking = true);
+      TopSnackBar.show(
+        context,
+        const SnackBar(
+          content: Text('Session live démarrée pour le groupe'),
+          backgroundColor: Colors.green,
+        ),
+      );
+    } catch (error) {
       if (mounted) {
-        TopSnackBar.show(context, SnackBar(content: Text('Erreur: $e')));
+        TopSnackBar.show(context, SnackBar(content: Text('Erreur: $error')));
       }
     } finally {
-      setState(() => _isLoading = false);
+      if (mounted) setState(() => _isLoading = false);
     }
+  }
+
+  Future<void> _stopTracking() async {
+    setState(() => _isLoading = true);
+    var stopped = false;
+    try {
+      await _trackingService.stopTracking();
+      stopped = true;
+      if (!mounted) return;
+      setState(() => _isTracking = false);
+    } catch (error) {
+      if (mounted) {
+        TopSnackBar.show(context, SnackBar(content: Text('Erreur: $error')));
+      }
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
+    }
+
+    if (!stopped || !mounted) return;
+    final openHistory = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        icon: const Icon(Icons.check_circle, color: Colors.green, size: 42),
+        title: const Text('Session du groupe arrêtée'),
+        content: const Text(
+          'Votre position administrateur n’est plus partagée. La session terminée est disponible dans l’historique du groupe.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(false),
+            child: const Text('Fermer'),
+          ),
+          FilledButton.icon(
+            onPressed: () => Navigator.of(dialogContext).pop(true),
+            icon: const Icon(Icons.history),
+            label: const Text('Voir l’historique'),
+          ),
+        ],
+      ),
+    );
+    if (openHistory == true && mounted) {
+      await _openHistory();
+    }
+  }
+
+  Future<void> _openHistory() async {
+    final admin = _admin;
+    if (admin == null) return;
+    await Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => GroupTrackHistoryPage(
+          adminGroupId: admin.adminGroupId,
+        ),
+      ),
+    );
   }
 
   Future<void> _toggleVisibility() async {
@@ -293,6 +416,8 @@ class _AdminGroupDashboardPageState extends State<AdminGroupDashboardPage> {
           padding: const EdgeInsets.all(16),
           children: [
             _buildAdminCard(),
+            const SizedBox(height: 16),
+            _buildJourneyCard(),
             const SizedBox(height: 16),
             _buildTrackingCard(),
             const SizedBox(height: 16),
@@ -499,6 +624,120 @@ class _AdminGroupDashboardPageState extends State<AdminGroupDashboardPage> {
     );
   }
 
+  Widget _buildJourneyCard() {
+    return StreamBuilder<List<GroupTracker>>(
+      stream: _linkService.streamAdminTrackers(_admin!.adminGroupId),
+      builder: (context, trackersSnapshot) {
+        final trackers = trackersSnapshot.data ?? const <GroupTracker>[];
+        return StreamBuilder<Set<String>>(
+          stream: _trackingService.streamActiveMemberUids(
+            _admin!.adminGroupId,
+          ),
+          builder: (context, activeSnapshot) {
+            final activeUids = activeSnapshot.data ?? const <String>{};
+            final activeCount = trackers
+                .where((tracker) => activeUids.contains(tracker.uid))
+                .length;
+            final hasTrackers = trackers.isNotEmpty;
+
+            return Card(
+              elevation: 2,
+              child: Padding(
+                padding: const EdgeInsets.all(16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'Parcours du groupe',
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                    const SizedBox(height: 6),
+                    const Text(
+                      'Créer → Inviter → Associer → Consentir → Suivre → Historique',
+                    ),
+                    const SizedBox(height: 14),
+                    Wrap(
+                      spacing: 8,
+                      runSpacing: 8,
+                      children: [
+                        _buildJourneyStep(
+                          icon: Icons.check_circle,
+                          label: 'Groupe créé',
+                          completed: true,
+                        ),
+                        _buildJourneyStep(
+                          icon: Icons.qr_code_2,
+                          label: 'Inviter',
+                          completed: hasTrackers,
+                          active: !hasTrackers,
+                        ),
+                        _buildJourneyStep(
+                          icon: Icons.group,
+                          label: '${trackers.length} associé(s)',
+                          completed: hasTrackers,
+                        ),
+                        _buildJourneyStep(
+                          icon: Icons.verified_user_outlined,
+                          label: 'Consentement',
+                          completed: _isTracking,
+                          active: hasTrackers && !_isTracking,
+                        ),
+                        _buildJourneyStep(
+                          icon: Icons.gps_fixed,
+                          label: _isTracking ? 'Session active' : 'Démarrer',
+                          completed: _isTracking,
+                          active: hasTrackers && !_isTracking,
+                        ),
+                        _buildJourneyStep(
+                          icon: Icons.history,
+                          label: 'Historique',
+                          completed: !_isTracking && hasTrackers,
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 14),
+                    Text(
+                      hasTrackers
+                          ? '$activeCount tracker(s) actif(s) sur ${trackers.length}. Chaque personne garde le contrôle de son partage GPS.'
+                          : 'Partagez le code ou le QR pour associer le premier tracker.',
+                      style: TextStyle(color: Colors.grey[700]),
+                    ),
+                  ],
+                ),
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+
+  Widget _buildJourneyStep({
+    required IconData icon,
+    required String label,
+    required bool completed,
+    bool active = false,
+  }) {
+    final color = completed
+        ? Colors.green
+        : active
+        ? Theme.of(context).colorScheme.primary
+        : Colors.grey;
+    return Chip(
+      avatar: Icon(
+        completed ? Icons.check_circle : icon,
+        size: 18,
+        color: color,
+      ),
+      label: Text(label),
+      side: BorderSide(color: color.withValues(alpha: 0.35)),
+      backgroundColor: color.withValues(alpha: 0.08),
+    );
+  }
+
   Widget _buildTrackingCard() {
     return Card(
       elevation: 4,
@@ -531,7 +770,7 @@ class _AdminGroupDashboardPageState extends State<AdminGroupDashboardPage> {
                         Text(
                           _isTracking
                               ? 'Position envoyée en temps réel'
-                              : 'Démarrez pour commencer',
+                              : 'Consentement requis avant chaque démarrage',
                           style: TextStyle(
                             color: Colors.grey[600],
                             fontSize: 12,
@@ -582,13 +821,7 @@ class _AdminGroupDashboardPageState extends State<AdminGroupDashboardPage> {
           icon: Icons.history,
           label: 'Historique',
           color: Colors.orange,
-          onTap: () => Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (_) =>
-                  GroupTrackHistoryPage(adminGroupId: _admin!.adminGroupId),
-            ),
-          ),
+          onTap: _openHistory,
         ),
         _buildActionButton(
           icon: Icons.file_download,
