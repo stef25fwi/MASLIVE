@@ -161,6 +161,7 @@ class _DefaultMapPageState extends State<DefaultMapPage>
   // TEMP DEBUG: bandeau visible pour diagnostiquer le tap POI sans accès aux
   // devtools (Safari iPad). À retirer une fois le bug identifié.
   String? _debugLastTapInfo;
+  String? _debugPoiSyncInfo;
   DateTime? _lastPoiPopupAt;
   String? _lastPoiPopupId;
 
@@ -278,16 +279,22 @@ class _DefaultMapPageState extends State<DefaultMapPage>
     if (!_isMasLiveMapReady) return;
 
     final pois = _visibleMarketPoisForCurrentAction();
-    if (kDebugMode) {
-      final circuitId = _marketPoiSelection.circuit?.id ?? 'none';
-      debugPrint(
-        '[POI_RENDER] '
-        'circuit=$circuitId '
-        'action=${_selectedAction?.name ?? 'none'} '
-        'mapReady=$_isMasLiveMapReady '
-        'received=${_marketPois.length} '
-        'rendered=${pois.length}',
-      );
+    final circuitId = _marketPoiSelection.circuit?.id ?? 'none';
+    debugPrint(
+      '[POI_RENDER] '
+      'circuit=$circuitId '
+      'action=${_selectedAction?.name ?? 'none'} '
+      'mapReady=$_isMasLiveMapReady '
+      'received=${_marketPois.length} '
+      'rendered=${pois.length}',
+    );
+    if (mounted) {
+      setState(() {
+        _debugPoiSyncInfo =
+            'Sync POIs: action=${_selectedAction?.name ?? 'none'} '
+            'reçus=${_marketPois.length} visibles=${pois.length} '
+            '${pois.isNotEmpty ? 'coords=${pois.map((p) => '${p.id}@${p.lat.toStringAsFixed(5)},${p.lng.toStringAsFixed(5)}').join(' | ')}' : ''}';
+      });
     }
 
     if (pois.isEmpty) {
@@ -2366,7 +2373,7 @@ class _DefaultMapPageState extends State<DefaultMapPage>
                                 showAttributionControl: false,
                                 showMapboxLogo: false,
                                 prioritizeFirstFrame: true,
-                                onTap: (_) {
+                                onTap: (tapPoint) {
                                   // Fermer la tooltip au premier clic
                                   if (_showOnboardingTooltip) {
                                     setState(
@@ -2375,7 +2382,8 @@ class _DefaultMapPageState extends State<DefaultMapPage>
                                   }
                                   setState(() {
                                     _debugLastTapInfo =
-                                        'onTap générique: aucun POI détecté sous le doigt (hit-test JS négatif)';
+                                        'onTap générique @ ${tapPoint.lat.toStringAsFixed(5)},${tapPoint.lng.toStringAsFixed(5)}: '
+                                        'aucun POI détecté (hit-test JS négatif)';
                                   });
                                 },
                                 onMapReady: (_) {
@@ -2433,7 +2441,7 @@ class _DefaultMapPageState extends State<DefaultMapPage>
 
                 // TEMP DEBUG: bandeau diagnostic tap POI (à retirer une fois
                 // le bug identifié).
-                if (_debugLastTapInfo != null)
+                if (_debugLastTapInfo != null || _debugPoiSyncInfo != null)
                   Positioned(
                     left: 12,
                     right: 12,
@@ -2445,9 +2453,23 @@ class _DefaultMapPageState extends State<DefaultMapPage>
                           color: Colors.black87,
                           borderRadius: BorderRadius.circular(12),
                         ),
-                        child: Text(
-                          _debugLastTapInfo!,
-                          style: const TextStyle(color: Colors.yellow, fontSize: 12, fontWeight: FontWeight.w600),
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            if (_debugPoiSyncInfo != null)
+                              Text(
+                                _debugPoiSyncInfo!,
+                                style: const TextStyle(color: Colors.cyanAccent, fontSize: 11, fontWeight: FontWeight.w600),
+                              ),
+                            if (_debugLastTapInfo != null) ...[
+                              const SizedBox(height: 4),
+                              Text(
+                                _debugLastTapInfo!,
+                                style: const TextStyle(color: Colors.yellow, fontSize: 12, fontWeight: FontWeight.w600),
+                              ),
+                            ],
+                          ],
                         ),
                       ),
                     ),
