@@ -943,6 +943,10 @@ class _DefaultMapPageState extends State<DefaultMapPage>
     _isTracking = _geo.isTracking;
     _listenHomeControlsThemeConfig();
     _mapController.onPoiTap = _handleMarketPoiTap;
+    _mapController.onPoiHitTestDebug = (info) {
+      if (!mounted) return;
+      setState(() => _debugLastTapInfo = 'hitTest: $info');
+    };
 
     // Initialiser le drapeau de langue dès initState (pas de délai)
     _updateLanguageFlag();
@@ -2380,11 +2384,6 @@ class _DefaultMapPageState extends State<DefaultMapPage>
                                       () => _showOnboardingTooltip = false,
                                     );
                                   }
-                                  setState(() {
-                                    _debugLastTapInfo =
-                                        'onTap générique @ ${tapPoint.lat.toStringAsFixed(5)},${tapPoint.lng.toStringAsFixed(5)}: '
-                                        'aucun POI détecté (hit-test JS négatif)';
-                                  });
                                 },
                                 onMapReady: (_) {
                                   _isMasLiveMapReady = true;

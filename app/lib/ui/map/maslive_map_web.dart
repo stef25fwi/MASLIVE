@@ -1715,31 +1715,36 @@ class _MasLiveMapWebState extends State<MasLiveMapWeb> {
     }
   }
 
-  String? _hitTestPoiId(double lng, double lat) {
-    final map = _getMapForThisContainer();
-    if (map == null) return null;
+  /// TEMP DEBUG: dernier diagnostic detaille du hit-test (voir
+  /// [MasLiveMapControllerPoi.onPoiHitTestDebug]). A retirer avec le reste
+  /// de l'instrumentation une fois le bug identifie.
+  String _lastHitTestDebug = '';
 
+  (String?, String) _hitTestPoiIdDebug(double lng, double lat) {
+    final map = _getMapForThisContainer();
+    if (map == null) return (null, 'map JS introuvable pour ce containerId');
+
+    const layerIds = <String>[
+      _poiFillLayerId,
+      _poiPatternLayerId,
+      _poiLineLayerDottedId,
+      _poiLineLayerDashedId,
+      _poiLineLayerId,
+      _poiZoneLabelLayerId,
+      _poiIconLayerId,
+      _poiLayerId,
+    ];
+
+    final existingLayers = <String>[];
     try {
-      final layerPoint = map.callMethod('getLayer', [_poiLayerId]);
-      final layerPointIcon = map.callMethod('getLayer', [_poiIconLayerId]);
-      final layerLabel = map.callMethod('getLayer', [_poiZoneLabelLayerId]);
-      final layerFill = map.callMethod('getLayer', [_poiFillLayerId]);
-      final layerPattern = map.callMethod('getLayer', [_poiPatternLayerId]);
-      final layerLine = map.callMethod('getLayer', [_poiLineLayerId]);
-      final layerDashed = map.callMethod('getLayer', [_poiLineLayerDashedId]);
-      final layerDotted = map.callMethod('getLayer', [_poiLineLayerDottedId]);
-      if (layerPoint == null &&
-          layerPointIcon == null &&
-          layerLabel == null &&
-          layerFill == null &&
-          layerPattern == null &&
-          layerLine == null &&
-          layerDashed == null &&
-          layerDotted == null) {
-        return null;
+      for (final id in layerIds) {
+        if (map.callMethod('getLayer', [id]) != null) existingLayers.add(id);
       }
-    } catch (_) {
-      return null;
+      if (existingLayers.isEmpty) {
+        return (null, 'aucun layer POI présent dans le style (0/${layerIds.length})');
+      }
+    } catch (e) {
+      return (null, 'exception getLayer: $e');
     }
 
     try {
@@ -1748,19 +1753,22 @@ class _MasLiveMapWebState extends State<MasLiveMapWeb> {
       ]);
       final feats = map.callMethod('queryRenderedFeatures', [
         point,
-        js.JsObject.jsify({
-          'layers': <String>[
-            _poiFillLayerId,
-            _poiPatternLayerId,
-            _poiLineLayerDottedId,
-            _poiLineLayerDashedId,
-            _poiLineLayerId,
-            _poiZoneLabelLayerId,
-            _poiIconLayerId,
-            _poiLayerId,
-          ],
-        }),
+        js.JsObject.jsify({'layers': layerIds}),
       ]);
+      final featCount = (feats is js.JsArray) ? feats.length : -1;
+
+      // Requête large (tous layers confondus) pour voir ce qui EST touché
+      // au même point, si notre requête restreinte ne trouve rien.
+      int anyLayerFeatCount = -1;
+      if (featCount <= 0) {
+        try {
+          final anyFeats = map.callMethod('queryRenderedFeatures', [point]);
+          anyLayerFeatCount = (anyFeats is js.JsArray) ? anyFeats.length : -1;
+        } catch (_) {
+          // ignore
+        }
+      }
+
       if (feats is js.JsArray && feats.isNotEmpty) {
         for (final item in feats) {
           if (item is! js.JsObject) continue;
@@ -1773,14 +1781,27 @@ class _MasLiveMapWebState extends State<MasLiveMapWeb> {
               (props is js.JsObject ? props['poiId'] : null) ?? item['id'];
           final id = (poiId ?? '').toString();
           if (id.isNotEmpty) {
-            return id;
+            return (
+              id,
+              'layers=${existingLayers.length}/${layerIds.length} featsTrouvees=$featCount poiId=$id',
+            );
           }
         }
       }
-    } catch (_) {
-      // ignore
+      return (
+        null,
+        'layers=${existingLayers.length}/${layerIds.length} featsPoiLayers=$featCount '
+        'featsToutesLayers=$anyLayerFeatCount',
+      );
+    } catch (e) {
+      return (null, 'exception queryRenderedFeatures: $e');
     }
-    return null;
+  }
+
+  String? _hitTestPoiId(double lng, double lat) {
+    final (poiId, debugInfo) = _hitTestPoiIdDebug(lng, lat);
+    _lastHitTestDebug = debugInfo;
+    return poiId;
   }
 
   Future<void> _ensurePoiPatternImages(js.JsObject map) async {
@@ -1977,7 +1998,16 @@ class _MasLiveMapWebState extends State<MasLiveMapWeb> {
 
     // 1) POI hit-test
     final poiId = _hitTestPoiId(lng, lat);
-    debugPrint('🗺️ [POI_TAP] hitTest lng=$lng lat=$lat -> poiId=$poiId');
+    debugPrint('🗺️ [POI_TAP] hitTest lng=$lng lat=$lat -> poiId=$poiId ($_lastHitTestDebug)');
+    try {
+      final debugCb =
+          (controller as dynamic).onPoiHitTestDebug as void Function(String)?;
+      debugCb?.call(
+        '@${lat.toStringAsFixed(5)},${lng.toStringAsFixed(5)} poiId=$poiId $_lastHitTestDebug',
+      );
+    } catch (_) {
+      // ignore
+    }
     if (poiId != null) {
       try {
         final cb = (controller as dynamic).onPoiTap as void Function(String)?;
