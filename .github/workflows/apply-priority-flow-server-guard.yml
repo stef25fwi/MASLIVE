@@ -7,6 +7,16 @@ on:
     paths:
       - .github/workflows/apply-priority-flow-server-guard.yml
       - scripts/apply_priority_flow_server_guard.py
+  pull_request:
+    branches:
+      - main
+    types:
+      - opened
+      - synchronize
+    paths:
+      - .github/workflows/apply-priority-flow-server-guard.yml
+      - scripts/apply_priority_flow_server_guard.py
+  workflow_dispatch:
 
 permissions:
   contents: write
@@ -17,6 +27,7 @@ concurrency:
 
 jobs:
   apply-and-validate:
+    if: github.actor != 'github-actions[bot]'
     runs-on: ubuntu-24.04
     timeout-minutes: 45
     steps:
