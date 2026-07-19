@@ -18,6 +18,7 @@ import '../l10n/app_localizations.dart' as l10n;
 import '../ui/snack/top_snack_bar.dart';
 import '../ui/widgets/storage_image.dart';
 import 'package:masslive/ui_kit/tokens/maslive_tokens.dart';
+import '../ui/widgets/maslive_button.dart';
 
 /// ===============================================================
 /// Storex-style Shop for MassLive (Firestore: products + categories)
@@ -1691,9 +1692,10 @@ class _WishlistPage extends StatelessWidget {
                   style: TextStyle(color: Colors.black54),
                 ),
                 const SizedBox(height: 12),
-                ElevatedButton(
+                MasliveButton(
+                  label: 'Se connecter',
+                  expand: false,
                   onPressed: () => Navigator.pushNamed(context, '/login'),
-                  child: const Text('Se connecter'),
                 ),
               ],
             ),
@@ -2020,9 +2022,10 @@ class _OrdersPage extends StatelessWidget {
                   style: TextStyle(color: Colors.black54),
                 ),
                 const SizedBox(height: 12),
-                ElevatedButton(
+                MasliveButton(
+                  label: 'Se connecter',
+                  expand: false,
                   onPressed: () => Navigator.pushNamed(context, '/login'),
-                  child: const Text('Se connecter'),
                 ),
               ],
             ),

@@ -9,6 +9,7 @@ import '../ui/map/maslive_map_controller.dart';
 import '../ui/widgets/glass_scrollbar.dart';
 import '../ui_kit/glass/glass_panel.dart';
 import '../ui_kit/tokens/maslive_tokens.dart';
+import '../ui/widgets/maslive_empty_state.dart';
 
 typedef LngLat = ({double lng, double lat});
 
@@ -1245,18 +1246,11 @@ class _CircuitMapEditorState extends State<CircuitMapEditor> {
 
     if (token.isEmpty) {
       return Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            const Icon(Icons.warning, size: 48, color: Colors.orange),
-            const SizedBox(height: 16),
-            const Text('Token Mapbox manquant'),
-            const SizedBox(height: 16),
-            ElevatedButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text('Retour'),
-            ),
-          ],
+        child: MasliveEmptyState(
+          icon: Icons.warning_amber_rounded,
+          title: 'Token Mapbox manquant',
+          actionLabel: 'Retour',
+          onAction: () => Navigator.pop(context),
         ),
       );
     }

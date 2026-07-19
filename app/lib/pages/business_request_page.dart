@@ -2,6 +2,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import '../ui/widgets/maslive_button.dart';
 
 class BusinessRequestPage extends StatefulWidget {
   const BusinessRequestPage({super.key});
@@ -200,9 +201,9 @@ class _BusinessRequestPageState extends State<BusinessRequestPage> {
             children: [
               const Text('Connectez-vous pour faire une demande.'),
               const SizedBox(height: 12),
-              ElevatedButton(
+              MasliveButton(
+                label: 'Se connecter',
                 onPressed: () => Navigator.pushNamed(context, '/login'),
-                child: const Text('Se connecter'),
               ),
             ],
           ),
@@ -331,24 +332,14 @@ class _BusinessRequestPageState extends State<BusinessRequestPage> {
                   },
                 ),
                 const SizedBox(height: 20),
-                SizedBox(
-                  width: double.infinity,
-                  child: ElevatedButton(
-                    onPressed: (_loading || locked) ? null : _submit,
-                    child: _loading
-                        ? const SizedBox(
-                            width: 22,
-                            height: 22,
-                            child: CircularProgressIndicator(strokeWidth: 2),
-                          )
-                        : Text(
-                            !_hasExisting
-                                ? 'Envoyer la demande'
-                                : (isRejected
-                                      ? 'Re-soumettre la demande'
-                                      : 'Mettre à jour'),
-                          ),
-                  ),
+                MasliveButton(
+                  label: !_hasExisting
+                      ? 'Envoyer la demande'
+                      : (isRejected
+                            ? 'Re-soumettre la demande'
+                            : 'Mettre à jour'),
+                  loading: _loading,
+                  onPressed: (_loading || locked) ? null : _submit,
                 ),
                 if (_hasExisting && !locked) ...[
                   const SizedBox(height: 12),

@@ -13,6 +13,7 @@ import '../services/media_permissions_service.dart';
 import '../utils/country_flag.dart';
 import '../ui/widgets/storage_image.dart';
 import 'package:masslive/ui_kit/tokens/maslive_tokens.dart';
+import '../ui/widgets/maslive_button.dart';
 
 class MediaGalleryMasliveInstagramPage extends StatefulWidget {
   const MediaGalleryMasliveInstagramPage({super.key});
@@ -1618,19 +1619,11 @@ class _AddMediaSheetState extends State<_AddMediaSheet> {
           ),
           const SizedBox(height: 16),
 
-          SizedBox(
-            width: double.infinity,
-            child: ElevatedButton.icon(
-              onPressed: _saving ? null : _save,
-              icon: _saving
-                  ? const SizedBox(
-                      width: 18,
-                      height: 18,
-                      child: CircularProgressIndicator(strokeWidth: 2),
-                    )
-                  : const Icon(Icons.check_circle_outline),
-              label: Text(_saving ? 'Enregistrement…' : 'Publier le média'),
-            ),
+          MasliveButton(
+            label: _saving ? 'Enregistrement…' : 'Publier le média',
+            icon: Icons.check_circle_outline,
+            loading: _saving,
+            onPressed: _saving ? null : _save,
           ),
         ],
       ),
