@@ -33,6 +33,7 @@ class UnifiedCheckoutService {
     int shippingCents = 0,
     String shippingMethod = 'flat_rate',
     String? promoCode,
+    bool mediaHdUpgrade = false,
   }) async {
     final hasMerch = cart.merchCheckoutItems.isNotEmpty;
     final hasMedia = cart.mediaCheckoutItems.isNotEmpty;
@@ -48,11 +49,16 @@ class UnifiedCheckoutService {
         shippingCents: shippingCents,
         shippingMethod: shippingMethod,
         promoCode: promoCode,
+        mediaHdUpgrade: mediaHdUpgrade,
       );
     }
 
     if (hasMedia) {
-      return CartCheckoutService.startMediaCheckout(context, cart);
+      return CartCheckoutService.startMediaCheckout(
+        context,
+        cart,
+        hdUpgrade: mediaHdUpgrade,
+      );
     }
 
     return CartCheckoutService.startMerchCheckout(context);
