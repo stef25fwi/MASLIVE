@@ -6,12 +6,39 @@ import '../models/photographer_profile_model.dart';
 
 class PhotographerRepository {
   PhotographerRepository({FirebaseFirestore? firestore})
-    : _firestore = firestore ?? FirebaseFirestore.instance;
+      : _firestore = firestore ?? FirebaseFirestore.instance;
 
   final FirebaseFirestore _firestore;
 
   CollectionReference<Map<String, dynamic>> get _collection =>
       _firestore.collection(MediaMarketplaceCollections.photographers);
+
+  PhotographerProfileModel _fromDocument(
+    DocumentSnapshot<Map<String, dynamic>> doc,
+  ) {
+    final data = Map<String, dynamic>.from(
+      doc.data() ?? const <String, dynamic>{},
+    );
+    final nestedStripe = data['stripe'] is Map
+        ? Map<String, dynamic>.from(data['stripe'] as Map)
+        : <String, dynamic>{};
+    data['stripe'] = <String, dynamic>{
+      ...nestedStripe,
+      'accountId': nestedStripe['accountId'] ?? data['stripeAccountId'],
+      'accountCountry':
+          nestedStripe['accountCountry'] ?? data['stripeAccountCountry'],
+      'detailsSubmitted': nestedStripe['detailsSubmitted'] ??
+          data['stripeDetailsSubmitted'] ??
+          false,
+      'chargesEnabled': nestedStripe['chargesEnabled'] ??
+          data['stripeChargesEnabled'] ??
+          false,
+      'payoutsEnabled': nestedStripe['payoutsEnabled'] ??
+          data['stripePayoutsEnabled'] ??
+          false,
+    };
+    return PhotographerProfileModel.fromMap(data, photographerId: doc.id);
+  }
 
   Future<PhotographerProfileModel?> getByOwnerUid(String ownerUid) async {
     final snapshot = await _collection
@@ -19,13 +46,13 @@ class PhotographerRepository {
         .limit(1)
         .get();
     if (snapshot.docs.isEmpty) return null;
-    return PhotographerProfileModel.fromDocument(snapshot.docs.first);
+    return _fromDocument(snapshot.docs.first);
   }
 
   Future<PhotographerProfileModel?> getById(String photographerId) async {
     final doc = await _collection.doc(photographerId).get();
     if (!doc.exists) return null;
-    return PhotographerProfileModel.fromDocument(doc);
+    return _fromDocument(doc);
   }
 
   Future<PhotographerProfileModel?> findByQuery(String query) async {
@@ -42,7 +69,7 @@ class PhotographerRepository {
     PhotographerProfileModel? containsMatch;
 
     for (final doc in snapshot.docs) {
-      final profile = PhotographerProfileModel.fromDocument(doc);
+      final profile = _fromDocument(doc);
       final brand = profile.brandName.trim().toLowerCase();
       final owner = profile.ownerUid.trim().toLowerCase();
       final id = profile.photographerId.trim().toLowerCase();
@@ -51,7 +78,10 @@ class PhotographerRepository {
         return profile;
       }
 
-      if (containsMatch == null && (brand.contains(normalized) || owner.contains(normalized) || id.contains(normalized))) {
+      if (containsMatch == null &&
+          (brand.contains(normalized) ||
+              owner.contains(normalized) ||
+              id.contains(normalized))) {
         containsMatch = profile;
       }
     }
@@ -60,7 +90,9 @@ class PhotographerRepository {
   }
 
   Future<void> createOrUpdate(PhotographerProfileModel profile) async {
-    await _collection.doc(profile.photographerId).set(profile.toMap(), SetOptions(merge: true));
+    await _collection
+        .doc(profile.photographerId)
+        .set(profile.toMap(), SetOptions(merge: true));
   }
 
   Future<void> updateStatus({
@@ -70,7 +102,9 @@ class PhotographerRepository {
   }) async {
     final patch = <String, dynamic>{'status': status.firestoreValue};
     if (isVerified != null) patch['isVerified'] = isVerified;
-    await _collection.doc(photographerId).set(patch, SetOptions(merge: true));
+    await _collection
+        .doc(photographerId)
+        .set(patch, SetOptions(merge: true));
   }
 
   Future<void> updateCounters({
@@ -94,7 +128,9 @@ class PhotographerRepository {
       'totalRevenueGross': ?totalRevenueGross,
       'totalRevenueNet': ?totalRevenueNet,
     };
-    await _collection.doc(photographerId).set(patch, SetOptions(merge: true));
+    await _collection
+        .doc(photographerId)
+        .set(patch, SetOptions(merge: true));
   }
 
   Future<void> updateSubscriptionInfo({

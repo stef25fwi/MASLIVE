@@ -41,6 +41,19 @@ class MasliveButton extends StatelessWidget {
       MasliveButtonVariant.ghost => MasliveTokens.primary,
     };
 
+    final labelWidget = Text(
+      label,
+      maxLines: 1,
+      overflow: TextOverflow.ellipsis,
+      textAlign: TextAlign.center,
+      style: TextStyle(
+        color: fg,
+        fontSize: 15,
+        fontWeight: FontWeight.w600,
+        letterSpacing: 0.1,
+      ),
+    );
+
     final content = Row(
       mainAxisSize: expand ? MainAxisSize.max : MainAxisSize.min,
       mainAxisAlignment: MainAxisAlignment.center,
@@ -56,22 +69,16 @@ class MasliveButton extends StatelessWidget {
             Icon(icon, size: 19, color: fg),
             const SizedBox(width: 8),
           ],
-          Text(
-            label,
-            style: TextStyle(
-              color: fg,
-              fontSize: 15,
-              fontWeight: FontWeight.w600,
-              letterSpacing: 0.1,
-            ),
-          ),
+          if (expand) Flexible(child: labelWidget) else labelWidget,
         ],
       ],
     );
 
     final decoration = switch (variant) {
       MasliveButtonVariant.primary => BoxDecoration(
-        color: _disabled ? MasliveTokens.primary.withValues(alpha: 0.4) : MasliveTokens.primary,
+        color: _disabled
+            ? MasliveTokens.primary.withValues(alpha: 0.4)
+            : MasliveTokens.primary,
         borderRadius: BorderRadius.circular(MasliveTokens.rM),
       ),
       MasliveButtonVariant.gradient => BoxDecoration(
@@ -97,7 +104,8 @@ class MasliveButton extends StatelessWidget {
           child: Container(
             height: 52,
             width: expand ? double.infinity : null,
-            padding: const EdgeInsets.symmetric(horizontal: 20),
+            constraints: const BoxConstraints(minWidth: 0),
+            padding: const EdgeInsets.symmetric(horizontal: 16),
             decoration: decoration,
             alignment: Alignment.center,
             child: content,

@@ -1,8 +1,6 @@
 rules_version = '2';
 service firebase.storage {
   match /b/{bucket}/o {
-    
-    // Helper functions
     function isAuthenticated() {
       return request.auth != null;
     }
@@ -53,90 +51,104 @@ service firebase.storage {
     function canManageMarketplaceMedia(photographerId) {
       return isMasterAdmin() || isPhotographerOwner(photographerId);
     }
-    
+
     function isOwner(userId) {
       return isAuthenticated() && request.auth.uid == userId;
     }
-    
+
     function isValidImageType() {
       return request.resource != null
         && request.resource.contentType != null
         && request.resource.contentType.matches('image/(jpeg|jpg|png|webp|gif|heic|heif)');
     }
-    
+
     function isValidImageSize() {
-      return request.resource.size < 5 * 1024 * 1024; // 5MB max
+      return request.resource.size < 5 * 1024 * 1024;
     }
-    
-    // ✅ Images de profil utilisateurs
+
+    function isMarketplaceOriginalSize() {
+      return request.resource != null
+        && request.resource.size > 0
+        && request.resource.size <= 60 * 1024 * 1024;
+    }
+
     match /users/{userId}/profile/{imageId} {
       allow read: if true;
-      allow write: if isOwner(userId) && 
-                      isValidImageType() && 
-                      isValidImageSize();
+      allow write: if isOwner(userId)
+                    && isValidImageType()
+                    && isValidImageSize();
       allow delete: if isOwner(userId);
     }
-    
-    // ✅ Images de groupes (inclut sous-dossiers, ex: products/{productId}/1.jpg)
+
     match /groups/{groupId}/{allPaths=**} {
       allow read: if true;
-      allow write: if (isMasterAdmin() || isGroupAdmin(groupId)) && 
-                      isValidImageType() && 
-                      isValidImageSize();
+      allow write: if (isMasterAdmin() || isGroupAdmin(groupId))
+                    && isValidImageType()
+                    && isValidImageSize();
       allow delete: if isMasterAdmin() || isGroupAdmin(groupId);
     }
-    
-    // ✅ Images de places (admin seulement)
-    // Utilisé par ImageManagementService: places/{placeId}/images/{imageId}/...
+
     match /places/{placeId}/{allPaths=**} {
       allow read: if true;
-      allow write: if isMasterAdmin() && 
-                      isValidImageType() && 
-                      isValidImageSize();
+      allow write: if isMasterAdmin()
+                    && isValidImageType()
+                    && isValidImageSize();
       allow delete: if isMasterAdmin();
     }
 
-    // ✅ Images produits boutique (admin seulement)
-    // Utilisé par le dialog de création produit: shops/{shopId}/products/{productId}/...
     match /shops/{shopId}/{allPaths=**} {
       allow read: if true;
-      allow write: if isMasterAdmin() &&
-                      isValidImageType() &&
-                      isValidImageSize();
+      allow write: if isMasterAdmin()
+                    && isValidImageType()
+                    && isValidImageSize();
       allow delete: if isMasterAdmin();
     }
 
-    // ✅ Produits admin (créés par StorageService)
-    // Chemin: products/{shopId}/{productId}/original/{filename}
     match /products/{shopId}/{allPaths=**} {
       allow read: if true;
-      allow write: if isMasterAdmin() &&
-                      isValidImageType() &&
-                      isValidImageSize();
+      allow write: if isMasterAdmin()
+                    && isValidImageType()
+                    && isValidImageSize();
       allow delete: if isMasterAdmin();
     }
 
-    // ✅ Média générique (photos, articles, etc.)
-    // Chemin: media/{scopeId}/{mediaId}/original/{filename}
     match /media/{scopeId}/{allPaths=**} {
       allow read: if isMasterAdmin();
-      allow write: if isMasterAdmin() &&
-                      isValidImageType() &&
-                      isValidImageSize();
+      allow write: if isMasterAdmin()
+                    && isValidImageType()
+                    && isValidImageSize();
       allow delete: if isMasterAdmin();
     }
 
-    // ✅ Média marketplace photographes
-    // Chemin: photographers/{photographerId}/events/{eventId}/galleries/{galleryId}/...
-    match /photographers/{photographerId}/events/{eventId}/galleries/{galleryId}/{allPaths=**} {
-      allow read: if isAuthenticated() && canManageMarketplaceMedia(photographerId);
-      allow write: if canManageMarketplaceMedia(photographerId) &&
-                      isValidImageType() &&
-                      request.resource.size < 25 * 1024 * 1024;
+    // Originals: jamais publics. Le téléchargement après achat est délivré par
+    // une URL signée serveur après validation de l'entitlement.
+    match /photographers/{photographerId}/events/{eventId}/galleries/{galleryId}/originals/{fileName} {
+      allow read: if canManageMarketplaceMedia(photographerId);
+      allow create, update: if canManageMarketplaceMedia(photographerId)
+                            && isValidImageType()
+                            && isMarketplaceOriginalSize();
       allow delete: if canManageMarketplaceMedia(photographerId);
     }
-    
-    // ✅ Tout refuser par défaut
+
+    // Miniatures et aperçus filigranés servent au catalogue public. Seul le
+    // backend Admin SDK peut les écrire lors du traitement Sharp.
+    match /photographers/{photographerId}/events/{eventId}/galleries/{galleryId}/thumbs/{fileName} {
+      allow read: if true;
+      allow write: if false;
+    }
+
+    match /photographers/{photographerId}/events/{eventId}/galleries/{galleryId}/watermarked/{fileName} {
+      allow read: if true;
+      allow write: if false;
+    }
+
+    // Aperçus sans filigrane réservés au photographe; la livraison acheteur
+    // passe elle aussi par le serveur et une URL signée courte.
+    match /photographers/{photographerId}/events/{eventId}/galleries/{galleryId}/previews/{fileName} {
+      allow read: if canManageMarketplaceMedia(photographerId);
+      allow write: if false;
+    }
+
     match /{allPaths=**} {
       allow read, write: if false;
     }
