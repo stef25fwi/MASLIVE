@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:masslive/ui_kit/tokens/maslive_tokens.dart';
 
 class CartGroupSection extends StatelessWidget {
   const CartGroupSection({
@@ -26,14 +27,14 @@ class CartGroupSection extends StatelessWidget {
               title,
               style: theme.textTheme.titleLarge?.copyWith(
                 fontWeight: FontWeight.w800,
-                color: const Color(0xFF111827),
+                color: MasliveTokens.text,
               ),
             ),
             const SizedBox(height: 4),
             Text(
               subtitle,
               style: theme.textTheme.bodyMedium?.copyWith(
-                color: const Color(0xFF6B7280),
+                color: MasliveTokens.textMuted,
               ),
             ),
           ],

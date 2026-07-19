@@ -5,6 +5,7 @@ import '../controllers/product_controller.dart';
 import '../widgets/change_notifier_provider_lite.dart';
 import '../../../../ui/snack/top_snack_bar.dart';
 import '../../../../ui/widgets/storage_image.dart';
+import 'package:masslive/ui_kit/tokens/maslive_tokens.dart';
 
 class BoutiquePage extends StatefulWidget {
   final String shopId;
@@ -132,7 +133,7 @@ class _BoutiquePageState extends State<BoutiquePage> {
                         hintText: 'Rechercher…',
                         prefixIcon: const Icon(Icons.search),
                         filled: true,
-                        fillColor: const Color(0xFFF6F7FB),
+                        fillColor: MasliveTokens.bg,
                         border: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(14),
                           borderSide: BorderSide.none,
@@ -195,7 +196,7 @@ class _BoutiquePageState extends State<BoutiquePage> {
                                         child: Container(
                                           width: 66,
                                           height: 66,
-                                          color: const Color(0xFFF6F7FB),
+                                          color: MasliveTokens.bg,
                                           child: product.mainImageUrl == null
                                               ? const Icon(Icons.photo_outlined)
                                               : StorageImage(
@@ -492,7 +493,7 @@ class _StockPill extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
       decoration: BoxDecoration(
-        color: filled ? Colors.black : const Color(0xFFF6F7FB),
+        color: filled ? Colors.black : MasliveTokens.bg,
         borderRadius: BorderRadius.circular(999),
         border: Border.all(
           color: filled ? Colors.black : const Color(0xFFE9ECF3),

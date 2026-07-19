@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:masslive/ui_kit/tokens/maslive_tokens.dart';
 
 /// Section 3 - "Calculs & Validation"
 /// Style iOS blanc premium + icône carrée + titre + ligne à droite + bullets colorés
@@ -6,8 +7,8 @@ class Section3CalculsValidation extends StatelessWidget {
   const Section3CalculsValidation({super.key});
 
   static const Color _text = Color(0xFF1F2A37); // bleu/noir élégant
-  static const Color _line = Color(0xFFE5E7EB); // séparateur
-  static const Color _blue = Color(0xFF1A73E8); // bleu principal
+  static const Color _line = MasliveTokens.line; // séparateur
+  static const Color _blue = MasliveTokens.primary; // bleu principal
 
   @override
   Widget build(BuildContext context) {

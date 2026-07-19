@@ -44,6 +44,7 @@ import '../utils/startup_trace.dart';
 import '../utils/web_viewport_resize.dart';
 import 'storex_shop_page.dart';
 import 'home_vertical_nav.dart';
+import 'package:masslive/ui_kit/tokens/maslive_tokens.dart';
 
 // Menu vertical: modes/actions (pour refléter la sélection UI)
 // Note: seul le tracking et les projets sont pleinement câblés ici.
@@ -1330,7 +1331,7 @@ class _DefaultMapPageState extends State<DefaultMapPage>
         final style = _marketRouteStyle;
         final color =
             _parseHexColor(style['color']?.toString()) ??
-            const Color(0xFF0A84FF);
+            MasliveTokens.primary;
         final width = (style['width'] as num?)?.toDouble() ?? 6.0;
         final roadLike = (style['roadLike'] as bool?) ?? true;
         final shadow3d = (style['shadow3d'] as bool?) ?? true;
@@ -1435,7 +1436,7 @@ class _DefaultMapPageState extends State<DefaultMapPage>
     int animTick,
   ) {
     if (cfg.trafficDemoEnabled) {
-      const traffic = [Color(0xFF22C55E), Color(0xFFF59E0B), Color(0xFFEF4444)];
+      const traffic = [Color(0xFF22C55E), MasliveTokens.warning, Color(0xFFEF4444)];
       return traffic[index % traffic.length];
     }
 
@@ -1983,7 +1984,7 @@ class _DefaultMapPageState extends State<DefaultMapPage>
       selectedIndex: _activeBottomBarIndex,
       height: _homeBottomBarHeight,
       padding: const EdgeInsets.symmetric(horizontal: 8),
-      inactiveColor: const Color(0xFF101828),
+      inactiveColor: MasliveTokens.text,
       includeBottomSafeArea: true,
     );
   }

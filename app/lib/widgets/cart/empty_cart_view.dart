@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:masslive/ui_kit/tokens/maslive_tokens.dart';
 
 class EmptyCartView extends StatelessWidget {
   const EmptyCartView({
@@ -53,7 +54,7 @@ class EmptyCartView extends StatelessWidget {
                     child: const Icon(
                       Icons.shopping_cart_checkout_rounded,
                       size: 36,
-                      color: Color(0xFF111827),
+                      color: MasliveTokens.text,
                     ),
                   ),
                   const SizedBox(height: 18),
@@ -62,7 +63,7 @@ class EmptyCartView extends StatelessWidget {
                     textAlign: TextAlign.center,
                     style: theme.textTheme.headlineSmall?.copyWith(
                       fontWeight: FontWeight.w800,
-                      color: const Color(0xFF111827),
+                      color: MasliveTokens.text,
                     ),
                   ),
                   const SizedBox(height: 10),
@@ -78,7 +79,7 @@ class EmptyCartView extends StatelessWidget {
                   FilledButton.icon(
                     onPressed: onContinueShopping,
                     style: FilledButton.styleFrom(
-                      backgroundColor: const Color(0xFF111827),
+                      backgroundColor: MasliveTokens.text,
                       foregroundColor: Colors.white,
                     ),
                     icon: const Icon(Icons.storefront_outlined),

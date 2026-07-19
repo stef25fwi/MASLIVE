@@ -8,6 +8,7 @@ import '../services/mapbox_token_service.dart';
 import '../ui/widgets/mapbox_token_dialog.dart';
 import '../ui/map/maslive_map.dart';
 import '../ui/map/maslive_map_controller.dart';
+import 'package:masslive/ui_kit/tokens/maslive_tokens.dart';
 
 /// TrackingLivePage (Mapbox-only)
 /// - Web : Mapbox GL JS via MapboxWebView
@@ -88,7 +89,7 @@ class _TrackingLivePageState extends State<TrackingLivePage>
           size: _followGroupId == g.id ? 1.8 : 1.4,
           color: _followGroupId == g.id
               ? const Color(0xFFFF9500)
-              : const Color(0xFF0A84FF),
+              : MasliveTokens.primary,
         ),
     ]);
 

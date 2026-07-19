@@ -13,6 +13,7 @@ import '../../route_style_pro/services/route_style_pro_projection.dart';
 import '../../services/poi_popup_service.dart';
 import '../../ui/widgets/polaroid_poi_sheet.dart';
 import '../../utils/mapbox_style_url.dart';
+import 'package:masslive/ui_kit/tokens/maslive_tokens.dart';
 
 /// ===============================
 /// MarketMap Public Viewer (Mobile)
@@ -1062,7 +1063,7 @@ class _MarketMapPublicViewerPageState extends State<MarketMapPublicViewerPage>
 
   Color _segmentColor(rsp.RouteStyleConfig cfg, int index, int animTick) {
     if (cfg.trafficDemoEnabled) {
-      const traffic = [Color(0xFF22C55E), Color(0xFFF59E0B), Color(0xFFEF4444)];
+      const traffic = [Color(0xFF22C55E), MasliveTokens.warning, Color(0xFFEF4444)];
       return traffic[index % traffic.length];
     }
 

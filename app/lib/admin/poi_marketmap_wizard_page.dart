@@ -18,6 +18,7 @@ import '../ui/widgets/glass_scrollbar.dart';
 import 'circuit_wizard_pro_page.dart';
 import 'parking_zone_drawer_page.dart';
 import 'poi_edit_popup.dart';
+import 'package:masslive/ui_kit/tokens/maslive_tokens.dart';
 
 const _emptyVisibleCircuitsIndex = VisibleCircuitsIndex(
   countryIds: <String>{},
@@ -599,7 +600,7 @@ class _POIMarketMapWizardPageState extends State<POIMarketMapWizardPage> {
       case 'tracking':
       case 'visited':
       case 'full':
-        return const Color(0xFF1A73E8);
+        return MasliveTokens.primary;
       case 'perimeter':
         return const Color(0xFF4CAF50);
       default:

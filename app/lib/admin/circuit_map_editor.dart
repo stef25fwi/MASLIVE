@@ -224,7 +224,7 @@ class CircuitMapEditor extends StatefulWidget {
     this.externalScrollController,
     this.topContent,
 
-    this.polylineColor = const Color(0xFF0A84FF),
+    this.polylineColor = MasliveTokens.primary,
     this.polylineWidth = 4.0,
     this.polylineRoadLike = false,
     this.polylineShadow3d = false,
@@ -565,7 +565,7 @@ class _CircuitMapEditorState extends State<CircuitMapEditor> {
             await _mapController.setPolyline(
               points: mapPoints,
               show: true,
-              color: const Color(0xFF0A84FF),
+              color: MasliveTokens.primary,
               width: 3.0,
               roadLike: false,
               shadow3d: false,

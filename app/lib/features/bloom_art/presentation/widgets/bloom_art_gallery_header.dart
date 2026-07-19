@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import 'bloom_art_cta_button.dart';
+import 'package:masslive/ui_kit/tokens/maslive_tokens.dart';
 
 class BloomArtGalleryHeader extends StatelessWidget {
   const BloomArtGalleryHeader({
@@ -57,7 +58,7 @@ class BloomArtGalleryHeader extends StatelessWidget {
               fontSize: 30,
               height: 1.1,
               fontWeight: FontWeight.w900,
-              color: Color(0xFF1A1A1A),
+              color: MasliveTokens.text,
             ),
           ),
           const SizedBox(height: 12),

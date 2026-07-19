@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../../../ui/widgets/storage_image.dart';
 import '../../data/models/bloom_art_item.dart';
 import 'bloom_art_cta_button.dart';
+import 'package:masslive/ui_kit/tokens/maslive_tokens.dart';
 
 class BloomArtItemCard extends StatelessWidget {
   const BloomArtItemCard({
@@ -26,7 +27,7 @@ class BloomArtItemCard extends StatelessWidget {
         decoration: BoxDecoration(
           color: Colors.white,
           borderRadius: BorderRadius.circular(28),
-          border: Border.all(color: const Color(0xFFE9DED1)),
+          border: Border.all(color: MasliveTokens.lineEditorial),
           boxShadow: const <BoxShadow>[
             BoxShadow(
               color: Color(0x12000000),
@@ -98,7 +99,7 @@ class BloomArtItemCard extends StatelessWidget {
                     Text(
                       item.sellerDisplayName,
                       style: const TextStyle(
-                        color: Color(0xFF6A645E),
+                        color: MasliveTokens.textEditorialMuted,
                         fontWeight: FontWeight.w700,
                       ),
                     ),

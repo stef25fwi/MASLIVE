@@ -1048,7 +1048,7 @@ class _QtyStepper extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 6),
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(999),
-        color: const Color(0xFFF6F7FB),
+        color: MasliveTokens.bg,
         border: Border.all(color: const Color(0xFFE8EAF1)),
       ),
       child: Row(

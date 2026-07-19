@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:masslive/ui_kit/tokens/maslive_tokens.dart';
 
 class SellerProfileChoiceCard extends StatelessWidget {
   const SellerProfileChoiceCard({
@@ -24,7 +25,7 @@ class SellerProfileChoiceCard extends StatelessWidget {
         decoration: BoxDecoration(
           color: Colors.white,
           borderRadius: BorderRadius.circular(24),
-          border: Border.all(color: const Color(0xFFE9DED1)),
+          border: Border.all(color: MasliveTokens.lineEditorial),
           boxShadow: const <BoxShadow>[
             BoxShadow(
               color: Color(0x0F000000),
@@ -60,7 +61,7 @@ class SellerProfileChoiceCard extends StatelessWidget {
                   Text(
                     subtitle,
                     style: const TextStyle(
-                      color: Color(0xFF6A645E),
+                      color: MasliveTokens.textEditorialMuted,
                       height: 1.35,
                     ),
                   ),

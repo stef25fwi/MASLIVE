@@ -18,6 +18,7 @@ import '../../../pages/cart/unified_cart_page.dart';
 import '../../../ui/theme/maslive_theme.dart';
 import '../../../ui/widgets/marketmap_poi_selector_sheet.dart';
 import '../../../utils/country_flag.dart';
+import 'package:masslive/ui_kit/tokens/maslive_tokens.dart';
 
 class MediaPhotoShopPage extends StatefulWidget {
   const MediaPhotoShopPage({
@@ -346,13 +347,13 @@ class _MediaPhotoShopPageState extends State<MediaPhotoShopPage> {
       appBar: widget.embedded
           ? null
           : AppBar(
-              backgroundColor: const Color(0xFFF6F7FB),
+              backgroundColor: MasliveTokens.bg,
               surfaceTintColor: Colors.transparent,
               shadowColor: Colors.transparent,
               scrolledUnderElevation: 0,
               elevation: 0,
               toolbarHeight: 88,
-              iconTheme: const IconThemeData(color: Color(0xFF101828)),
+              iconTheme: const IconThemeData(color: MasliveTokens.text),
               leading: Builder(
                 builder: (ctx) => IconButton(
                   icon: const Icon(Icons.menu),

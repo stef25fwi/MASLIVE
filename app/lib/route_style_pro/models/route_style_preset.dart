@@ -1,6 +1,7 @@
 import 'dart:ui' show Color;
 
 import 'route_style_config.dart';
+import 'package:masslive/ui_kit/tokens/maslive_tokens.dart';
 
 class RouteStylePreset {
   final String id;
@@ -143,7 +144,7 @@ class RouteStylePresets {
       carMode: true,
       mainWidth: 7.0,
       casingWidth: 11.0,
-      mainColor: Color(0xFF1A73E8),
+      mainColor: MasliveTokens.primary,
       casingColor: Color(0xFF0B1B2B),
       glowEnabled: true,
       glowOpacity: 0.55,
@@ -182,7 +183,7 @@ class RouteStylePresets {
       carMode: false,
       mainWidth: 5.0,
       casingWidth: 0.0,
-      mainColor: Color(0xFF1A73E8),
+      mainColor: MasliveTokens.primary,
       casingColor: Color(0x00000000),
       glowEnabled: false,
       shadowEnabled: false,
@@ -215,7 +216,7 @@ class RouteStylePresets {
       carMode: true,
       mainWidth: 7.0,
       casingWidth: 12.0,
-      mainColor: Color(0xFF1A73E8),
+      mainColor: MasliveTokens.primary,
       casingColor: Color(0xFF0B1B2B),
       glowEnabled: true,
       glowOpacity: 0.45,

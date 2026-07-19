@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../services/auth_claims_service.dart';
+import 'package:masslive/ui_kit/tokens/maslive_tokens.dart';
 
 class CreateCircuitFeaturesPage extends StatefulWidget {
   const CreateCircuitFeaturesPage({super.key});
@@ -14,8 +15,8 @@ class _CreateCircuitFeaturesPageState extends State<CreateCircuitFeaturesPage> {
 
   static const _bg = Colors.white;
   static const _text = Color(0xFF1F2A37);      // bleu/noir élégant
-  static const _sub = Color(0xFF6B7280);       // gris iOS
-  static const _line = Color(0xFFE5E7EB);      // séparateurs
+  static const _sub = MasliveTokens.textMuted;       // gris iOS
+  static const _line = MasliveTokens.line;      // séparateurs
 
   @override
   void initState() {
@@ -85,7 +86,7 @@ class _CreateCircuitFeaturesPageState extends State<CreateCircuitFeaturesPage> {
       _StepSectionData(
         index: 2,
         title: "Importer / Exporter",
-        color: const Color(0xFFF59E0B), // orange clair
+        color: MasliveTokens.warning, // orange clair
         icon: Icons.folder_copy_rounded,
         bullets: const [
           "Importer GPX / KML",
@@ -96,7 +97,7 @@ class _CreateCircuitFeaturesPageState extends State<CreateCircuitFeaturesPage> {
       _StepSectionData(
         index: 3,
         title: "Calculs & Validation",
-        color: const Color(0xFF1A73E8), // bleu
+        color: MasliveTokens.primary, // bleu
         icon: Icons.verified_user_rounded,
         bullets: const [
           "Distance & Dénivelé",
@@ -141,7 +142,7 @@ class _CreateCircuitFeaturesPageState extends State<CreateCircuitFeaturesPage> {
       _StepSectionData(
         index: 7,
         title: "Avis & Signalement",
-        color: const Color(0xFFF59E0B), // orange
+        color: MasliveTokens.warning, // orange
         icon: Icons.star_rate_rounded,
         bullets: const [
           "Note & Commentaires",
@@ -204,8 +205,8 @@ class _TopBar extends StatelessWidget {
   const _TopBar();
 
   static const _text = Color(0xFF1F2A37);
-  static const _sub = Color(0xFF6B7280);
-  static const _line = Color(0xFFE5E7EB);
+  static const _sub = MasliveTokens.textMuted;
+  static const _line = MasliveTokens.line;
 
   @override
   Widget build(BuildContext context) {

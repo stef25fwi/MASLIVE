@@ -17,6 +17,7 @@ import '../widgets/language_switcher.dart';
 import '../l10n/app_localizations.dart' as l10n;
 import '../ui/snack/top_snack_bar.dart';
 import '../ui/widgets/storage_image.dart';
+import 'package:masslive/ui_kit/tokens/maslive_tokens.dart';
 
 /// ===============================================================
 /// Storex-style Shop for MassLive (Firestore: products + categories)
@@ -64,7 +65,7 @@ class _ShopUi {
   const _ShopUi._();
 
   static const Color pageBg = Color(0xFFF7F8FC);
-  static const Color textMain = Color(0xFF101828);
+  static const Color textMain = MasliveTokens.text;
   static const Color textMuted = Color(0xFF667085);
 }
 
@@ -274,7 +275,7 @@ class _StorexHome extends StatelessWidget {
         },
       ),
       appBar: AppBar(
-        backgroundColor: const Color(0xFFF6F7FB),
+        backgroundColor: MasliveTokens.bg,
         surfaceTintColor: Colors.transparent,
         shadowColor: Colors.transparent,
         scrolledUnderElevation: 0,

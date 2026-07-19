@@ -11,6 +11,7 @@ import '../widgets/change_notifier_provider_lite.dart';
 import '../../../../ui/snack/top_snack_bar.dart';
 import '../../../../ui/widgets/storage_image.dart';
 import 'shop_media_gallery_page.dart';
+import 'package:masslive/ui_kit/tokens/maslive_tokens.dart';
 
 // ---------------------------------------------------------------------------
 // ProductManagementPage — Admin UI
@@ -149,7 +150,7 @@ class _ProductManagementPageState extends State<ProductManagementPage> {
                         hintText: 'Rechercher (nom, tags)…',
                         prefixIcon: const Icon(Icons.search),
                         filled: true,
-                        fillColor: const Color(0xFFF6F7FB),
+                        fillColor: MasliveTokens.bg,
                         border: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(14),
                           borderSide: BorderSide.none,
@@ -513,7 +514,7 @@ class ProductTileAdmin extends StatelessWidget {
                     top: Radius.circular(18),
                   ),
                   child: Container(
-                    color: const Color(0xFFF6F7FB),
+                    color: MasliveTokens.bg,
                     child: product.mainImageUrl == null
                         ? const Center(
                             child: Icon(Icons.photo_outlined, size: 32),
@@ -1391,7 +1392,7 @@ class _FilterTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final bg = active ? Colors.black : const Color(0xFFF6F7FB);
+    final bg = active ? Colors.black : MasliveTokens.bg;
     final fg = active ? Colors.white : Colors.black87;
 
     return InkWell(
@@ -1440,7 +1441,7 @@ class _SmallAction extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
         decoration: BoxDecoration(
-          color: const Color(0xFFF6F7FB),
+          color: MasliveTokens.bg,
           borderRadius: BorderRadius.circular(999),
           border: Border.all(color: const Color(0xFFE9ECF3)),
         ),
@@ -1467,7 +1468,7 @@ class _Pill extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
       decoration: BoxDecoration(
-        color: filled ? Colors.black : const Color(0xFFF6F7FB),
+        color: filled ? Colors.black : MasliveTokens.bg,
         borderRadius: BorderRadius.circular(999),
         border: Border.all(
           color: filled ? Colors.black : const Color(0xFFE9ECF3),

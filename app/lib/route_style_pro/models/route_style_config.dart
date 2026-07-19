@@ -1,4 +1,5 @@
 import 'dart:ui' show Color;
+import 'package:masslive/ui_kit/tokens/maslive_tokens.dart';
 
 /// Version du schéma JSON stocké.
 const int kRouteStyleSchemaVersion = 8;
@@ -168,7 +169,7 @@ class RouteStyleConfig {
     // B
     this.mainWidth = 7.0,
     this.casingWidth = 11.0,
-    this.mainColor = const Color(0xFF1A73E8),
+    this.mainColor = MasliveTokens.primary,
     this.casingColor = const Color(0xFF0B1B2B),
     this.casingRainbowEnabled = false,
     this.opacity = 1.0,
@@ -513,7 +514,7 @@ class RouteStyleConfig {
           : 11.0,
       mainColor:
           _colorFromHexArgb(json['mainColor'] as String?) ??
-          const Color(0xFF1A73E8),
+          MasliveTokens.primary,
       casingColor:
           _colorFromHexArgb(json['casingColor'] as String?) ??
           const Color(0xFF0B1B2B),

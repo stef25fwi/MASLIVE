@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:masslive/ui_kit/tokens/maslive_tokens.dart';
 
 class MapboxStyleTile extends StatelessWidget {
   const MapboxStyleTile({
@@ -58,7 +59,7 @@ class MapboxStyleTile extends StatelessWidget {
               const SizedBox(height: 4),
               const Text(
                 'Creer, previsualiser et publier des presets de style cartographique',
-                style: TextStyle(color: Color(0xFF6B7280), fontSize: 13),
+                style: TextStyle(color: MasliveTokens.textMuted, fontSize: 13),
               ),
               const SizedBox(height: 12),
               Wrap(

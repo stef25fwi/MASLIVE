@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:masslive/ui_kit/tokens/maslive_tokens.dart';
 
 class CartSummaryCard extends StatelessWidget {
   const CartSummaryCard({
@@ -52,7 +53,7 @@ class CartSummaryCard extends StatelessWidget {
           Text(
             'Recapitulatif',
             style: theme.textTheme.titleLarge?.copyWith(
-              color: const Color(0xFF111827),
+              color: MasliveTokens.text,
               fontWeight: FontWeight.w800,
             ),
           ),
@@ -75,7 +76,7 @@ class CartSummaryCard extends StatelessWidget {
             child: FilledButton.icon(
               onPressed: enabled ? onCheckout : null,
               style: FilledButton.styleFrom(
-                backgroundColor: const Color(0xFF111827),
+                backgroundColor: MasliveTokens.text,
                 foregroundColor: Colors.white,
               ),
               icon: const Icon(Icons.lock_outline_rounded),
@@ -101,7 +102,7 @@ class _SummaryLine extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final color = emphasized ? const Color(0xFF101828) : const Color(0xFF344054);
+    final color = emphasized ? MasliveTokens.text : const Color(0xFF344054);
     return Row(
       children: <Widget>[
         Expanded(

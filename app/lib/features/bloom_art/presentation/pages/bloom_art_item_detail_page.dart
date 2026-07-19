@@ -6,6 +6,7 @@ import '../../data/repositories/bloom_art_repository.dart';
 import '../widgets/bloom_art_cta_button.dart';
 import '../widgets/bloom_art_info_row.dart';
 import 'bloom_art_make_offer_sheet.dart';
+import 'package:masslive/ui_kit/tokens/maslive_tokens.dart';
 
 class BloomArtItemDetailPage extends StatelessWidget {
   BloomArtItemDetailPage({
@@ -19,7 +20,7 @@ class BloomArtItemDetailPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFFFFBF7),
+      backgroundColor: MasliveTokens.surfaceEditorial,
       body: StreamBuilder<BloomArtItem?>(
         stream: _repository.watchItem(itemId),
         builder: (context, snapshot) {
@@ -46,7 +47,7 @@ class BloomArtItemDetailPage extends StatelessWidget {
           return CustomScrollView(
             slivers: <Widget>[
               SliverAppBar(
-                backgroundColor: const Color(0xFFFFFBF7),
+                backgroundColor: MasliveTokens.surfaceEditorial,
                 pinned: true,
                 elevation: 0,
                 title: Text(
@@ -67,7 +68,7 @@ class BloomArtItemDetailPage extends StatelessWidget {
                         decoration: BoxDecoration(
                           color: Colors.white,
                           borderRadius: BorderRadius.circular(28),
-                          border: Border.all(color: const Color(0xFFE9DED1)),
+                          border: Border.all(color: MasliveTokens.lineEditorial),
                         ),
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
@@ -94,7 +95,7 @@ class BloomArtItemDetailPage extends StatelessWidget {
                               Text(
                                 item.sellerDisplayName,
                                 style: const TextStyle(
-                                  color: Color(0xFF6A645E),
+                                  color: MasliveTokens.textEditorialMuted,
                                   fontWeight: FontWeight.w700,
                                 ),
                               ),
@@ -257,7 +258,7 @@ class _BloomArtPublicCtaCard extends StatelessWidget {
           const SizedBox(height: 8),
           Text(
             subtitle,
-            style: const TextStyle(color: Color(0xFF6A645E), height: 1.45),
+            style: const TextStyle(color: MasliveTokens.textEditorialMuted, height: 1.45),
           ),
           const SizedBox(height: 18),
           if (isOwner)

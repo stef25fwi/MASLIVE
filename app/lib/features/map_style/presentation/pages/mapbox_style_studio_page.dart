@@ -10,6 +10,7 @@ import '../../services/map_style_thumbnail_service.dart';
 import '../../utils/map_style_defaults.dart';
 import '../widgets/style_editor_panel.dart';
 import '../widgets/style_preset_card.dart';
+import 'package:masslive/ui_kit/tokens/maslive_tokens.dart';
 
 /// Bibliothèque de presets de style Mapbox (Firestore) : créer, publier,
 /// dupliquer et rendre visibles dans le Wizard Circuit Pro des thèmes
@@ -100,7 +101,7 @@ class _MapboxStyleStudioView extends StatelessWidget {
           children: <Widget>[
             const Text(
               'Creez des themes cartographiques reutilisables pour vos cartes, circuits et evenements',
-              style: TextStyle(color: Color(0xFF6B7280)),
+              style: TextStyle(color: MasliveTokens.textMuted),
             ),
             const SizedBox(height: 12),
             _StatsBand(controller: studio),
@@ -224,12 +225,12 @@ class _StatsBand extends StatelessWidget {
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: const Color(0xFFE5E7EB)),
+        border: Border.all(color: MasliveTokens.line),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: <Widget>[
-          Text(label, style: const TextStyle(color: Color(0xFF6B7280), fontSize: 12)),
+          Text(label, style: const TextStyle(color: MasliveTokens.textMuted, fontSize: 12)),
           const SizedBox(height: 4),
           Text(value, style: const TextStyle(fontWeight: FontWeight.w800)),
         ],

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../domain/entities/map_style_enums.dart';
 import '../../domain/entities/map_style_preset.dart';
+import 'package:masslive/ui_kit/tokens/maslive_tokens.dart';
 
 enum StylePresetAction {
   open,
@@ -39,7 +40,7 @@ class StylePresetCard extends StatelessWidget {
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(16),
         side: BorderSide(
-          color: isSelected ? const Color(0xFF111827) : const Color(0xFFE5E7EB),
+          color: isSelected ? MasliveTokens.text : MasliveTokens.line,
         ),
       ),
       child: InkWell(
@@ -112,7 +113,7 @@ class StylePresetCard extends StatelessWidget {
               const SizedBox(height: 4),
               Text(
                 _dateLabel(preset.updatedAt),
-                style: const TextStyle(fontSize: 12, color: Color(0xFF6B7280)),
+                style: const TextStyle(fontSize: 12, color: MasliveTokens.textMuted),
               ),
               const SizedBox(height: 8),
               Wrap(
@@ -154,7 +155,7 @@ class StylePresetCard extends StatelessWidget {
 
   Color _hexToColor(String hex) {
     final value = hex.trim().replaceAll('#', '');
-    if (value.length != 6) return const Color(0xFF111827);
+    if (value.length != 6) return MasliveTokens.text;
     return Color(int.parse('FF$value', radix: 16));
   }
 }

@@ -3,6 +3,7 @@ import 'dart:ui';
 import 'package:flutter/material.dart';
 
 import '../ui/theme/maslive_theme.dart';
+import 'package:masslive/ui_kit/tokens/maslive_tokens.dart';
 
 class HomeVerticalNavItem {
   final String label;
@@ -120,7 +121,7 @@ class HomeVerticalNavMenu extends StatelessWidget {
 
 class HomeVerticalNavActionItem extends StatelessWidget {
   final HomeVerticalNavItem item;
-  static const Color _inactiveColor = Color(0xFF101828);
+  static const Color _inactiveColor = MasliveTokens.text;
 
   static const double _buttonSize = 56;
   static const double _iconSize = 26;

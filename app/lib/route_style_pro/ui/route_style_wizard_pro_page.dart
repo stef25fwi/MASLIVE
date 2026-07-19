@@ -9,6 +9,7 @@ import '../services/route_snap_service.dart';
 import '../services/route_style_persistence.dart';
 import 'widgets/route_style_controls_panel.dart';
 import 'widgets/route_style_preview_map.dart';
+import 'package:masslive/ui_kit/tokens/maslive_tokens.dart';
 
 export 'route_style_pro_args.dart';
 
@@ -433,7 +434,7 @@ class _RouteStyleWizardProPageState extends State<RouteStyleWizardProPage> {
 
   @override
   Widget build(BuildContext context) {
-    const proBlue = Color(0xFF1A73E8);
+    const proBlue = MasliveTokens.primary;
 
     Widget content = Column(
       children: [

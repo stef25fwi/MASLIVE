@@ -1,9 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:masslive/ui_kit/tokens/maslive_tokens.dart';
 
 class MasLiveTheme {
   static ThemeData light() {
     const primary = Color(0xFFFF6600); // orange
-    const secondary = Color(0xFF1A73E8); // bleu
+    const secondary = MasliveTokens.primary; // bleu
 
     return ThemeData(
       useMaterial3: true,

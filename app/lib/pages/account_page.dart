@@ -13,6 +13,7 @@ import '../widgets/rainbow_header.dart';
 import '../ui/widgets/maslive_card.dart';
 import 'account_admin_page.dart';
 import 'user_facing_bottom_bar.dart';
+import 'package:masslive/ui_kit/tokens/maslive_tokens.dart';
 
 class AccountUiPage extends StatefulWidget {
   const AccountUiPage({super.key, this.showBottomBar = true});
@@ -108,7 +109,7 @@ class _AccountUiPageState extends State<AccountUiPage> {
                             ),
                           if (isAdmin) const SizedBox(width: 4),
                           CartIconBadge(
-                            iconColor: const Color(0xFF111827),
+                            iconColor: MasliveTokens.text,
                             backgroundColor: Colors.white.withValues(
                               alpha: 0.16,
                             ),

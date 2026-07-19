@@ -6,6 +6,7 @@ import '../../../map_style/data/repositories/map_style_preset_repository_impl.da
 import '../../../map_style/domain/entities/map_style_preset.dart';
 import '../../../map_style/domain/usecases/map_style_usecases.dart';
 import '../widgets/wizard_quick_preset_carousel.dart';
+import 'package:masslive/ui_kit/tokens/maslive_tokens.dart';
 
 class WizardStep2MapStyleSection extends StatefulWidget {
   const WizardStep2MapStyleSection({
@@ -77,7 +78,7 @@ class _WizardStep2MapStyleSectionState extends State<WizardStep2MapStyleSection>
         const SizedBox(height: 6),
         const Text(
           'Presets publies et visibles dans le wizard (etape 2).',
-          style: TextStyle(color: Color(0xFF6B7280), fontSize: 12),
+          style: TextStyle(color: MasliveTokens.textMuted, fontSize: 12),
         ),
         const SizedBox(height: 10),
         if (_loading)

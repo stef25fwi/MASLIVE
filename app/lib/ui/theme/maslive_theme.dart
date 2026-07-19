@@ -73,7 +73,7 @@ class MasliveTheme {
   static const LinearGradient backgroundWash = LinearGradient(
     begin: Alignment.topCenter,
     end: Alignment.bottomCenter,
-    colors: [Color(0xFFFDFDFF), Color(0xFFF6F7FB)],
+    colors: [Color(0xFFFDFDFF), MasliveTokens.bg],
   );
 
   // ---------- Radius (alias de l'échelle unique MasliveTokens) ----------

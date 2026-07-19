@@ -9,6 +9,7 @@ import '../../data/models/bloom_art_seller_profile.dart';
 import '../../data/repositories/bloom_art_repository.dart';
 import '../../services/bloom_art_business_verification_service.dart';
 import '../widgets/bloom_art_cta_button.dart';
+import 'package:masslive/ui_kit/tokens/maslive_tokens.dart';
 
 class BloomArtArtistCreatorFormPage extends StatefulWidget {
   const BloomArtArtistCreatorFormPage({super.key});
@@ -327,9 +328,9 @@ class _BloomArtArtistCreatorFormPageState
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFFFFBF7),
+      backgroundColor: MasliveTokens.surfaceEditorial,
       appBar: AppBar(
-        backgroundColor: const Color(0xFFFFFBF7),
+        backgroundColor: MasliveTokens.surfaceEditorial,
         elevation: 0,
         title: const Text(
           'Artisan d’art déclaré',
@@ -513,7 +514,7 @@ class _BloomArtArtistCreatorFormPageState
                       _stripeAccountLinked
                           ? 'Compte de paiement Stripe relié (statut : $_payoutStatus). Gérez-le depuis votre dashboard vendeur.'
                           : 'Aucun compte de paiement relié pour l’instant. Vous pourrez le configurer depuis votre dashboard vendeur après création.',
-                      style: const TextStyle(color: Color(0xFF6A645E), height: 1.4),
+                      style: const TextStyle(color: MasliveTokens.textEditorialMuted, height: 1.4),
                     ),
                   ),
                   const SizedBox(height: 18),
@@ -604,7 +605,7 @@ class _BusinessVerificationCard extends StatelessWidget {
               children: <Widget>[
                 Text(title, style: const TextStyle(fontWeight: FontWeight.w900)),
                 const SizedBox(height: 4),
-                Text(body, style: const TextStyle(color: Color(0xFF6A645E), height: 1.35)),
+                Text(body, style: const TextStyle(color: MasliveTokens.textEditorialMuted, height: 1.35)),
               ],
             ),
           ),
@@ -627,7 +628,7 @@ class _BloomArtFormHero extends StatelessWidget {
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(28),
-        border: Border.all(color: const Color(0xFFE9DED1)),
+        border: Border.all(color: MasliveTokens.lineEditorial),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -639,7 +640,7 @@ class _BloomArtFormHero extends StatelessWidget {
           const SizedBox(height: 8),
           Text(
             subtitle,
-            style: const TextStyle(color: Color(0xFF6A645E), height: 1.45),
+            style: const TextStyle(color: MasliveTokens.textEditorialMuted, height: 1.45),
           ),
         ],
       ),

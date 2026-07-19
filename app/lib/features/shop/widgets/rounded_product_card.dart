@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../../ui/widgets/storage_image.dart';
+import 'package:masslive/ui_kit/tokens/maslive_tokens.dart';
 
 class RoundedProductCard extends StatelessWidget {
   const RoundedProductCard({
@@ -83,7 +84,7 @@ class RoundedProductCard extends StatelessWidget {
                 fontSize: 14.5,
                 height: 1.2,
                 fontWeight: FontWeight.w500,
-                color: Color(0xFF1A1A1A),
+                color: MasliveTokens.text,
               ),
             ),
             const SizedBox(height: 6),

@@ -6,6 +6,7 @@ import '../widgets/bloom_art_cta_button.dart';
 import '../widgets/seller_profile_choice_card.dart';
 import 'bloom_art_artist_creator_form_page.dart';
 import 'bloom_art_je_me_lance_form_page.dart';
+import 'package:masslive/ui_kit/tokens/maslive_tokens.dart';
 
 class BloomArtSellEntryPage extends StatefulWidget {
   const BloomArtSellEntryPage({
@@ -91,9 +92,9 @@ class _BloomArtSellEntryPageState extends State<BloomArtSellEntryPage> {
     final user = FirebaseAuth.instance.currentUser;
 
     return Scaffold(
-      backgroundColor: const Color(0xFFFFFBF7),
+      backgroundColor: MasliveTokens.surfaceEditorial,
       appBar: AppBar(
-        backgroundColor: const Color(0xFFFFFBF7),
+        backgroundColor: MasliveTokens.surfaceEditorial,
         elevation: 0,
         title: const Text(
           'Vendre dans Bloom Art',
@@ -133,7 +134,7 @@ class _BloomArtSellEntryPageState extends State<BloomArtSellEntryPage> {
                         decoration: BoxDecoration(
                           color: Colors.white,
                           borderRadius: BorderRadius.circular(28),
-                          border: Border.all(color: const Color(0xFFE9DED1)),
+                          border: Border.all(color: MasliveTokens.lineEditorial),
                           boxShadow: const <BoxShadow>[
                             BoxShadow(
                               color: Color(0x12000000),
@@ -152,7 +153,7 @@ class _BloomArtSellEntryPageState extends State<BloomArtSellEntryPage> {
                             SizedBox(height: 8),
                             Text(
                               'Bloom Art distingue les artistes déjà déclarés des créateurs qui doivent encore obtenir leur SIRET. Le dépôt d’œuvre est réservé aux comptes vérifiés.',
-                              style: TextStyle(color: Color(0xFF6A645E), height: 1.45),
+                              style: TextStyle(color: MasliveTokens.textEditorialMuted, height: 1.45),
                             ),
                           ],
                         ),
@@ -182,7 +183,7 @@ class _BloomArtSellEntryPageState extends State<BloomArtSellEntryPage> {
                         ),
                         child: const Text(
                           'Une fois le SIRET vérifié, vous pourrez gérer votre galerie, déposer des photos, définir le prix de référence privé, publier vos fiches et recevoir des offres.',
-                          style: TextStyle(color: Color(0xFF6A645E), height: 1.45),
+                          style: TextStyle(color: MasliveTokens.textEditorialMuted, height: 1.45),
                         ),
                       ),
                     ],

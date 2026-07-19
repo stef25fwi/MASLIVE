@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../utils/debug_log_buffer.dart';
+import 'package:masslive/ui_kit/tokens/maslive_tokens.dart';
 
 class AdminDebugLogsButton extends StatelessWidget {
   const AdminDebugLogsButton({super.key, this.scopeLabel});
@@ -196,7 +197,7 @@ class _LogCard extends StatelessWidget {
     final backgroundColor = isFailure ? const Color(0xFFFFF1F0) : Colors.white;
     final borderColor = isFailure
         ? const Color(0xFFFDA29B)
-        : const Color(0xFFE5E7EB);
+        : MasliveTokens.line;
     final accentColor = isFailure
         ? const Color(0xFFB42318)
         : const Color(0xFF344054);
