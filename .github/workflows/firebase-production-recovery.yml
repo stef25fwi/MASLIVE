@@ -1,0 +1,181 @@
+name: Firebase Production Deploy Recovery
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+  pull-requests: write
+
+concurrency:
+  group: maslive-firebase-recovery
+  cancel-in-progress: false
+
+jobs:
+  deploy-firebase-with-owner-token:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: functions/package-lock.json
+
+      - name: Install Firebase dependencies
+        run: |
+          npm ci --prefix functions
+          npm install --global firebase-tools@latest
+
+      - name: Validate Firebase owner token
+        id: auth
+        env:
+          FIREBASE_TOKEN: ${{ secrets.FIREBASE_TOKEN }}
+        run: |
+          set -euo pipefail
+          if [ -z "${FIREBASE_TOKEN}" ]; then
+            echo "::error::Le secret FIREBASE_TOKEN est absent. Le compte de service actuel ne possède pas les rôles IAM nécessaires."
+            exit 1
+          fi
+          echo "Authentification propriétaire Firebase par token CI détectée."
+
+      - name: Deploy Firestore rules and indexes
+        id: firestore
+        continue-on-error: true
+        env:
+          FIREBASE_TOKEN: ${{ secrets.FIREBASE_TOKEN }}
+        run: |
+          set +e
+          firebase deploy --project maslive \
+            --only firestore:rules,firestore:indexes \
+            --token "${FIREBASE_TOKEN}" \
+            --non-interactive --debug \
+            > recovery-firestore.log 2>&1
+          status=$?
+          tail -n 120 recovery-firestore.log
+          exit "$status"
+
+      - name: Deploy Storage rules
+        id: storage
+        continue-on-error: true
+        env:
+          FIREBASE_TOKEN: ${{ secrets.FIREBASE_TOKEN }}
+        run: |
+          set +e
+          firebase deploy --project maslive \
+            --only storage \
+            --token "${FIREBASE_TOKEN}" \
+            --non-interactive --debug \
+            > recovery-storage.log 2>&1
+          status=$?
+          tail -n 120 recovery-storage.log
+          exit "$status"
+
+      - name: Deploy Cloud Functions
+        id: functions
+        continue-on-error: true
+        env:
+          FIREBASE_TOKEN: ${{ secrets.FIREBASE_TOKEN }}
+        run: |
+          set +e
+          firebase deploy --project maslive \
+            --only functions \
+            --token "${FIREBASE_TOKEN}" \
+            --non-interactive --debug \
+            > recovery-functions.log 2>&1
+          status=$?
+          tail -n 180 recovery-functions.log
+          exit "$status"
+
+      - name: Upload recovery reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: firebase-recovery-reports
+          path: |
+            recovery-firestore.log
+            recovery-storage.log
+            recovery-functions.log
+            firebase-debug.log
+          if-no-files-found: warn
+          retention-days: 7
+
+      - name: Publish recovery diagnostic in PR 51
+        if: always()
+        env:
+          GH_TOKEN: ${{ github.token }}
+          AUTH_OUTCOME: ${{ steps.auth.outcome }}
+          FIRESTORE_OUTCOME: ${{ steps.firestore.outcome }}
+          STORAGE_OUTCOME: ${{ steps.storage.outcome }}
+          FUNCTIONS_OUTCOME: ${{ steps.functions.outcome }}
+        run: |
+          set -euo pipefail
+          redact() {
+            sed -E \
+              -e 's/(Authorization: Bearer|token|private_key|client_secret)[^[:space:]]*/\1 [REDACTED]/Ig' \
+              -e 's/AIza[0-9A-Za-z_-]{20,}/[API_KEY_REDACTED]/g'
+          }
+          {
+            echo "## Tentative de récupération Firebase par token propriétaire"
+            echo
+            echo "- Commit : \`${GITHUB_SHA}\`"
+            echo "- Run : [${GITHUB_RUN_ID}](https://github.com/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID})"
+            echo "- Authentification token : **${AUTH_OUTCOME}**"
+            echo "- Firestore : **${FIRESTORE_OUTCOME}**"
+            echo "- Storage : **${STORAGE_OUTCOME}**"
+            echo "- Functions : **${FUNCTIONS_OUTCOME}**"
+            for item in recovery-firestore.log recovery-storage.log recovery-functions.log; do
+              if [ -s "${item}" ]; then
+                echo
+                echo "### ${item} — fin du journal"
+                echo '```text'
+                tail -n 35 "${item}" | redact
+                echo '```'
+              fi
+            done
+          } > recovery-comment.md
+          gh api --method POST \
+            "repos/${GITHUB_REPOSITORY}/issues/51/comments" \
+            -f body="$(cat recovery-comment.md)"
+
+      - name: Enforce complete backend deployment
+        run: |
+          set -euo pipefail
+          failed=0
+          [ "${{ steps.firestore.outcome }}" = "success" ] || failed=1
+          [ "${{ steps.storage.outcome }}" = "success" ] || failed=1
+          [ "${{ steps.functions.outcome }}" = "success" ] || failed=1
+          exit "$failed"
+
+      - name: Verify Hosting manifest from the matching main commit
+        run: |
+          set -euo pipefail
+          expected="${GITHUB_SHA}"
+          for attempt in $(seq 1 18); do
+            manifest="$(curl --fail --silent --show-error --max-time 20 "https://maslive.web.app/deployment-manifest.json?recovery=${GITHUB_RUN_ID}&attempt=${attempt}" || true)"
+            if printf '%s' "${manifest}" | grep -Fq "${expected}"; then
+              echo "Production Hosting vérifiée sur le commit ${expected}."
+              exit 0
+            fi
+            sleep 10
+          done
+          echo "::error::Le manifeste Hosting ne correspond pas au commit ${expected}."
+          exit 1
+
+      - name: Publish success in PR 51
+        if: success()
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh api --method POST \
+            "repos/${GITHUB_REPOSITORY}/issues/51/comments" \
+            -f body="## Déploiement Firebase réparé ✅
+
+Le commit \`${GITHUB_SHA}\` est déployé : règles/index Firestore, règles Storage, Cloud Functions et Hosting vérifié par manifeste. Run : https://github.com/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
