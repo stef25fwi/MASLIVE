@@ -6,11 +6,13 @@ const test = require("node:test")
 const createLifecycle = require("../src/photographer-subscription-lifecycle")
 
 function document(data) {
-  return {
+  const reference = {
     exists: true,
     data: () => data,
+    get: async () => reference,
     set: async () => {},
   }
+  return reference
 }
 
 function harness({ ownerUid = "owner-1", authUid = "owner-1" } = {}) {
@@ -46,6 +48,7 @@ function harness({ ownerUid = "owner-1", authUid = "owner-1" } = {}) {
       this.code = code
     }
   }
+
   const stripe = {
     billingPortal: {
       sessions: {
