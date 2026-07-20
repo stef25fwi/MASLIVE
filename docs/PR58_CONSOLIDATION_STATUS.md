@@ -21,3 +21,5 @@ Cette branche repart du `main` ayant intégré les PR #47 à #57 et ne reprend q
 - analyse et tests Flutter ;
 - build Flutter Web ;
 - déploiement Firebase et vérification du manifeste après fusion.
+
+Relance finale demandée sur la tête consolidée après application automatique du câblage.
