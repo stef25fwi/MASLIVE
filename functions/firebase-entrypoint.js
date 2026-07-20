@@ -9,6 +9,7 @@ const { onDocumentUpdated } = require("firebase-functions/v2/firestore")
 const createPhotographerSubscriptionLifecycle = require("./src/photographer-subscription-lifecycle")
 const createPhotographerCompleteFlow = require("./src/photographer-complete-flow")
 const createPhotographerEndToEnd = require("./src/photographer-end-to-end")
+const createPhotographerFinalOverrides = require("./src/photographer-final-overrides")
 
 const STRIPE_SECRET_KEY = defineSecret("STRIPE_SECRET_KEY")
 let stripe = null
@@ -76,9 +77,19 @@ const photographerEndToEnd = createPhotographerEndToEnd({
   isAllowedRedirectUrl,
 })
 
+const photographerFinalOverrides = createPhotographerFinalOverrides({
+  admin,
+  db,
+  onCall,
+  HttpsError,
+  legacyExports,
+  photographerEndToEnd,
+})
+
 module.exports = {
   ...legacyExports,
   ...photographerSubscriptionLifecycle,
   ...photographerCompleteFlow,
   ...photographerEndToEnd,
+  ...photographerFinalOverrides,
 }
