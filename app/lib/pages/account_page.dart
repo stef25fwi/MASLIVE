@@ -6,12 +6,11 @@ import '../security/profile_capability_policy.dart';
 import '../services/auth_service.dart';
 import '../ui/theme/maslive_theme.dart';
 import '../ui/widgets/honeycomb_background.dart';
+import '../ui/widgets/maslive_card.dart';
 import '../utils/debug_log_buffer.dart';
 import '../widgets/cart/cart_icon_badge.dart';
 import '../widgets/commerce/commerce_section_card.dart';
 import '../widgets/rainbow_header.dart';
-import '../ui/widgets/maslive_card.dart';
-import 'account_admin_page.dart';
 import 'user_facing_bottom_bar.dart';
 import 'package:masslive/ui_kit/tokens/maslive_tokens.dart';
 
@@ -48,35 +47,28 @@ class _AccountUiPageState extends State<AccountUiPage> {
     await _profileFuture;
   }
 
-  void _navigateTo(BuildContext context, _AccountTileData tile) {
-    if (tile.route == null) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('${tile.title} indisponible')));
-      return;
-    }
+  void _navigateTo(_AccountTileData tile) {
     try {
-      Navigator.pushNamed(context, tile.route!, arguments: tile.arguments);
+      Navigator.pushNamed(context, tile.route, arguments: tile.arguments);
     } catch (_) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('${tile.title} indisponible')));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('${tile.title} indisponible')),
+      );
     }
   }
 
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
-
     return FutureBuilder<ProfileCapabilities?>(
       future: _profileFuture,
       builder: (context, snapshot) {
         final profile = snapshot.data;
-        final isLoading = snapshot.connectionState == ConnectionState.waiting;
+        final loading = snapshot.connectionState == ConnectionState.waiting;
         final isAdmin = profile?.can(Capability.accessAdminPanel) ?? false;
         final tiles = profile == null
-            ? <_AccountTileData>[]
-            : _buildTiles(context, profile, l10n);
+            ? const <_AccountTileData>[]
+            : _buildTiles(profile, l10n);
 
         return Scaffold(
           bottomNavigationBar: widget.showBottomBar
@@ -89,7 +81,7 @@ class _AccountUiPageState extends State<AccountUiPage> {
               onRefresh: _refresh,
               child: CustomScrollView(
                 physics: const AlwaysScrollableScrollPhysics(),
-                slivers: [
+                slivers: <Widget>[
                   SliverToBoxAdapter(
                     child: RainbowHeader(
                       title: 'Mon Profil',
@@ -102,24 +94,21 @@ class _AccountUiPageState extends State<AccountUiPage> {
                       ),
                       trailing: Row(
                         mainAxisSize: MainAxisSize.min,
-                        children: [
+                        children: <Widget>[
                           if (isAdmin)
-                            const AdminDebugLogsButton(
-                              scopeLabel: 'Mon Profil',
-                            ),
+                            const AdminDebugLogsButton(scopeLabel: 'Mon Profil'),
                           if (isAdmin) const SizedBox(width: 4),
                           CartIconBadge(
                             iconColor: MasliveTokens.text,
-                            backgroundColor: Colors.white.withValues(
-                              alpha: 0.16,
-                            ),
+                            backgroundColor:
+                                Colors.white.withValues(alpha: 0.16),
                             borderColor: Colors.white.withValues(alpha: 0.22),
                           ),
                         ],
                       ),
                     ),
                   ),
-                  if (isLoading)
+                  if (loading)
                     const SliverFillRemaining(
                       hasScrollBody: false,
                       child: Center(child: CircularProgressIndicator()),
@@ -128,12 +117,11 @@ class _AccountUiPageState extends State<AccountUiPage> {
                     SliverFillRemaining(
                       hasScrollBody: false,
                       child: _SignedOutBlock(
-                        onLogin: () =>
-                            Navigator.of(context).pushNamed('/login'),
+                        onLogin: () => Navigator.of(context).pushNamed('/login'),
                         onRetry: _refresh,
                       ),
                     )
-                  else ...[
+                  else ...<Widget>[
                     SliverToBoxAdapter(
                       child: Padding(
                         padding: const EdgeInsets.only(top: 16),
@@ -158,55 +146,15 @@ class _AccountUiPageState extends State<AccountUiPage> {
                       ),
                     SliverPadding(
                       padding: const EdgeInsets.fromLTRB(10, 20, 10, 18),
-                      sliver: SliverList(
-                        delegate: SliverChildBuilderDelegate((context, index) {
-                          if (index < tiles.length) {
-                            final tile = tiles[index];
-                            return _AccountTile(
-                              tile: tile,
-                              onTap: () => _navigateTo(context, tile),
-                            );
-                          }
-
-                          if (isAdmin && index == tiles.length) {
-                            return Padding(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 10,
-                                vertical: 8,
-                              ),
-                              child: Text(
-                                AppLocalizations.of(context)!.administration,
-                                style: Theme.of(context).textTheme.titleSmall
-                                    ?.copyWith(
-                                      fontWeight: FontWeight.w800,
-                                      color: MasliveTheme.textSecondary,
-                                    ),
-                              ),
-                            );
-                          }
-
-                          if (isAdmin && index == tiles.length + 1) {
-                            return _AccountTile(
-                              tile: _AccountTileData(
-                                icon: Icons.admin_panel_settings_rounded,
-                                title: AppLocalizations.of(context)!.adminSpace,
-                                subtitle: AppLocalizations.of(
-                                  context,
-                                )!.manageApp,
-                              ),
-                              onTap: () {
-                                Navigator.push(
-                                  context,
-                                  MaterialPageRoute(
-                                    builder: (_) => const AccountAndAdminPage(),
-                                  ),
-                                );
-                              },
-                            );
-                          }
-
-                          return const SizedBox.shrink();
-                        }, childCount: tiles.length + (isAdmin ? 2 : 0)),
+                      sliver: SliverList.builder(
+                        itemCount: tiles.length,
+                        itemBuilder: (context, index) {
+                          final tile = tiles[index];
+                          return _AccountTile(
+                            tile: tile,
+                            onTap: () => _navigateTo(tile),
+                          );
+                        },
                       ),
                     ),
                     SliverToBoxAdapter(
@@ -221,13 +169,9 @@ class _AccountUiPageState extends State<AccountUiPage> {
                                     setState(() => _isSigningOut = true);
                                     try {
                                       await AuthService.instance.signOut();
-                                      // Le StreamBuilder du shell remplace
-                                      // automatiquement le profil par LoginPage.
                                     } catch (error) {
                                       if (!context.mounted) return;
-                                      ScaffoldMessenger.of(
-                                        context,
-                                      ).showSnackBar(
+                                      ScaffoldMessenger.of(context).showSnackBar(
                                         SnackBar(
                                           content: Text(
                                             'Déconnexion impossible : $error',
@@ -253,15 +197,7 @@ class _AccountUiPageState extends State<AccountUiPage> {
                             label: Text(
                               _isSigningOut
                                   ? 'Déconnexion...'
-                                  : AppLocalizations.of(context)!.disconnect,
-                            ),
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: Colors.blue.shade600,
-                              foregroundColor: Colors.white,
-                              padding: const EdgeInsets.symmetric(vertical: 12),
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(12),
-                              ),
+                                  : l10n.disconnect,
                             ),
                           ),
                         ),
@@ -278,13 +214,12 @@ class _AccountUiPageState extends State<AccountUiPage> {
   }
 
   List<_AccountTileData> _buildTiles(
-    BuildContext context,
     ProfileCapabilities profile,
     AppLocalizations l10n,
   ) {
     final tiles = <_AccountTileData>[
       const _AccountTileData(
-        icon: Icons.person_outline_rounded,
+        icon: Icons.manage_accounts_outlined,
         title: 'Mon profil & sécurité',
         subtitle: 'Nom, photo, préférences et sécurité',
         route: '/account',
@@ -317,8 +252,7 @@ class _AccountUiPageState extends State<AccountUiPage> {
         icon: Icons.download_outlined,
         title: 'Mes téléchargements',
         subtitle: 'Accéder à mes médias achetés',
-        route: '/media-marketplace',
-        arguments: <String, dynamic>{'initialTab': 'downloads'},
+        route: '/media-marketplace/downloads',
       ),
       _AccountTileData(
         icon: Icons.notifications_none_rounded,
@@ -340,65 +274,6 @@ class _AccountUiPageState extends State<AccountUiPage> {
       ),
     ];
 
-    if (profile.hasBusiness || profile.can(Capability.manageOwnBusiness)) {
-      tiles.insert(
-        1,
-        _AccountTileData(
-          icon: Icons.business_center_outlined,
-          title: profile.hasBusiness
-              ? 'Compte professionnel'
-              : 'Demander un compte Pro',
-          subtitle: profile.hasBusiness
-              ? 'Demande + paiements Stripe'
-              : 'Créer un espace de vente validé',
-          route: profile.hasBusiness ? '/business' : '/business-request',
-        ),
-      );
-    }
-
-    if (profile.can(Capability.submitProduct)) {
-      tiles.insert(
-        2,
-        const _AccountTileData(
-          icon: Icons.add_business_outlined,
-          title: 'Créer un produit',
-          subtitle: 'Soumettre un article à la validation',
-          route: '/commerce/create-product',
-        ),
-      );
-    }
-
-    if (profile.can(Capability.submitMedia)) {
-      tiles.insert(
-        3,
-        const _AccountTileData(
-          icon: Icons.add_photo_alternate_outlined,
-          title: 'Créer un média',
-          subtitle: 'Soumettre photo ou contenu digital',
-          route: '/commerce/create-media',
-        ),
-      );
-    }
-
-    if (profile.hasPhotographerProfile ||
-        profile.can(Capability.manageOwnGallery)) {
-      tiles.insertAll(4, const <_AccountTileData>[
-        _AccountTileData(
-          icon: Icons.camera_alt_outlined,
-          title: 'Espace créateur digital',
-          subtitle: 'Gérer mes médias, galeries, ventes et stats',
-          route: '/media-marketplace',
-          arguments: <String, dynamic>{'initialTab': 'photographer'},
-        ),
-        _AccountTileData(
-          icon: Icons.workspace_premium_outlined,
-          title: 'Abonnement créateur digital',
-          subtitle: 'Gérer ma formule média et créateur',
-          route: '/media-marketplace/subscription',
-        ),
-      ]);
-    }
-
     if (profile.can(Capability.manageGroupTracking)) {
       tiles.insert(
         1,
@@ -415,24 +290,126 @@ class _AccountUiPageState extends State<AccountUiPage> {
         const _AccountTileData(
           icon: Icons.my_location_outlined,
           title: 'Tracker Groupe',
-          subtitle:
-              'Envoie GPS vers l’Admin Groupe pour calculer la position moyenne',
+          subtitle: 'Position, historique et export personnels',
           route: '/group-tracker',
         ),
       );
-    } else if (profile.can(Capability.requestGroupAdmin)) {
-      tiles.add(
-        _AccountTileData(
-          icon: profile.hasPendingGroupAdminRequest
-              ? Icons.pending_actions_rounded
-              : Icons.group_add_outlined,
-          title: profile.hasPendingGroupAdminRequest
-              ? 'Demande Admin Groupe en attente'
-              : 'Demander Admin Groupe',
-          subtitle: profile.hasPendingGroupAdminRequest
-              ? 'Validation MASLIVE requise avant activation'
-              : 'Créer un groupe de tracking après validation',
+    } else if (profile.hasPendingGroupAdminRequest) {
+      tiles.insert(
+        1,
+        const _AccountTileData(
+          icon: Icons.pending_actions_rounded,
+          title: 'Demande Admin Groupe en attente',
+          subtitle: 'Validation MASLIVE requise avant activation',
           route: '/group-admin',
+        ),
+      );
+    } else if (profile.can(Capability.requestGroupAdmin)) {
+      tiles.insert(
+        1,
+        _AccountTileData(
+          icon: profile.hasRejectedGroupAdminRequest
+              ? Icons.replay_circle_filled_outlined
+              : Icons.group_add_outlined,
+          title: profile.hasRejectedGroupAdminRequest
+              ? 'Refaire une demande Admin Groupe'
+              : 'Demander Admin Groupe',
+          subtitle: profile.hasRejectedGroupAdminRequest
+              ? 'La précédente demande a été refusée'
+              : 'Créer un groupe après validation MASLIVE',
+          route: '/group-admin',
+        ),
+      );
+    }
+
+    if (profile.can(Capability.submitProduct)) {
+      tiles.insert(
+        2,
+        const _AccountTileData(
+          icon: Icons.add_business_outlined,
+          title: 'Créer un produit',
+          subtitle: 'Soumettre un article à la validation',
+          route: '/commerce/create-product',
+        ),
+      );
+    }
+
+    if (profile.can(Capability.manageGroupShop)) {
+      tiles.insert(
+        3,
+        const _AccountTileData(
+          icon: Icons.storefront_outlined,
+          title: 'Boutique du groupe',
+          subtitle: 'Produits, commandes et ventes du groupe',
+          route: '/shop',
+        ),
+      );
+    }
+
+    if (profile.can(Capability.manageOwnGallery)) {
+      tiles.insertAll(3, const <_AccountTileData>[
+        _AccountTileData(
+          icon: Icons.camera_alt_outlined,
+          title: 'Espace créateur digital',
+          subtitle: 'Médias, galeries, ventes et statistiques',
+          route: '/media-marketplace/photographer',
+        ),
+        _AccountTileData(
+          icon: Icons.workspace_premium_outlined,
+          title: 'Abonnement créateur digital',
+          subtitle: 'Formule, stockage et crédits IA',
+          route: '/media-marketplace/subscription',
+        ),
+      ]);
+    }
+
+    if (profile.can(Capability.submitMedia)) {
+      tiles.insert(
+        3,
+        const _AccountTileData(
+          icon: Icons.add_photo_alternate_outlined,
+          title: 'Créer un média',
+          subtitle: 'Soumettre photo ou contenu digital',
+          route: '/commerce/create-media',
+        ),
+      );
+    }
+
+    if (profile.can(Capability.manageArtGallery)) {
+      tiles.insertAll(3, const <_AccountTileData>[
+        _AccountTileData(
+          icon: Icons.palette_outlined,
+          title: 'Galerie Bloom Art',
+          subtitle: 'Créations, offres et paiements',
+          route: '/bloom-art/dashboard',
+        ),
+        _AccountTileData(
+          icon: Icons.add_box_outlined,
+          title: 'Déposer une création',
+          subtitle: 'Publier une œuvre après vérification',
+          route: '/bloom-art/create',
+        ),
+      ]);
+    }
+
+    if (profile.canManageSellerInbox) {
+      tiles.add(
+        const _AccountTileData(
+          icon: Icons.inbox_outlined,
+          title: 'Inbox vendeur',
+          subtitle: 'Commandes et actions à traiter',
+          route: '/seller-inbox',
+        ),
+      );
+    }
+
+    if (profile.can(Capability.accessAdminPanel)) {
+      tiles.add(
+        const _AccountTileData(
+          icon: Icons.admin_panel_settings_rounded,
+          title: 'Espace administrateur',
+          subtitle: 'Gestion MASLIVE selon mes autorisations',
+          route: '/account-admin',
         ),
       );
     }
@@ -449,38 +426,33 @@ class _AccountTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return MasliveCard(
-      radius: 20,
-      padding: EdgeInsets.zero,
-      child: ListTile(
-        leading: Container(
-          width: 44,
-          height: 44,
-          decoration: BoxDecoration(
-            color: MasliveTheme.surfaceAlt,
-            borderRadius: BorderRadius.circular(14),
-            border: Border.all(color: MasliveTheme.divider),
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 10),
+      child: MasliveCard(
+        radius: 20,
+        padding: EdgeInsets.zero,
+        child: ListTile(
+          leading: Container(
+            width: 44,
+            height: 44,
+            decoration: BoxDecoration(
+              color: MasliveTheme.surfaceAlt,
+              borderRadius: BorderRadius.circular(14),
+              border: Border.all(color: MasliveTheme.divider),
+            ),
+            child: Icon(tile.icon, color: MasliveTheme.textPrimary),
           ),
-          child: Icon(tile.icon, color: MasliveTheme.textPrimary),
-        ),
-        title: Text(
-          tile.title,
-          style: Theme.of(context).textTheme.titleMedium?.copyWith(
-            fontWeight: FontWeight.w800,
-            color: MasliveTheme.textPrimary,
+          title: Text(
+            tile.title,
+            style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                  fontWeight: FontWeight.w800,
+                  color: MasliveTheme.textPrimary,
+                ),
           ),
+          subtitle: Text(tile.subtitle),
+          trailing: const Icon(Icons.chevron_right_rounded),
+          onTap: onTap,
         ),
-        subtitle: Text(
-          tile.subtitle,
-          style: Theme.of(
-            context,
-          ).textTheme.bodySmall?.copyWith(color: MasliveTheme.textSecondary),
-        ),
-        trailing: Icon(
-          Icons.chevron_right_rounded,
-          color: MasliveTheme.textSecondary,
-        ),
-        onTap: onTap,
       ),
     );
   }
@@ -495,50 +467,27 @@ class _AvatarBlock extends StatelessWidget {
   Widget build(BuildContext context) {
     final photoUrl = profile.photoUrl;
     return Column(
-      children: [
-        Container(
-          width: 80,
-          height: 80,
-          decoration: BoxDecoration(
-            shape: BoxShape.circle,
-            gradient: MasliveTheme.actionGradient,
-            boxShadow: MasliveTheme.floatingShadow,
-          ),
-          child: Center(
-            child: CircleAvatar(
-              radius: 36,
-              backgroundColor: Colors.white,
-              backgroundImage: photoUrl == null || photoUrl.isEmpty
-                  ? null
-                  : NetworkImage(photoUrl),
-              child: photoUrl == null || photoUrl.isEmpty
-                  ? const Icon(
-                      Icons.person_rounded,
-                      size: 38,
-                      color: MasliveTheme.textPrimary,
-                    )
-                  : null,
-            ),
-          ),
+      children: <Widget>[
+        CircleAvatar(
+          radius: 40,
+          backgroundColor: Colors.white,
+          backgroundImage: photoUrl == null || photoUrl.isEmpty
+              ? null
+              : NetworkImage(photoUrl),
+          child: photoUrl == null || photoUrl.isEmpty
+              ? const Icon(Icons.person_rounded, size: 38)
+              : null,
         ),
         const SizedBox(height: 10),
         Text(
           profile.displayName.isEmpty ? profile.email : profile.displayName,
           textAlign: TextAlign.center,
           style: Theme.of(context).textTheme.titleLarge?.copyWith(
-            fontWeight: FontWeight.w800,
-            color: MasliveTheme.textPrimary,
-          ),
+                fontWeight: FontWeight.w800,
+              ),
         ),
         const SizedBox(height: 4),
-        Text(
-          profile.roleLabel,
-          textAlign: TextAlign.center,
-          style: Theme.of(context).textTheme.bodySmall?.copyWith(
-            color: MasliveTheme.textSecondary,
-            fontWeight: FontWeight.w600,
-          ),
-        ),
+        Text(profile.activeRoleLabels.join(' • '), textAlign: TextAlign.center),
       ],
     );
   }
@@ -551,26 +500,21 @@ class _CapabilitySummaryCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final chips = <String>[
-      profile.roleLabel,
+    final chips = <String>{
+      ...profile.activeRoleLabels,
       if (profile.canSubmitCommerce) 'Commerce autorisé',
-      if (profile.hasPhotographerProfile) 'Créateur digital validé',
       if (profile.can(Capability.trackOwnLocation)) 'Tracking GPS',
-      if (profile.can(Capability.accessAdminPanel)) 'Admin',
+      if (profile.can(Capability.accessAdminPanel)) 'Administration',
       if (profile.hasPendingGroupAdminRequest) 'Demande groupe en attente',
-    ];
-
+    };
     return MasliveCard(
       radius: 20,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
+        children: <Widget>[
           const Text(
             'Droits actifs',
-            style: TextStyle(
-              fontWeight: FontWeight.w900,
-              color: MasliveTheme.textPrimary,
-            ),
+            style: TextStyle(fontWeight: FontWeight.w900),
           ),
           const SizedBox(height: 8),
           Wrap(
@@ -578,14 +522,12 @@ class _CapabilitySummaryCard extends StatelessWidget {
             runSpacing: 8,
             children: chips
                 .map(
-                  (chip) => Chip(
-                    label: Text(chip),
+                  (label) => Chip(
+                    label: Text(label),
                     visualDensity: VisualDensity.compact,
-                    backgroundColor: MasliveTheme.surfaceAlt,
-                    side: const BorderSide(color: MasliveTheme.divider),
                   ),
                 )
-                .toList(),
+                .toList(growable: false),
           ),
         ],
       ),
@@ -601,52 +543,48 @@ class _SignedOutBlock extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.all(24),
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          const Icon(
-            Icons.lock_outline_rounded,
-            size: 56,
-            color: MasliveTheme.textSecondary,
-          ),
-          const SizedBox(height: 16),
-          const Text(
-            'Connectez-vous pour voir votre profil MASLIVE.',
-            textAlign: TextAlign.center,
-            style: TextStyle(fontWeight: FontWeight.w800),
-          ),
-          const SizedBox(height: 20),
-          FilledButton.icon(
-            onPressed: onLogin,
-            icon: const Icon(Icons.login_rounded),
-            label: const Text('Se connecter'),
-          ),
-          const SizedBox(height: 8),
-          TextButton.icon(
-            onPressed: onRetry,
-            icon: const Icon(Icons.refresh),
-            label: const Text('Réessayer'),
-          ),
-        ],
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: <Widget>[
+            const Icon(Icons.lock_outline_rounded, size: 56),
+            const SizedBox(height: 16),
+            const Text(
+              'Connectez-vous pour voir votre profil MASLIVE.',
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 20),
+            FilledButton.icon(
+              onPressed: onLogin,
+              icon: const Icon(Icons.login_rounded),
+              label: const Text('Se connecter'),
+            ),
+            TextButton.icon(
+              onPressed: onRetry,
+              icon: const Icon(Icons.refresh),
+              label: const Text('Réessayer'),
+            ),
+          ],
+        ),
       ),
     );
   }
 }
 
 class _AccountTileData {
-  final IconData icon;
-  final String title;
-  final String subtitle;
-  final String? route;
-  final Object? arguments;
-
   const _AccountTileData({
     required this.icon,
     required this.title,
     required this.subtitle,
-    this.route,
+    required this.route,
     this.arguments,
   });
+
+  final IconData icon;
+  final String title;
+  final String subtitle;
+  final String route;
+  final Object? arguments;
 }
