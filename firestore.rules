@@ -281,7 +281,7 @@ service cloud.firestore {
       allow read: if isSignedIn() && (request.auth.uid == uid || isMasterAdmin());
       
       // Création: utilisateur pour les catégories auto-assignables, ou admins
-      allow create: if isSignedIn() && (
+      allow create: if request.resource.data.status == 'draft' && isSignedIn() && (
         // L'utilisateur lui-même si la catégorie permet l'auto-assignation
         (request.auth.uid == uid && request.resource.data.requiresApproval == false)
         // Ou un admin
@@ -961,7 +961,9 @@ service cloud.firestore {
       // - Statut initial = 'draft' ou 'pending'
       allow create: if isSignedIn() 
         && canSubmitCommerce()
-        && request.resource.data.ownerUid == request.auth.uid
+        && request.resource.data.ownerUid == request.auth.uid &&
+          request.resource.data.ownerRole == resource.data.ownerRole &&
+          request.resource.data.status == resource.data.status
         && request.resource.data.status in ['draft', 'pending']
         && !request.resource.data.keys().hasAny(['moderatedBy', 'moderatedAt', 'publishedRef']);
 
