@@ -50,7 +50,7 @@ void main() {
       }
     });
 
-    test('conserve les quatre plans et commissions', () {
+    test('conserve les quatre plans et sépare les crédits IA', () {
       final plans = MediaMarketplacePricing.photographerPlans;
       expect(plans.map((plan) => plan.code), <String>[
         'discovery',
@@ -76,21 +76,58 @@ void main() {
         0.20,
         0.15,
       ]);
+      expect(plans.every((plan) => plan.includedBasicAiCredits == 0), isTrue);
+      expect(plans.every((plan) => plan.includedAdvancedAiCredits == 0), isTrue);
     });
 
-    test('conserve les extensions de stockage', () {
+    test('expose la grille approuvée de stockage, IA et événement', () {
       final extensions = MediaMarketplacePricing.storageExtensions;
-      expect(extensions.map((item) => item.monthlyPrice), <double>[
-        5.90,
-        19.90,
-        9.90,
-      ]);
-      expect(extensions.map((item) => item.extraPhotos), <int>[
-        1000,
-        5000,
-        5000,
-      ]);
-      expect(extensions.last.durationDays, 30);
+      expect(
+        extensions
+            .map(
+              (item) => <Object>[
+                item.code,
+                item.monthlyPrice,
+                item.extraPhotos,
+                item.extraStorageBytes ~/ (1024 * 1024 * 1024),
+                item.basicAiCredits,
+                item.advancedAiCredits,
+                item.durationDays ?? 0,
+              ],
+            )
+            .toList(growable: false),
+        <List<Object>>[
+          <Object>['plus_1000', 5.90, 1000, 10, 0, 0, 0],
+          <Object>['plus_5000', 19.90, 5000, 50, 0, 0, 0],
+          <Object>['ai_basic_1000', 7.90, 0, 0, 1000, 0, 36500],
+          <Object>['ai_advanced_1000', 11.90, 0, 0, 0, 1000, 36500],
+          <Object>['event_30d', 14.90, 5000, 50, 0, 0, 30],
+          <Object>['event_30d_basic', 29.90, 5000, 50, 5000, 0, 30],
+          <Object>['event_30d_advanced', 39.90, 5000, 50, 0, 5000, 30],
+        ],
+      );
+      expect(
+        MediaMarketplacePricing.extensionFor('AI_BASIC_1000')
+            ?.creditsNeverExpire,
+        isTrue,
+      );
+      expect(
+        MediaMarketplacePricing.extensionFor('event_30d_advanced')
+            ?.creditsExpireWithExtension,
+        isTrue,
+      );
+      expect(MediaMarketplacePricing.estimatedAiCostPerAnalysisEur, 0.01);
+    });
+
+    test('documente la règle de consommation dans les libellés', () {
+      final basic = MediaMarketplacePricing.extensionFor('ai_basic_1000')!;
+      final advanced = MediaMarketplacePricing.extensionFor('ai_advanced_1000')!;
+      expect(basic.billingLabel, contains('achat unique'));
+      expect(basic.capacityLines, contains('Crédits sans expiration'));
+      expect(
+        advanced.capacityLines.join(' '),
+        contains('regroupement visuel'),
+      );
     });
   });
 }
