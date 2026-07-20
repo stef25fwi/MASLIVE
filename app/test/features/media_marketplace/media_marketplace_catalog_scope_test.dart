@@ -77,7 +77,7 @@ void main() {
       expect(context.selectedCircuitId, isNull);
       expect(context.selectedCountryId, isNull);
       expect(context.selectedEventId, isNull);
-      expect(context.hasSelection, isFalse);
+      expect(context.toRouteArguments(), isEmpty);
     });
   });
 
