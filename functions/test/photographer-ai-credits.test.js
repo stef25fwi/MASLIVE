@@ -53,7 +53,8 @@ test("les packs IA et événement respectent la grille économique validée", ()
 })
 
 test("chaque achat Stripe génère un lot idempotent de crédits", () => {
-  assert.match(aiSource, /photographer_storage_extensions\/\{extensionId\}/)
+  assert.match(aiSource, /const EXTENSIONS = "photographer_storage_extensions"/)
+  assert.match(aiSource, /document: `\$\{EXTENSIONS\}\/\{extensionId\}`/)
   assert.match(aiSource, /grantApplied === true/)
   assert.match(aiSource, /aiCreditGrantApplied: true/)
   assert.match(aiSource, /sourceExtensionId: extensionRef\.id/)
