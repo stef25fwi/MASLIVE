@@ -17,44 +17,47 @@ class MediaDeliveryOptionDialog extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     return AlertDialog(
+      insetPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
       title: const Text('Qualité de téléchargement'),
       content: ConstrainedBox(
         constraints: const BoxConstraints(maxWidth: 520),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: <Widget>[
-            Text(
-              'Choisis la qualité appliquée à toutes les photos de cette commande.',
-              style: theme.textTheme.bodyMedium,
-            ),
-            const SizedBox(height: 16),
-            _DeliveryOptionTile(
-              key: const Key('media_delivery_standard'),
-              icon: Icons.web_asset_rounded,
-              title: 'Version Web incluse',
-              priceLabel: 'Inclus',
-              description:
-                  'Aperçus optimisés pour téléphone, réseaux sociaux et consultation en ligne. Les fichiers originaux ne sont pas inclus.',
-              onTap: () => Navigator.of(context).pop(false),
-            ),
-            const SizedBox(height: 12),
-            _DeliveryOptionTile(
-              key: const Key('media_delivery_hd'),
-              icon: Icons.hd_rounded,
-              title: 'Fichiers HD et originaux',
-              priceLabel: '+${mediaHdUpgradePrice.toStringAsFixed(2)} €',
-              description:
-                  'Ajoute les variantes haute définition et les fichiers originaux à toute la commande. Supplément unique, quel que soit le nombre de photos.',
-              emphasized: true,
-              onTap: () => Navigator.of(context).pop(true),
-            ),
-            const SizedBox(height: 12),
-            Text(
-              'Le choix est enregistré dans la commande et ne peut plus être modifié après l’ouverture de Stripe.',
-              style: theme.textTheme.bodySmall,
-            ),
-          ],
+        child: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: <Widget>[
+              Text(
+                'Choisis la qualité appliquée à toutes les photos de cette commande.',
+                style: theme.textTheme.bodyMedium,
+              ),
+              const SizedBox(height: 16),
+              _DeliveryOptionTile(
+                key: const Key('media_delivery_standard'),
+                icon: Icons.web_asset_rounded,
+                title: 'Version Web incluse',
+                priceLabel: 'Inclus',
+                description:
+                    'Aperçus optimisés pour téléphone, réseaux sociaux et consultation en ligne. Les fichiers originaux ne sont pas inclus.',
+                onTap: () => Navigator.of(context).pop(false),
+              ),
+              const SizedBox(height: 12),
+              _DeliveryOptionTile(
+                key: const Key('media_delivery_hd'),
+                icon: Icons.hd_rounded,
+                title: 'Fichiers HD et originaux',
+                priceLabel: '+${mediaHdUpgradePrice.toStringAsFixed(2)} €',
+                description:
+                    'Ajoute les variantes haute définition et les fichiers originaux à toute la commande. Supplément unique, quel que soit le nombre de photos.',
+                emphasized: true,
+                onTap: () => Navigator.of(context).pop(true),
+              ),
+              const SizedBox(height: 12),
+              Text(
+                'Le choix est enregistré dans la commande et ne peut plus être modifié après l’ouverture de Stripe.',
+                style: theme.textTheme.bodySmall,
+              ),
+            ],
+          ),
         ),
       ),
       actions: <Widget>[
@@ -122,13 +125,14 @@ class _DeliveryOptionTile extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: <Widget>[
-                    Row(
+                    Wrap(
+                      spacing: 8,
+                      runSpacing: 4,
+                      alignment: WrapAlignment.spaceBetween,
                       children: <Widget>[
-                        Expanded(
-                          child: Text(
-                            title,
-                            style: const TextStyle(fontWeight: FontWeight.w800),
-                          ),
+                        Text(
+                          title,
+                          style: const TextStyle(fontWeight: FontWeight.w800),
                         ),
                         Text(
                           priceLabel,
