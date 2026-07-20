@@ -5,24 +5,111 @@ on:
     branches: [main]
   pull_request:
     branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  id-token: write
+
+concurrency:
+  group: maslive-production-${{ github.ref }}
+  cancel-in-progress: false
 
 jobs:
   build-and-deploy:
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout repository
+        uses: actions/checkout@v4
 
-      - uses: subosito/flutter-action@v2
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
         with:
           flutter-version: "3.44.4"
           cache: true
 
-      - name: Install dependencies
-        run: cd app && flutter pub get
+      - name: Install Flutter dependencies
+        working-directory: app
+        run: flutter pub get
 
       - name: Build Flutter Web with Mapbox
+        working-directory: app
+        env:
+          MAPBOX_PUBLIC_TOKEN: ${{ secrets.MAPBOX_PUBLIC_TOKEN }}
+          STRIPE_PUBLISHABLE_KEY: ${{ secrets.STRIPE_PUBLISHABLE_KEY }}
+          STRIPE_PREMIUM_MONTHLY_PRICE_ID: ${{ secrets.STRIPE_PREMIUM_MONTHLY_PRICE_ID }}
+          STRIPE_PREMIUM_YEARLY_PRICE_ID: ${{ secrets.STRIPE_PREMIUM_YEARLY_PRICE_ID }}
         run: |
-          cd app
+          set -euo pipefail
+          if [ -z "${MAPBOX_PUBLIC_TOKEN}" ]; then
+            echo "::error::Le secret MAPBOX_PUBLIC_TOKEN est absent."
+            exit 1
+          fi
+
           flutter build web --release \
-            --dart-define=MAPBOX_ACCESS_TOKEN=${{ secrets.MAPBOX_PUBLIC_TOKEN }}
+            --dart-define=MAPBOX_ACCESS_TOKEN="${MAPBOX_PUBLIC_TOKEN}" \
+            --dart-define=STRIPE_PUBLISHABLE_KEY="${STRIPE_PUBLISHABLE_KEY}" \
+            --dart-define=STRIPE_PREMIUM_MONTHLY_PRICE_ID="${STRIPE_PREMIUM_MONTHLY_PRICE_ID}" \
+            --dart-define=STRIPE_PREMIUM_YEARLY_PRICE_ID="${STRIPE_PREMIUM_YEARLY_PRICE_ID}"
+
+      - name: Setup Node.js for Firebase
+        if: github.event_name != 'pull_request'
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: functions/package-lock.json
+
+      - name: Install Functions and Firebase dependencies
+        if: github.event_name != 'pull_request'
+        run: |
+          npm ci --prefix functions
+          npm install --global firebase-tools@latest
+
+      - name: Configure Firebase authentication
+        if: github.event_name != 'pull_request'
+        env:
+          FIREBASE_SERVICE_ACCOUNT_JSON: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_MASLIVE || secrets.FIREBASE_SERVICE_ACCOUNT || secrets.GOOGLE_CREDENTIALS }}
+          FIREBASE_TOKEN: ${{ secrets.FIREBASE_TOKEN }}
+        run: |
+          set -euo pipefail
+          if [ -n "${FIREBASE_SERVICE_ACCOUNT_JSON}" ]; then
+            CREDENTIALS_FILE="${RUNNER_TEMP}/maslive-firebase-service-account.json"
+            printf '%s' "${FIREBASE_SERVICE_ACCOUNT_JSON}" > "${CREDENTIALS_FILE}"
+            chmod 600 "${CREDENTIALS_FILE}"
+            echo "GOOGLE_APPLICATION_CREDENTIALS=${CREDENTIALS_FILE}" >> "${GITHUB_ENV}"
+            echo "FIREBASE_AUTH_MODE=service_account" >> "${GITHUB_ENV}"
+          elif [ -n "${FIREBASE_TOKEN}" ]; then
+            echo "FIREBASE_AUTH_MODE=token" >> "${GITHUB_ENV}"
+          else
+            echo "::error::Ajoute FIREBASE_SERVICE_ACCOUNT_MASLIVE (recommandé) ou FIREBASE_TOKEN dans les secrets GitHub Actions."
+            exit 1
+          fi
+
+      - name: Deploy MASLIVE production to Firebase
+        if: github.event_name != 'pull_request'
+        env:
+          FIREBASE_TOKEN: ${{ secrets.FIREBASE_TOKEN }}
+        run: |
+          set -euo pipefail
+          DEPLOY_ARGS=(
+            --project maslive
+            --only hosting,functions,firestore:rules,firestore:indexes,storage
+            --non-interactive
+          )
+
+          if [ "${FIREBASE_AUTH_MODE}" = "token" ]; then
+            DEPLOY_ARGS+=(--token "${FIREBASE_TOKEN}")
+          fi
+
+          firebase deploy "${DEPLOY_ARGS[@]}"
+
+      - name: Production deployment summary
+        if: github.event_name != 'pull_request'
+        run: |
+          echo "### MASLIVE déployé" >> "${GITHUB_STEP_SUMMARY}"
+          echo "- Commit : \`${GITHUB_SHA}\`" >> "${GITHUB_STEP_SUMMARY}"
+          echo "- Hosting : https://maslive.web.app" >> "${GITHUB_STEP_SUMMARY}"
+          echo "- Firebase project : maslive" >> "${GITHUB_STEP_SUMMARY}"
+          echo "- Ressources : hosting, functions, règles/index Firestore et règles Storage" >> "${GITHUB_STEP_SUMMARY}"
