@@ -1,0 +1,182 @@
+name: Apply profile capability route guards
+
+on:
+  push:
+    branches:
+      - fix/profile-capability-consistency
+
+permissions:
+  contents: write
+
+jobs:
+  patch-routes:
+    if: ${{ !contains(github.event.head_commit.message, '[profile-route-patch]') }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: fix/profile-capability-consistency
+          fetch-depth: 0
+
+      - name: Apply guarded route migration
+        shell: python
+        run: |
+          from pathlib import Path
+
+          path = Path('app/lib/main.dart')
+          text = path.read_text()
+
+          marker = "import 'widgets/admin_route_guard.dart';"
+          replacement = "import 'widgets/admin_route_guard.dart';\nimport 'widgets/capability_guard.dart';\nimport 'security/profile_capability_policy.dart';"
+          if "widgets/capability_guard.dart" not in text:
+              text = text.replace(marker, replacement)
+
+          replacements = {
+          """    case '/group-admin':
+              page = _DeferredLoader(
+                load: grp_admin.loadLibrary,
+                build: () => grp_admin.AdminGroupDashboardPage(),
+              );
+              break;""": """    case '/group-admin':
+              page = CapabilityGuard(
+                capability: Capability.requestGroupAdmin,
+                fullPage: true,
+                child: _DeferredLoader(
+                  load: grp_admin.loadLibrary,
+                  build: () => grp_admin.AdminGroupDashboardPage(),
+                ),
+              );
+              break;""",
+          """    case '/group-tracker':
+              page = _DeferredLoader(
+                load: grp_tracker.loadLibrary,
+                build: () => grp_tracker.TrackerGroupProfilePage(),
+              );
+              break;""": """    case '/group-tracker':
+              page = CapabilityGuard(
+                capability: Capability.trackOwnLocation,
+                fullPage: true,
+                child: _DeferredLoader(
+                  load: grp_tracker.loadLibrary,
+                  build: () => grp_tracker.TrackerGroupProfilePage(),
+                ),
+              );
+              break;""",
+          """    case '/seller-inbox':
+              page = _DeferredLoader(
+                load: seller_inbox.loadLibrary,
+                build: () => seller_inbox.SellerInboxPage(),
+              );
+              break;""": """    case '/seller-inbox':
+              page = CapabilityGuard.any(
+                anyOf: const <Capability>[
+                  Capability.manageOwnGallery,
+                  Capability.manageArtGallery,
+                  Capability.manageGroupShop,
+                  Capability.manageAllOrders,
+                ],
+                fullPage: true,
+                child: _DeferredLoader(
+                  load: seller_inbox.loadLibrary,
+                  build: () => seller_inbox.SellerInboxPage(),
+                ),
+              );
+              break;""",
+          """        page = _DeferredLoader(
+                  load: seller_order.loadLibrary,
+                  build: () => seller_order.SellerOrderDetailPage(orderId: orderId),
+                );""": """        page = CapabilityGuard.any(
+                  anyOf: const <Capability>[
+                    Capability.manageOwnGallery,
+                    Capability.manageArtGallery,
+                    Capability.manageGroupShop,
+                    Capability.manageAllOrders,
+                  ],
+                  fullPage: true,
+                  child: _DeferredLoader(
+                    load: seller_order.loadLibrary,
+                    build: () => seller_order.SellerOrderDetailPage(orderId: orderId),
+                  ),
+                );""",
+          """    case '/commerce/create-product':
+              page = _DeferredLoader(
+                load: create_product.loadLibrary,
+                build: () => create_product.CreateProductPage(),
+              );
+              break;""": """    case '/commerce/create-product':
+              page = CapabilityGuard(
+                capability: Capability.submitProduct,
+                fullPage: true,
+                child: _DeferredLoader(
+                  load: create_product.loadLibrary,
+                  build: () => create_product.CreateProductPage(),
+                ),
+              );
+              break;""",
+          """    case '/commerce/create-media':
+              page = _DeferredLoader(
+                load: create_media.loadLibrary,
+                build: () => create_media.CreateMediaPage(),
+              );
+              break;""": """    case '/commerce/create-media':
+              page = CapabilityGuard(
+                capability: Capability.submitMedia,
+                fullPage: true,
+                child: _DeferredLoader(
+                  load: create_media.loadLibrary,
+                  build: () => create_media.CreateMediaPage(),
+                ),
+              );
+              break;""",
+          """    case '/account':
+              case '/account-admin':
+                page = _DeferredLoader(
+                  load: account.loadLibrary,
+                  build: () => account.AccountAndAdminPage(),
+                );
+                break;""": """    case '/account':
+              page = _DeferredLoader(
+                load: account.loadLibrary,
+                build: () => account.AccountAndAdminPage(),
+              );
+              break;
+            case '/account-admin':
+              page = CapabilityGuard(
+                capability: Capability.accessAdminPanel,
+                fullPage: true,
+                child: _DeferredLoader(
+                  load: account.loadLibrary,
+                  build: () => account.AccountAndAdminPage(),
+                ),
+              );
+              break;""",
+          }
+
+          for old, new in replacements.items():
+              if old in text:
+                  text = text.replace(old, new)
+
+          path.write_text(text)
+
+          group_path = Path('app/lib/pages/group/admin_group_dashboard_page.dart')
+          group_text = group_path.read_text().replace('subtitle: message,', 'message: message,')
+          group_path.write_text(group_text)
+
+      - name: Ensure migration changed the route guards
+        run: |
+          grep -q "Capability.submitProduct" app/lib/main.dart
+          grep -q "Capability.submitMedia" app/lib/main.dart
+          grep -q "Capability.trackOwnLocation" app/lib/main.dart
+          grep -q "Capability.manageAllOrders" app/lib/main.dart
+          grep -q "Capability.accessAdminPanel" app/lib/main.dart
+
+      - name: Remove one-time migration workflow
+        run: rm .github/workflows/profile-capability-patch.yml
+
+      - name: Commit guarded routes
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add app/lib/main.dart app/lib/pages/group/admin_group_dashboard_page.dart .github/workflows/profile-capability-patch.yml
+          git commit -m "fix(profile): protège toutes les routes métier [profile-route-patch]"
+          git push origin HEAD:fix/profile-capability-consistency
