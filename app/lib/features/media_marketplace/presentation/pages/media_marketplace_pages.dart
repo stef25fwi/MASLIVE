@@ -28,10 +28,16 @@ class PhotographerDashboardPage extends StatelessWidget {
 class PhotographerGalleryManagerPage extends StatelessWidget {
   const PhotographerGalleryManagerPage({
     super.key,
-    required this.photographerId,
+    this.initialEventId,
+    this.initialEventName,
+    this.initialCircuitId,
+    this.initialCircuitName,
   });
 
-  final String photographerId;
+  final String? initialEventId;
+  final String? initialEventName;
+  final String? initialCircuitId;
+  final String? initialCircuitName;
 
   @override
   Widget build(BuildContext context) {
@@ -40,7 +46,10 @@ class PhotographerGalleryManagerPage extends StatelessWidget {
       fullPage: true,
       message: 'Vous ne pouvez pas gérer les galeries de cet espace.',
       child: implementation_gallery.PhotographerGalleryManagerPage(
-        photographerId: photographerId,
+        initialEventId: initialEventId,
+        initialEventName: initialEventName,
+        initialCircuitId: initialCircuitId,
+        initialCircuitName: initialCircuitName,
       ),
     );
   }
