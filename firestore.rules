@@ -281,7 +281,7 @@ service cloud.firestore {
       allow read: if isSignedIn() && (request.auth.uid == uid || isMasterAdmin());
       
       // Création: utilisateur pour les catégories auto-assignables, ou admins
-      allow create: if request.resource.data.status == 'draft' && request.resource.data.status == 'draft' && isSignedIn() && (
+      allow create: if request.resource.data.status == 'draft' && request.resource.data.status == 'draft' && request.resource.data.status == 'draft' && isSignedIn() && (
         // L'utilisateur lui-même si la catégorie permet l'auto-assignation
         (request.auth.uid == uid && request.resource.data.requiresApproval == false)
         // Ou un admin
