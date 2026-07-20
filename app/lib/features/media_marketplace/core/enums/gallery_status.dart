@@ -2,7 +2,22 @@ enum GalleryStatus {
   draft,
   processing,
   published,
-  archived,
+  archived;
+
+  String get firestoreValue => name;
+
+  String get label {
+    switch (this) {
+      case GalleryStatus.draft:
+        return 'Brouillon';
+      case GalleryStatus.processing:
+        return 'Traitement';
+      case GalleryStatus.published:
+        return 'Publié';
+      case GalleryStatus.archived:
+        return 'Archivé';
+    }
+  }
 }
 
 GalleryStatus galleryStatusFromString(
@@ -20,22 +35,5 @@ GalleryStatus galleryStatusFromString(
       return GalleryStatus.archived;
     default:
       return fallback;
-  }
-}
-
-extension GalleryStatusX on GalleryStatus {
-  String get firestoreValue => name;
-
-  String get label {
-    switch (this) {
-      case GalleryStatus.draft:
-        return 'Brouillon';
-      case GalleryStatus.processing:
-        return 'Traitement';
-      case GalleryStatus.published:
-        return 'Publie';
-      case GalleryStatus.archived:
-        return 'Archive';
-    }
   }
 }
