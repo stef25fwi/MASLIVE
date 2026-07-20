@@ -122,11 +122,13 @@ jobs:
           fi
 
       - name: Deploy MASLIVE production to Firebase
+        id: firebase_deploy
+        continue-on-error: true
         if: github.event_name == 'push' || github.event_name == 'workflow_dispatch' || (github.event_name == 'pull_request' && github.head_ref == 'deploy/maslive-production')
         env:
           FIREBASE_TOKEN: ${{ secrets.FIREBASE_TOKEN }}
         run: |
-          set -euo pipefail
+          set +e
           DEPLOY_ARGS=(
             --project maslive
             --only hosting,functions,firestore:rules,firestore:indexes,storage
@@ -137,10 +139,29 @@ jobs:
             DEPLOY_ARGS+=(--token "${FIREBASE_TOKEN}")
           fi
 
-          firebase deploy "${DEPLOY_ARGS[@]}"
+          firebase deploy "${DEPLOY_ARGS[@]}" --debug > firebase-deploy.log 2>&1
+          status=$?
+          echo "=== Résumé des 260 dernières lignes du déploiement Firebase ==="
+          tail -n 260 firebase-deploy.log
+          exit "$status"
+
+      - name: Upload Firebase deployment report
+        if: always() && (github.event_name == 'push' || github.event_name == 'workflow_dispatch' || (github.event_name == 'pull_request' && github.head_ref == 'deploy/maslive-production'))
+        uses: actions/upload-artifact@v4
+        with:
+          name: firebase-deploy-report
+          path: |
+            firebase-deploy.log
+            firebase-debug.log
+          if-no-files-found: warn
+          retention-days: 7
+
+      - name: Enforce Firebase deployment
+        if: steps.firebase_deploy.outcome == 'failure'
+        run: exit 1
 
       - name: Verify production manifest
-        if: github.event_name == 'push' || github.event_name == 'workflow_dispatch' || (github.event_name == 'pull_request' && github.head_ref == 'deploy/maslive-production')
+        if: steps.firebase_deploy.outcome == 'success'
         run: |
           set -euo pipefail
           expected="${GITHUB_SHA}"
@@ -156,7 +177,7 @@ jobs:
           exit 1
 
       - name: Production deployment summary
-        if: github.event_name == 'push' || github.event_name == 'workflow_dispatch' || (github.event_name == 'pull_request' && github.head_ref == 'deploy/maslive-production')
+        if: steps.firebase_deploy.outcome == 'success'
         run: |
           echo "### MASLIVE déployé" >> "${GITHUB_STEP_SUMMARY}"
           echo "- Commit : \`${GITHUB_SHA}\`" >> "${GITHUB_STEP_SUMMARY}"
