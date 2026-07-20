@@ -36,8 +36,10 @@ class PhotographerImportSession {
   final DateTime createdAt;
   final DateTime updatedAt;
 
-  double get fraction => totalFiles <= 0 ? 0 : completedFiles.length / totalFiles;
-  bool get canResume => status == 'paused' || status == 'in_progress' || status == 'failed';
+  double get fraction =>
+      totalFiles <= 0 ? 0 : completedFiles.length / totalFiles;
+  bool get canResume =>
+      status == 'paused' || status == 'in_progress' || status == 'failed';
 
   Map<String, dynamic> toJson() => <String, dynamic>{
         'sessionId': sessionId,
@@ -65,11 +67,15 @@ class PhotographerImportSession {
               .toList(growable: false) ??
           const <String>[],
       failedFiles: rawFailed is Map
-          ? rawFailed.map((key, value) => MapEntry(key.toString(), value.toString()))
+          ? rawFailed.map(
+              (key, value) => MapEntry(key.toString(), value.toString()),
+            )
           : const <String, String>{},
       status: json['status']?.toString() ?? 'paused',
-      createdAt: DateTime.tryParse(json['createdAt']?.toString() ?? '') ?? DateTime.now(),
-      updatedAt: DateTime.tryParse(json['updatedAt']?.toString() ?? '') ?? DateTime.now(),
+      createdAt: DateTime.tryParse(json['createdAt']?.toString() ?? '') ??
+          DateTime.now(),
+      updatedAt: DateTime.tryParse(json['updatedAt']?.toString() ?? '') ??
+          DateTime.now(),
     );
   }
 
@@ -101,12 +107,16 @@ class PhotographerImportSessionService extends ChangeNotifier {
   static final PhotographerImportSessionService instance =
       PhotographerImportSessionService._();
 
-  static const String _preferenceKey = 'maslive_photographer_import_sessions_v1';
+  static const String _preferenceKey =
+      'maslive_photographer_import_sessions_v1';
   final MediaBulkUploadService _uploader = MediaBulkUploadService();
-  final FirebaseFunctions _functions = FirebaseFunctions.instanceFor(region: 'us-east1');
-  final List<PhotographerImportSession> _sessions = <PhotographerImportSession>[];
+  final FirebaseFunctions _functions =
+      FirebaseFunctions.instanceFor(region: 'us-east1');
+  final List<PhotographerImportSession> _sessions =
+      <PhotographerImportSession>[];
 
-  List<PhotographerImportSession> get sessions => List<PhotographerImportSession>.unmodifiable(_sessions);
+  List<PhotographerImportSession> get sessions =>
+      List<PhotographerImportSession>.unmodifiable(_sessions);
   bool _working = false;
   bool get working => _working;
   MediaUploadProgress? _progress;
@@ -121,7 +131,9 @@ class PhotographerImportSessionService extends ChangeNotifier {
       if (decoded is Iterable) {
         for (final item in decoded.whereType<Map>()) {
           _sessions.add(
-            PhotographerImportSession.fromJson(Map<String, dynamic>.from(item)),
+            PhotographerImportSession.fromJson(
+              Map<String, dynamic>.from(item),
+            ),
           );
         }
       }
@@ -146,7 +158,6 @@ class PhotographerImportSessionService extends ChangeNotifier {
             file.bytes!,
             name: file.name,
             mimeType: _mimeType(file.extension),
-            lastModified: file.lastModified,
           ),
         )
         .toList(growable: false);
@@ -165,10 +176,13 @@ class PhotographerImportSessionService extends ChangeNotifier {
     final now = DateTime.now();
     var session = previous ??
         PhotographerImportSession(
-          sessionId: '${profile.photographerId}_${now.microsecondsSinceEpoch}',
+          sessionId:
+              '${profile.photographerId}_${now.microsecondsSinceEpoch}',
           photographerId: profile.photographerId,
           galleryId: gallery.galleryId,
-          folderName: folderName?.trim().isNotEmpty == true ? folderName!.trim() : 'Import ${now.day}/${now.month}/${now.year}',
+          folderName: folderName?.trim().isNotEmpty == true
+              ? folderName!.trim()
+              : 'Import ${now.day}/${now.month}/${now.year}',
           totalFiles: files.length,
           completedFiles: const <String>[],
           failedFiles: const <String, String>{},
@@ -187,7 +201,10 @@ class PhotographerImportSessionService extends ChangeNotifier {
         if (!completed.contains(key)) pending.add(file);
       }
       if (pending.isEmpty) {
-        session = session.copyWith(status: 'completed', updatedAt: DateTime.now());
+        session = session.copyWith(
+          status: 'completed',
+          updatedAt: DateTime.now(),
+        );
         _upsert(session);
         await _persistAndSync(session);
         return session;
@@ -205,21 +222,31 @@ class PhotographerImportSessionService extends ChangeNotifier {
 
       final rejectedNames = result.rejectedFiles.keys.toSet();
       for (final file in pending) {
-        if (!rejectedNames.contains(file.name)) completed.add(await _fileKey(file));
+        if (!rejectedNames.contains(file.name)) {
+          completed.add(await _fileKey(file));
+        }
       }
-      final failed = <String, String>{...session.failedFiles, ...result.rejectedFiles};
+      final failed = <String, String>{
+        ...session.failedFiles,
+        ...result.rejectedFiles,
+      };
       final done = completed.length >= session.totalFiles && failed.isEmpty;
       session = session.copyWith(
         completedFiles: completed.toList(growable: false),
         failedFiles: failed,
-        status: done ? 'completed' : (result.uploadedPhotoIds.isEmpty ? 'failed' : 'paused'),
+        status: done
+            ? 'completed'
+            : (result.uploadedPhotoIds.isEmpty ? 'failed' : 'paused'),
         updatedAt: DateTime.now(),
       );
       _upsert(session);
       await _persistAndSync(session);
       return session;
     } catch (error) {
-      session = session.copyWith(status: 'failed', updatedAt: DateTime.now());
+      session = session.copyWith(
+        status: 'failed',
+        updatedAt: DateTime.now(),
+      );
       _upsert(session);
       await _persistAndSync(session);
       rethrow;
@@ -236,10 +263,12 @@ class PhotographerImportSessionService extends ChangeNotifier {
     notifyListeners();
   }
 
-  Future<String> _fileKey(XFile file) async => '${file.name}:${await file.length()}';
+  Future<String> _fileKey(XFile file) async =>
+      '${file.name}:${await file.length()}';
 
   void _upsert(PhotographerImportSession session) {
-    final index = _sessions.indexWhere((item) => item.sessionId == session.sessionId);
+    final index =
+        _sessions.indexWhere((item) => item.sessionId == session.sessionId);
     if (index == -1) {
       _sessions.insert(0, session);
     } else {
@@ -252,7 +281,9 @@ class PhotographerImportSessionService extends ChangeNotifier {
   Future<void> _persistAndSync(PhotographerImportSession session) async {
     await _persistLocal();
     try {
-      await _functions.httpsCallable('savePhotographerImportSession').call(<String, dynamic>{
+      await _functions
+          .httpsCallable('savePhotographerImportSession')
+          .call(<String, dynamic>{
         'photographerId': session.photographerId,
         'sessionId': session.sessionId,
         'galleryId': session.galleryId,
@@ -260,13 +291,18 @@ class PhotographerImportSessionService extends ChangeNotifier {
         'totalFiles': session.totalFiles,
         'completedFiles': session.completedFiles,
         'failedFiles': session.failedFiles.entries
-            .map((entry) => <String, String>{'name': entry.key, 'error': entry.value})
+            .map(
+              (entry) => <String, String>{
+                'name': entry.key,
+                'error': entry.value,
+              },
+            )
             .toList(growable: false),
         'status': session.status,
         'createdAt': session.createdAt.millisecondsSinceEpoch,
       });
     } catch (_) {
-      // La copie locale permet une reprise même si le réseau est momentanément absent.
+      // La copie locale permet une reprise même si le réseau est absent.
     }
   }
 
@@ -274,7 +310,9 @@ class PhotographerImportSessionService extends ChangeNotifier {
     final preferences = await SharedPreferences.getInstance();
     await preferences.setString(
       _preferenceKey,
-      jsonEncode(_sessions.map((session) => session.toJson()).toList(growable: false)),
+      jsonEncode(
+        _sessions.map((session) => session.toJson()).toList(growable: false),
+      ),
     );
   }
 
