@@ -1,0 +1,130 @@
+name: Firebase Final Production Validation
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/firebase-final-production.yml"
+      - "ops/deploy/firebase-final-*"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: maslive-production-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  deploy-and-verify:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: "3.44.4"
+          cache: true
+
+      - name: Install Flutter dependencies
+        working-directory: app
+        run: flutter pub get
+
+      - name: Write deployment manifest
+        run: |
+          cat > app/web/deployment-manifest.json <<EOF
+          {
+            "commit": "${GITHUB_SHA}",
+            "runId": "${GITHUB_RUN_ID}",
+            "repository": "${GITHUB_REPOSITORY}",
+            "deployedAt": "$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+          }
+          EOF
+
+      - name: Build Flutter Web
+        working-directory: app
+        env:
+          MAPBOX_TOKEN: ${{ secrets.MAPBOX_PUBLIC_TOKEN || secrets.MAPBOX_ACCESS_TOKEN || secrets.MAPBOX_TOKEN || vars.MAPBOX_PUBLIC_TOKEN || vars.MAPBOX_ACCESS_TOKEN || vars.MAPBOX_TOKEN }}
+          STRIPE_PUBLISHABLE_KEY: ${{ secrets.STRIPE_PUBLISHABLE_KEY || vars.STRIPE_PUBLISHABLE_KEY }}
+          STRIPE_PREMIUM_MONTHLY_PRICE_ID: ${{ secrets.STRIPE_PREMIUM_MONTHLY_PRICE_ID || vars.STRIPE_PREMIUM_MONTHLY_PRICE_ID }}
+          STRIPE_PREMIUM_YEARLY_PRICE_ID: ${{ secrets.STRIPE_PREMIUM_YEARLY_PRICE_ID || vars.STRIPE_PREMIUM_YEARLY_PRICE_ID }}
+        run: |
+          flutter build web --release \
+            --dart-define=MAPBOX_ACCESS_TOKEN="${MAPBOX_TOKEN}" \
+            --dart-define=STRIPE_PUBLISHABLE_KEY="${STRIPE_PUBLISHABLE_KEY}" \
+            --dart-define=STRIPE_PREMIUM_MONTHLY_PRICE_ID="${STRIPE_PREMIUM_MONTHLY_PRICE_ID}" \
+            --dart-define=STRIPE_PREMIUM_YEARLY_PRICE_ID="${STRIPE_PREMIUM_YEARLY_PRICE_ID}"
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: functions/package-lock.json
+
+      - name: Install Firebase dependencies
+        run: |
+          npm ci --prefix functions
+          npm install --global firebase-tools@latest
+
+      - name: Configure Firebase service account
+        env:
+          FIREBASE_SERVICE_ACCOUNT_JSON: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_MASLIVE || secrets.FIREBASE_SERVICE_ACCOUNT || secrets.GOOGLE_CREDENTIALS }}
+        run: |
+          set -euo pipefail
+          test -n "${FIREBASE_SERVICE_ACCOUNT_JSON}"
+          credentials_file="${RUNNER_TEMP}/maslive-firebase-service-account.json"
+          printf '%s' "${FIREBASE_SERVICE_ACCOUNT_JSON}" > "${credentials_file}"
+          chmod 600 "${credentials_file}"
+          node - "${credentials_file}" <<'NODE'
+          const fs = require('node:fs');
+          const file = process.argv[2];
+          const credentials = JSON.parse(fs.readFileSync(file, 'utf8'));
+          if (credentials.project_id !== 'maslive') {
+            throw new Error(`Compte de service du mauvais projet: ${credentials.project_id}`);
+          }
+          NODE
+          echo "GOOGLE_APPLICATION_CREDENTIALS=${credentials_file}" >> "${GITHUB_ENV}"
+
+      - name: Deploy Firestore and Storage
+        run: |
+          firebase deploy --project maslive \
+            --only firestore:rules,firestore:indexes,storage \
+            --non-interactive
+
+      - name: Deploy Cloud Functions
+        run: |
+          firebase deploy --project maslive \
+            --only functions \
+            --non-interactive
+
+      - name: Deploy Firebase Hosting
+        run: |
+          firebase deploy --project maslive \
+            --only hosting \
+            --non-interactive
+
+      - name: Verify production manifest
+        run: |
+          set -euo pipefail
+          expected="${GITHUB_SHA}"
+          for attempt in $(seq 1 12); do
+            manifest="$(curl --fail --silent --show-error --max-time 20 "https://maslive.web.app/deployment-manifest.json?run=${GITHUB_RUN_ID}&attempt=${attempt}" || true)"
+            if printf '%s' "${manifest}" | grep -Fq "${expected}"; then
+              echo "Production vérifiée sur le commit ${expected}."
+              exit 0
+            fi
+            sleep 10
+          done
+          echo "Le manifeste de production ne correspond pas au commit ${expected}." >&2
+          exit 1
+
+      - name: Deployment summary
+        run: |
+          echo "### Déploiement Firebase validé" >> "${GITHUB_STEP_SUMMARY}"
+          echo "- Commit : \`${GITHUB_SHA}\`" >> "${GITHUB_STEP_SUMMARY}"
+          echo "- Hosting : https://maslive.web.app" >> "${GITHUB_STEP_SUMMARY}"
+          echo "- Firestore, Storage et Functions : déployés" >> "${GITHUB_STEP_SUMMARY}"
