@@ -2,11 +2,11 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 
+import '../../../../services/checkout/unified_checkout_service.dart';
 import '../../data/models/bloom_art_item.dart';
 import '../../data/models/bloom_art_offer.dart';
 import '../../data/repositories/bloom_art_offer_repository.dart';
 import '../../data/repositories/bloom_art_repository.dart';
-import '../../../../services/checkout/unified_checkout_service.dart';
 import '../widgets/bloom_art_cta_button.dart';
 import '../widgets/bloom_art_offer_status_badge.dart';
 import 'package:masslive/ui_kit/tokens/maslive_tokens.dart';
@@ -23,7 +23,7 @@ class BloomArtOfferDetailPage extends StatefulWidget {
 
 class _BloomArtOfferDetailPageState extends State<BloomArtOfferDetailPage> {
   final BloomArtOfferRepository _offerRepository = BloomArtOfferRepository();
-  final BloomArtRepository _repository = BloomArtRepository();
+  final BloomArtRepository _itemRepository = BloomArtRepository();
   bool _busy = false;
 
   Future<bool> _confirm({
@@ -56,15 +56,15 @@ class _BloomArtOfferDetailPageState extends State<BloomArtOfferDetailPage> {
   }
 
   Future<void> _acceptOffer(BloomArtOffer offer) async {
-    final platformFee = offer.proposedPrice * .10;
-    final net = offer.proposedPrice - platformFee;
+    final fee = offer.proposedPrice * .10;
+    final net = offer.proposedPrice - fee;
     final confirmed = await _confirm(
       title: 'Accepter cette offre ?',
       message:
           'Montant proposé : ${offer.proposedPrice.toStringAsFixed(2)} €\n'
-          'Commission MASLIVE estimée : ${platformFee.toStringAsFixed(2)} €\n'
+          'Commission MASLIVE estimée : ${fee.toStringAsFixed(2)} €\n'
           'Revenu net estimé : ${net.toStringAsFixed(2)} €\n\n'
-          'L’œuvre sera réservée pendant 48 heures afin que l’acheteur règle sa commande.',
+          'L’œuvre sera réservée pendant 48 heures pour permettre le paiement.',
       action: 'Accepter et réserver',
     );
     if (!confirmed || !mounted) return;
@@ -94,7 +94,7 @@ class _BloomArtOfferDetailPageState extends State<BloomArtOfferDetailPage> {
     final confirmed = await _confirm(
       title: 'Refuser cette offre ?',
       message:
-          'Cette décision clôturera la proposition de ${offer.proposedPrice.toStringAsFixed(2)} €. L’acheteur en sera informé.',
+          'La proposition de ${offer.proposedPrice.toStringAsFixed(2)} € sera définitivement refusée.',
       action: 'Refuser',
       destructive: true,
     );
@@ -168,109 +168,30 @@ class _BloomArtOfferDetailPageState extends State<BloomArtOfferDetailPage> {
           }
           if (offerSnapshot.hasError) {
             return Center(
-              child: Text('Impossible de charger l’offre : ${offerSnapshot.error}'),
+              child: Text(
+                'Impossible de charger l’offre : ${offerSnapshot.error}',
+              ),
             );
           }
+
           final offer = offerSnapshot.data;
           if (offer == null) {
             return const Center(child: Text('Offre introuvable.'));
           }
 
-          final isSeller = currentUser.uid == offer.sellerId;
-          final isBuyer = currentUser.uid == offer.buyerId;
-
           return StreamBuilder<BloomArtItem?>(
-            stream: _repository.watchItem(offer.itemId),
+            stream: _itemRepository.watchItem(offer.itemId),
             builder: (context, itemSnapshot) {
               final item = itemSnapshot.data;
               return ListView(
-                padding: const EdgeInsets.fromLTRB(10, 16, 10, 28),
+                padding: const EdgeInsets.fromLTRB(12, 16, 12, 28),
                 children: <Widget>[
-                  Container(
-                    padding: const EdgeInsets.all(22),
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(28),
-                      border: Border.all(color: MasliveTokens.line),
-                    ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: <Widget>[
-                        Row(
-                          children: <Widget>[
-                            if (item?.images.isNotEmpty == true) ...<Widget>[
-                              ClipRRect(
-                                borderRadius: BorderRadius.circular(14),
-                                child: Image.network(
-                                  item!.images.first,
-                                  width: 64,
-                                  height: 64,
-                                  fit: BoxFit.cover,
-                                ),
-                              ),
-                              const SizedBox(width: 12),
-                            ],
-                            Expanded(
-                              child: Text(
-                                item?.title ?? 'Offre Bloom Art',
-                                style: const TextStyle(
-                                  fontSize: 24,
-                                  fontWeight: FontWeight.w900,
-                                ),
-                              ),
-                            ),
-                            BloomArtOfferStatusBadge(status: offer.status),
-                          ],
-                        ),
-                        const SizedBox(height: 14),
-                        Text(
-                          NumberFormat.currency(
-                            locale: 'fr_FR',
-                            symbol: '€',
-                          ).format(offer.proposedPrice),
-                          style: const TextStyle(
-                            fontSize: 34,
-                            fontWeight: FontWeight.w900,
-                          ),
-                        ),
-                        const SizedBox(height: 12),
-                        Text(
-                          offer.buyerMessage.trim().isEmpty
-                              ? 'Aucun message ajouté à cette offre.'
-                              : offer.buyerMessage,
-                          style: const TextStyle(
-                            color: MasliveTokens.textMuted,
-                            height: 1.45,
-                          ),
-                        ),
-                        if (offer.paymentDeadlineAt != null) ...<Widget>[
-                          const SizedBox(height: 18),
-                          _MetaLine(
-                            label: 'Paiement avant',
-                            value: DateFormat('dd/MM/yyyy à HH:mm', 'fr_FR')
-                                .format(offer.paymentDeadlineAt!.toLocal()),
-                          ),
-                        ],
-                        if (item?.sellerDisplayName.trim().isNotEmpty == true)
-                          _MetaLine(
-                            label: 'Artiste',
-                            value: item!.sellerDisplayName,
-                          ),
-                        _MetaLine(
-                          label: 'Référence',
-                          value: offer.id.substring(
-                            0,
-                            offer.id.length.clamp(0, 8),
-                          ).toUpperCase(),
-                        ),
-                      ],
-                    ),
-                  ),
+                  _OfferSummaryCard(offer: offer, item: item),
                   const SizedBox(height: 18),
                   _ActionPanel(
                     offer: offer,
-                    isSeller: isSeller,
-                    isBuyer: isBuyer,
+                    isSeller: currentUser.uid == offer.sellerId,
+                    isBuyer: currentUser.uid == offer.buyerId,
                     busy: _busy,
                     onAccept: () => _acceptOffer(offer),
                     onDecline: () => _declineOffer(offer),
@@ -281,6 +202,84 @@ class _BloomArtOfferDetailPageState extends State<BloomArtOfferDetailPage> {
             },
           );
         },
+      ),
+    );
+  }
+}
+
+class _OfferSummaryCard extends StatelessWidget {
+  const _OfferSummaryCard({required this.offer, required this.item});
+
+  final BloomArtOffer offer;
+  final BloomArtItem? item;
+
+  @override
+  Widget build(BuildContext context) {
+    final referenceLength = offer.id.length < 8 ? offer.id.length : 8;
+    final shortReference = offer.id.substring(0, referenceLength).toUpperCase();
+
+    return Container(
+      padding: const EdgeInsets.all(22),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(28),
+        border: Border.all(color: MasliveTokens.line),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: <Widget>[
+          Row(
+            children: <Widget>[
+              if (item?.images.isNotEmpty == true) ...<Widget>[
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(14),
+                  child: Image.network(
+                    item!.images.first,
+                    width: 64,
+                    height: 64,
+                    fit: BoxFit.cover,
+                  ),
+                ),
+                const SizedBox(width: 12),
+              ],
+              Expanded(
+                child: Text(
+                  item?.title ?? 'Offre Bloom Art',
+                  style: const TextStyle(
+                    fontSize: 24,
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
+              ),
+              BloomArtOfferStatusBadge(status: offer.status),
+            ],
+          ),
+          const SizedBox(height: 14),
+          Text(
+            NumberFormat.currency(locale: 'fr_FR', symbol: '€')
+                .format(offer.proposedPrice),
+            style: const TextStyle(fontSize: 34, fontWeight: FontWeight.w900),
+          ),
+          const SizedBox(height: 12),
+          Text(
+            offer.buyerMessage.trim().isEmpty
+                ? 'Aucun message ajouté à cette offre.'
+                : offer.buyerMessage,
+            style: const TextStyle(
+              color: MasliveTokens.textMuted,
+              height: 1.45,
+            ),
+          ),
+          if (offer.paymentDeadlineAt != null)
+            _MetaLine(
+              label: 'Paiement avant',
+              value: DateFormat('dd/MM/yyyy à HH:mm', 'fr_FR')
+                  .format(offer.paymentDeadlineAt!.toLocal()),
+            ),
+          if (item?.sellerDisplayName.trim().isNotEmpty == true)
+            _MetaLine(label: 'Artiste', value: item!.sellerDisplayName),
+          _MetaLine(label: 'Référence', value: shortReference),
+        ],
       ),
     );
   }
@@ -310,23 +309,21 @@ class _ActionPanel extends StatelessWidget {
     final deadlineExpired = offer.paymentDeadlineAt != null &&
         offer.paymentDeadlineAt!.isBefore(DateTime.now());
 
-    String subtitle;
-    if (isSeller && offer.isPending) {
-      subtitle =
-          'Acceptez ou refusez la proposition. Après acceptation, l’œuvre est réservée 48 heures.';
-    } else if (isBuyer && offer.checkoutEligible && offer.isAccepted) {
-      subtitle = deadlineExpired
-          ? 'Le délai de paiement est expiré. La réservation sera libérée.'
-          : 'Votre offre est acceptée. Finalisez le paiement sécurisé avant l’échéance.';
-    } else if (offer.isPaid) {
-      subtitle = 'Le paiement est confirmé. La commande est enregistrée.';
-    } else if (offer.isExpired) {
-      subtitle = 'Cette offre a expiré et l’œuvre a été remise en vente.';
-    } else if (offer.isCancelled) {
-      subtitle = 'Cette réservation a été annulée.';
-    } else {
-      subtitle = 'Suivez ici l’évolution de votre proposition Bloom Art.';
-    }
+    final subtitle = switch (offer.status) {
+      'paid' => 'Le paiement est confirmé. La vente est finalisée.',
+      'declined' => 'Cette offre a été refusée.',
+      'expired' => 'Cette offre a expiré et l’œuvre a été remise en vente.',
+      'cancelled' => 'Cette réservation a été annulée.',
+      'checkout_started' =>
+        'Le paiement a été ouvert. Il doit être finalisé avant l’échéance.',
+      _ when isSeller && offer.isPending =>
+        'Acceptez ou refusez la proposition. Une acceptation réserve l’œuvre pendant 48 heures.',
+      _ when isBuyer && offer.checkoutEligible && offer.isAccepted =>
+        deadlineExpired
+            ? 'Le délai de paiement est expiré.'
+            : 'Votre offre est acceptée. Finalisez le paiement sécurisé.',
+      _ => 'Suivez ici l’évolution de votre proposition Bloom Art.',
+    };
 
     return Container(
       padding: const EdgeInsets.all(22),
@@ -371,21 +368,6 @@ class _ActionPanel extends StatelessWidget {
               label: busy ? 'Ouverture du paiement…' : 'Payer maintenant',
               icon: Icons.credit_card_outlined,
               onPressed: busy ? null : onCheckout,
-            ),
-          ] else if (offer.isCheckoutStarted) ...<Widget>[
-            const Text(
-              'Le paiement a déjà été ouvert. Revenez à Stripe pour le finaliser avant l’échéance.',
-              style: TextStyle(fontWeight: FontWeight.w700),
-            ),
-          ] else if (offer.isDeclined) ...<Widget>[
-            const Text(
-              'Cette offre a été refusée.',
-              style: TextStyle(fontWeight: FontWeight.w700),
-            ),
-          ] else if (offer.isPaid) ...<Widget>[
-            const Text(
-              'Paiement confirmé. La vente Bloom Art est finalisée.',
-              style: TextStyle(fontWeight: FontWeight.w700),
             ),
           ],
         ],
