@@ -10,6 +10,8 @@ on:
 
 permissions:
   contents: read
+  issues: write
+  pull-requests: write
 
 concurrency:
   group: maslive-production-${{ github.ref }}
@@ -45,6 +47,8 @@ jobs:
           EOF
 
       - name: Build Flutter Web
+        id: flutter_build
+        continue-on-error: true
         working-directory: app
         env:
           MAPBOX_TOKEN: ${{ secrets.MAPBOX_PUBLIC_TOKEN || secrets.MAPBOX_ACCESS_TOKEN || secrets.MAPBOX_TOKEN || vars.MAPBOX_PUBLIC_TOKEN || vars.MAPBOX_ACCESS_TOKEN || vars.MAPBOX_TOKEN }}
@@ -59,6 +63,7 @@ jobs:
             --dart-define=STRIPE_PREMIUM_YEARLY_PRICE_ID="${STRIPE_PREMIUM_YEARLY_PRICE_ID}"
 
       - name: Setup Node.js
+        if: steps.flutter_build.outcome == 'success'
         uses: actions/setup-node@v4
         with:
           node-version: 22
@@ -66,11 +71,15 @@ jobs:
           cache-dependency-path: functions/package-lock.json
 
       - name: Install Firebase dependencies
+        if: steps.flutter_build.outcome == 'success'
         run: |
           npm ci --prefix functions
           npm install --global firebase-tools@latest
 
       - name: Configure Firebase service account
+        id: firebase_auth
+        if: steps.flutter_build.outcome == 'success'
+        continue-on-error: true
         env:
           FIREBASE_SERVICE_ACCOUNT_JSON: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_MASLIVE || secrets.FIREBASE_SERVICE_ACCOUNT || secrets.GOOGLE_CREDENTIALS }}
         run: |
@@ -90,24 +99,36 @@ jobs:
           echo "GOOGLE_APPLICATION_CREDENTIALS=${credentials_file}" >> "${GITHUB_ENV}"
 
       - name: Deploy Firestore and Storage
+        id: deploy_data
+        if: steps.firebase_auth.outcome == 'success'
+        continue-on-error: true
         run: |
           firebase deploy --project maslive \
             --only firestore:rules,firestore:indexes,storage \
             --non-interactive
 
       - name: Deploy Cloud Functions
+        id: deploy_functions
+        if: steps.firebase_auth.outcome == 'success'
+        continue-on-error: true
         run: |
           firebase deploy --project maslive \
             --only functions \
             --non-interactive
 
       - name: Deploy Firebase Hosting
+        id: deploy_hosting
+        if: steps.flutter_build.outcome == 'success' && steps.firebase_auth.outcome == 'success'
+        continue-on-error: true
         run: |
           firebase deploy --project maslive \
             --only hosting \
             --non-interactive
 
       - name: Verify production manifest
+        id: verify_manifest
+        if: steps.deploy_hosting.outcome == 'success'
+        continue-on-error: true
         run: |
           set -euo pipefail
           expected="${GITHUB_SHA}"
@@ -122,7 +143,48 @@ jobs:
           echo "Le manifeste de production ne correspond pas au commit ${expected}." >&2
           exit 1
 
+      - name: Publish final validation in PR 51
+        if: always()
+        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ github.token }}
+          BUILD_OUTCOME: ${{ steps.flutter_build.outcome }}
+          AUTH_OUTCOME: ${{ steps.firebase_auth.outcome }}
+          DATA_OUTCOME: ${{ steps.deploy_data.outcome }}
+          FUNCTIONS_OUTCOME: ${{ steps.deploy_functions.outcome }}
+          HOSTING_OUTCOME: ${{ steps.deploy_hosting.outcome }}
+          MANIFEST_OUTCOME: ${{ steps.verify_manifest.outcome }}
+        run: |
+          body=$(cat <<EOF
+          ## Validation finale Firebase
+
+          - Commit : \`${GITHUB_SHA}\`
+          - Run : https://github.com/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}
+          - Build Flutter Web : **${BUILD_OUTCOME}**
+          - Authentification Firebase : **${AUTH_OUTCOME}**
+          - Firestore et Storage : **${DATA_OUTCOME}**
+          - Cloud Functions : **${FUNCTIONS_OUTCOME}**
+          - Hosting : **${HOSTING_OUTCOME}**
+          - Manifeste de production : **${MANIFEST_OUTCOME}**
+          EOF
+          )
+          gh api --method POST \
+            "repos/${GITHUB_REPOSITORY}/issues/51/comments" \
+            -f body="${body}"
+
+      - name: Enforce final production validation
+        if: always()
+        run: |
+          set -euo pipefail
+          test "${{ steps.flutter_build.outcome }}" = "success"
+          test "${{ steps.firebase_auth.outcome }}" = "success"
+          test "${{ steps.deploy_data.outcome }}" = "success"
+          test "${{ steps.deploy_functions.outcome }}" = "success"
+          test "${{ steps.deploy_hosting.outcome }}" = "success"
+          test "${{ steps.verify_manifest.outcome }}" = "success"
+
       - name: Deployment summary
+        if: success()
         run: |
           echo "### Déploiement Firebase validé" >> "${GITHUB_STEP_SUMMARY}"
           echo "- Commit : \`${GITHUB_SHA}\`" >> "${GITHUB_STEP_SUMMARY}"
