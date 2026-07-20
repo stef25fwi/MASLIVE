@@ -2,6 +2,9 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 
+import '../../security/profile_capability_policy.dart';
+import '../../widgets/capability_guard.dart';
+
 class SellerOrderDetailPage extends StatefulWidget {
   const SellerOrderDetailPage({super.key, required this.orderId});
 
@@ -16,148 +19,201 @@ class _SellerOrderDetailPageState extends State<SellerOrderDetailPage> {
 
   @override
   Widget build(BuildContext context) {
-    final uid = FirebaseAuth.instance.currentUser?.uid;
-
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Commande'),
+    return CapabilityGuard.any(
+      anyOf: const <Capability>[
+        Capability.manageOwnGallery,
+        Capability.manageArtGallery,
+        Capability.manageGroupShop,
+        Capability.manageAllOrders,
+      ],
+      fullPage: true,
+      message: 'Vous ne disposez pas d’un espace vendeur autorisé.',
+      child: _OrderContent(
+        orderId: widget.orderId,
+        saving: _saving,
+        onSetStatus: _setStatus,
       ),
+    );
+  }
+
+  Future<void> _setStatus(String newStatus) async {
+    setState(() => _saving = true);
+    try {
+      final uid = FirebaseAuth.instance.currentUser?.uid;
+      final profile = await ProfileCapabilityPolicy.instance.resolveCurrent();
+      if (uid == null || profile == null) {
+        throw StateError('Connexion requise');
+      }
+
+      final ref = FirebaseFirestore.instance.collection('orders').doc(widget.orderId);
+      await FirebaseFirestore.instance.runTransaction((transaction) async {
+        final snapshot = await transaction.get(ref);
+        if (!snapshot.exists) throw StateError('Commande introuvable');
+        final data = snapshot.data() ?? <String, dynamic>{};
+        final items = data['items'] is List
+            ? (data['items'] as List).whereType<Map>().toList(growable: false)
+            : const <Map>[];
+        final ownsItem = items.any(
+          (item) => (item['sellerId'] ?? '').toString() == uid,
+        );
+        final canManageAll = profile.can(Capability.manageAllOrders);
+        if (!ownsItem && !canManageAll) {
+          throw StateError('Cette commande ne contient aucun article de votre espace vendeur.');
+        }
+
+        transaction.update(ref, <String, dynamic>{
+          'sellerStatuses.$uid': newStatus,
+          if (newStatus == 'validated')
+            'sellerValidatedAt.$uid': FieldValue.serverTimestamp(),
+          if (newStatus == 'rejected')
+            'sellerRejectedAt.$uid': FieldValue.serverTimestamp(),
+          'updatedAt': FieldValue.serverTimestamp(),
+        });
+      });
+    } catch (error) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Erreur : $error')),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _saving = false);
+    }
+  }
+}
+
+class _OrderContent extends StatelessWidget {
+  const _OrderContent({
+    required this.orderId,
+    required this.saving,
+    required this.onSetStatus,
+  });
+
+  final String orderId;
+  final bool saving;
+  final Future<void> Function(String status) onSetStatus;
+
+  @override
+  Widget build(BuildContext context) {
+    final uid = FirebaseAuth.instance.currentUser?.uid;
+    return Scaffold(
+      appBar: AppBar(title: const Text('Commande vendeur')),
       body: StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
-        stream: FirebaseFirestore.instance.collection('orders').doc(widget.orderId).snapshots(),
-        builder: (context, snap) {
-          if (!snap.hasData) {
+        stream: FirebaseFirestore.instance.collection('orders').doc(orderId).snapshots(),
+        builder: (context, snapshot) {
+          if (!snapshot.hasData) {
             return const Center(child: CircularProgressIndicator());
           }
-
-          final doc = snap.data!;
-          if (!doc.exists) {
+          final document = snapshot.data!;
+          if (!document.exists) {
             return const Center(child: Text('Commande introuvable'));
           }
 
-          final data = doc.data() ?? {};
-          final status = (data['status'] ?? 'pending').toString();
-          final buyerId = (data['buyerId'] ?? data['userId'] ?? '').toString();
-            final shippingAddress = (data['shippingAddress'] is Map)
-              ? (data['shippingAddress'] as Map).cast<String, dynamic>()
+          final data = document.data() ?? <String, dynamic>{};
+          final allItems = data['items'] is List
+              ? (data['items'] as List).whereType<Map>().toList(growable: false)
+              : const <Map>[];
+          final myItems = allItems
+              .where((item) => (item['sellerId'] ?? '').toString() == uid)
+              .toList(growable: false);
+          final sellerStatuses = data['sellerStatuses'] is Map
+              ? Map<String, dynamic>.from(data['sellerStatuses'] as Map)
               : const <String, dynamic>{};
-          final items = (data['items'] is List) ? (data['items'] as List).cast<dynamic>() : const <dynamic>[];
+          final status = (sellerStatuses[uid] ?? 'pending').toString();
 
-          final myItems = uid == null
-              ? items
-              : items.where((it) {
-                  if (it is! Map) return false;
-                  final sellerId = (it['sellerId'] ?? '').toString();
-                  return sellerId.isEmpty || sellerId == uid;
-                }).toList();
+          if (myItems.isEmpty) {
+            return const Center(
+              child: Padding(
+                padding: EdgeInsets.all(24),
+                child: Text(
+                  'Cette commande ne contient aucun article appartenant à votre espace vendeur.',
+                  textAlign: TextAlign.center,
+                ),
+              ),
+            );
+          }
 
-          final totalPrice = data['totalPrice'];
-          final total = totalPrice is num ? totalPrice.toInt() : 0;
+          final shippingAddress = data['shippingAddress'] is Map
+              ? Map<String, dynamic>.from(data['shippingAddress'] as Map)
+              : const <String, dynamic>{};
+          final sellerTotal = myItems.fold<int>(0, (sum, item) {
+            final quantity = (item['qty'] ?? item['quantity'] ?? 1) as num? ?? 1;
+            final price = (item['priceCents'] ?? item['pricePerUnit'] ?? 0) as num? ?? 0;
+            return sum + quantity.toInt() * price.toInt();
+          });
 
           return ListView(
             padding: const EdgeInsets.all(16),
-            children: [
+            children: <Widget>[
               Text(
-                'Commande #${widget.orderId.substring(0, 8).toUpperCase()}',
-                style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 16),
+                'Commande #${orderId.substring(0, orderId.length.clamp(0, 8)).toUpperCase()}',
+                style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 18),
               ),
               const SizedBox(height: 10),
-              Text('Acheteur: $buyerId', style: const TextStyle(color: Colors.black54)),
-              if (shippingAddress.isNotEmpty) ...[
-                const SizedBox(height: 10),
-                Container(
-                  padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                    color: Colors.grey.withValues(alpha: 0.06),
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: Colors.black.withValues(alpha: 0.06)),
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const Text('Livraison', style: TextStyle(fontWeight: FontWeight.w900)),
-                      const SizedBox(height: 6),
-                      Text(
-                        '${(shippingAddress['firstName'] ?? '').toString()} ${(shippingAddress['lastName'] ?? '').toString()}'.trim(),
-                        style: const TextStyle(fontWeight: FontWeight.w700),
-                      ),
-                      const SizedBox(height: 4),
-                      if (((shippingAddress['addressLine1'] ?? '').toString()).trim().isNotEmpty)
+              _StatusChip(status: status),
+              if (shippingAddress.isNotEmpty) ...<Widget>[
+                const SizedBox(height: 14),
+                Card(
+                  child: Padding(
+                    padding: const EdgeInsets.all(14),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: <Widget>[
+                        const Text('Livraison', style: TextStyle(fontWeight: FontWeight.w900)),
+                        const SizedBox(height: 6),
+                        Text(
+                          '${shippingAddress['firstName'] ?? ''} ${shippingAddress['lastName'] ?? ''}'.trim(),
+                        ),
                         Text((shippingAddress['addressLine1'] ?? '').toString()),
-                      if (((shippingAddress['addressLine2'] ?? '').toString()).trim().isNotEmpty)
-                        Text((shippingAddress['addressLine2'] ?? '').toString()),
-                      const SizedBox(height: 4),
-                      Text(
-                        [
-                          (shippingAddress['zip'] ?? '').toString().trim(),
-                          (shippingAddress['region'] ?? '').toString().trim(),
-                          (shippingAddress['country'] ?? '').toString().trim(),
-                        ].where((s) => s.isNotEmpty).join(' '),
-                        style: const TextStyle(color: Colors.black87),
-                      ),
-                      const SizedBox(height: 6),
-                      if (((shippingAddress['email'] ?? '').toString()).trim().isNotEmpty)
-                        Text('Email: ${(shippingAddress['email'] ?? '').toString()}', style: const TextStyle(color: Colors.black54)),
-                      if (((shippingAddress['phone'] ?? '').toString()).trim().isNotEmpty)
-                        Text('Téléphone: ${(shippingAddress['phone'] ?? '').toString()}', style: const TextStyle(color: Colors.black54)),
-                    ],
+                        Text(
+                          <String>[
+                            (shippingAddress['zip'] ?? '').toString(),
+                            (shippingAddress['region'] ?? '').toString(),
+                            (shippingAddress['country'] ?? '').toString(),
+                          ].where((value) => value.trim().isNotEmpty).join(' '),
+                        ),
+                      ],
+                    ),
                   ),
                 ),
               ],
-              const SizedBox(height: 10),
-              _StatusChip(status: status),
               const SizedBox(height: 16),
-              const Divider(),
-              const SizedBox(height: 12),
-              const Text('Articles', style: TextStyle(fontWeight: FontWeight.w900)),
+              const Text('Mes articles', style: TextStyle(fontWeight: FontWeight.w900)),
               const SizedBox(height: 8),
-              ...myItems.map((it) {
-                final m = it is Map ? it : <String, dynamic>{};
-                final title = (m['title'] ?? '').toString();
-                final qty = (m['qty'] ?? m['quantity'] ?? 1);
-                final q = qty is num ? qty.toInt() : 1;
-                final priceCents = (m['priceCents'] ?? m['pricePerUnit'] ?? 0);
-                final p = priceCents is num ? priceCents.toInt() : 0;
-                return Padding(
-                  padding: const EdgeInsets.only(bottom: 10),
-                  child: Row(
-                    children: [
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(title.isEmpty ? 'Article' : title, style: const TextStyle(fontWeight: FontWeight.w700)),
-                            Text('x$q', style: const TextStyle(color: Colors.black54, fontSize: 12)),
-                          ],
-                        ),
-                      ),
-                      Text('${((p * q) / 100).toStringAsFixed(2)}€', style: const TextStyle(fontWeight: FontWeight.w900)),
-                    ],
-                  ),
+              ...myItems.map((item) {
+                final title = (item['title'] ?? 'Article').toString();
+                final quantity = ((item['qty'] ?? item['quantity'] ?? 1) as num? ?? 1).toInt();
+                final price = ((item['priceCents'] ?? item['pricePerUnit'] ?? 0) as num? ?? 0).toInt();
+                return ListTile(
+                  contentPadding: EdgeInsets.zero,
+                  title: Text(title, style: const TextStyle(fontWeight: FontWeight.w700)),
+                  subtitle: Text('Quantité : $quantity'),
+                  trailing: Text('${((price * quantity) / 100).toStringAsFixed(2)} €'),
                 );
               }),
-              const Divider(height: 24),
+              const Divider(height: 30),
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  const Text('Total', style: TextStyle(fontWeight: FontWeight.w900)),
-                  Text('${(total / 100).toStringAsFixed(2)}€', style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 16)),
+                children: <Widget>[
+                  const Text('Total de mon espace', style: TextStyle(fontWeight: FontWeight.w900)),
+                  Text('${(sellerTotal / 100).toStringAsFixed(2)} €'),
                 ],
               ),
-              const SizedBox(height: 18),
-              if (status == 'pending') ...[
+              if (status == 'pending') ...<Widget>[
+                const SizedBox(height: 20),
                 Row(
-                  children: [
+                  children: <Widget>[
                     Expanded(
-                      child: ElevatedButton.icon(
-                        onPressed: _saving ? null : () => _setStatus('validated'),
+                      child: FilledButton.icon(
+                        onPressed: saving ? null : () => onSetStatus('validated'),
                         icon: const Icon(Icons.check),
-                        label: const Text('Valider'),
+                        label: const Text('Valider mes articles'),
                       ),
                     ),
                     const SizedBox(width: 12),
                     Expanded(
                       child: OutlinedButton.icon(
-                        onPressed: _saving ? null : () => _setStatus('rejected'),
+                        onPressed: saving ? null : () => onSetStatus('rejected'),
                         icon: const Icon(Icons.close),
                         label: const Text('Rejeter'),
                       ),
@@ -171,27 +227,6 @@ class _SellerOrderDetailPageState extends State<SellerOrderDetailPage> {
       ),
     );
   }
-
-  Future<void> _setStatus(String newStatus) async {
-    setState(() => _saving = true);
-    try {
-      final ref = FirebaseFirestore.instance.collection('orders').doc(widget.orderId);
-      await ref.update({
-        'status': newStatus,
-        if (newStatus == 'validated') 'validatedAt': FieldValue.serverTimestamp(),
-        if (newStatus == 'rejected') 'rejectedAt': FieldValue.serverTimestamp(),
-        'updatedAt': FieldValue.serverTimestamp(),
-      });
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Erreur: $e')),
-        );
-      }
-    } finally {
-      if (mounted) setState(() => _saving = false);
-    }
-  }
 }
 
 class _StatusChip extends StatelessWidget {
@@ -201,46 +236,24 @@ class _StatusChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    Color color;
-    String label;
-    switch (status) {
-      case 'confirmed':
-        color = Colors.blue;
-        label = 'Confirmée';
-        break;
-      case 'processing':
-        color = Colors.blueGrey;
-        label = 'En cours';
-        break;
-      case 'validated':
-        color = Colors.green;
-        label = 'Validée';
-        break;
-      case 'rejected':
-        color = Colors.red;
-        label = 'Rejetée';
-        break;
-      case 'paid':
-        color = Colors.blue;
-        label = 'Payée';
-        break;
-      case 'pending':
-      default:
-        color = Colors.orange;
-        label = 'En attente';
-        break;
-    }
-
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-      decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.12),
-        borderRadius: BorderRadius.circular(999),
-        border: Border.all(color: color.withValues(alpha: 0.35)),
-      ),
-      child: Text(
-        label,
-        style: TextStyle(fontWeight: FontWeight.w900, color: color),
+    final color = switch (status) {
+      'validated' => Colors.green,
+      'rejected' => Colors.red,
+      'processing' => Colors.blueGrey,
+      _ => Colors.orange,
+    };
+    final label = switch (status) {
+      'validated' => 'Validée',
+      'rejected' => 'Rejetée',
+      'processing' => 'En cours',
+      _ => 'En attente',
+    };
+    return Align(
+      alignment: Alignment.centerLeft,
+      child: Chip(
+        label: Text(label),
+        side: BorderSide(color: color.withValues(alpha: 0.4)),
+        backgroundColor: color.withValues(alpha: 0.12),
       ),
     );
   }
