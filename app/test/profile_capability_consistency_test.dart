@@ -75,6 +75,6 @@ void main() {
     expect(bloom, contains('Capability.submitArtwork'));
     expect(tracker, contains('Capability.trackOwnLocation'));
     expect(sellerOrder, contains('CapabilityGuard.any'));
-    expect(sellerOrder, contains('sellerStatuses.$uid'));
+    expect(sellerOrder, contains(r'sellerStatuses.$uid'));
   });
 }
