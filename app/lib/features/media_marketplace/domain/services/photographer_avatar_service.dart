@@ -72,7 +72,6 @@ class PhotographerAvatarService {
     await _firestore.collection('photographers').doc(photographerId).set(
       <String, dynamic>{
         'avatarUrl': url,
-        'avatarStoragePath': path,
         'updatedAt': FieldValue.serverTimestamp(),
       },
       SetOptions(merge: true),
