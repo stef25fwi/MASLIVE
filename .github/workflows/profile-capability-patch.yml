@@ -4,13 +4,16 @@ on:
   push:
     branches:
       - fix/profile-capability-consistency
+  pull_request:
+    branches:
+      - main
 
 permissions:
   contents: write
 
 jobs:
   patch-routes:
-    if: ${{ !contains(github.event.head_commit.message, '[profile-route-patch]') }}
+    if: ${{ !contains(github.event.head_commit.message || '', '[profile-route-patch]') }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -159,7 +162,12 @@ jobs:
           path.write_text(text)
 
           group_path = Path('app/lib/pages/group/admin_group_dashboard_page.dart')
-          group_text = group_path.read_text().replace('subtitle: message,', 'message: message,')
+          group_text = group_path.read_text()
+          group_text = group_text.replace('subtitle: message,', 'message: message,')
+          group_text = group_text.replace(
+              'buildGroupQrPayload(\n      code: admin.adminGroupId,',
+              'buildGroupQrPayload(\n      admin.adminGroupId,',
+          )
           group_path.write_text(group_text)
 
       - name: Ensure migration changed the route guards
@@ -169,6 +177,7 @@ jobs:
           grep -q "Capability.trackOwnLocation" app/lib/main.dart
           grep -q "Capability.manageAllOrders" app/lib/main.dart
           grep -q "Capability.accessAdminPanel" app/lib/main.dart
+          ! grep -q "subtitle: message" app/lib/pages/group/admin_group_dashboard_page.dart
 
       - name: Remove one-time migration workflow
         run: rm .github/workflows/profile-capability-patch.yml
