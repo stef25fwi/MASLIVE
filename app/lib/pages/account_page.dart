@@ -579,8 +579,7 @@ class _AccountTileData {
     required this.title,
     required this.subtitle,
     required this.route,
-    this.arguments,
-  });
+  }) : arguments = null;
 
   final IconData icon;
   final String title;

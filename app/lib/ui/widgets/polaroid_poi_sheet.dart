@@ -341,14 +341,14 @@ class _PhotoAreaState extends State<_PhotoArea> {
     final Widget image = url.isEmpty
         ? const _PhotoFallback()
         : url.startsWith('assets/') || url.startsWith('/assets/')
-            ? Image.asset(url.startsWith('/') ? url.substring(1) : url, fit: BoxFit.cover, errorBuilder: (_, __, ___) => const _PhotoFallback())
-            : Image.network(url, fit: BoxFit.cover, loadingBuilder: (_, child, progress) => progress == null ? child : const Center(child: CircularProgressIndicator(strokeWidth: 2)), errorBuilder: (_, __, ___) => const _PhotoFallback());
+            ? Image.asset(url.startsWith('/') ? url.substring(1) : url, fit: BoxFit.cover, errorBuilder: (_, _, _) => const _PhotoFallback())
+            : Image.network(url, fit: BoxFit.cover, loadingBuilder: (_, child, progress) => progress == null ? child : const Center(child: CircularProgressIndicator(strokeWidth: 2)), errorBuilder: (_, _, _) => const _PhotoFallback());
     return Stack(
       fit: StackFit.expand,
       children: [
         image,
         IgnorePointer(
-          child: Image.asset(_frameAssetPath, fit: BoxFit.cover, errorBuilder: (_, __, ___) => const SizedBox.shrink()),
+          child: Image.asset(_frameAssetPath, fit: BoxFit.cover, errorBuilder: (_, _, _) => const SizedBox.shrink()),
         ),
       ],
     );
@@ -368,7 +368,7 @@ class _PhotoFallback extends StatelessWidget {
           width: 116,
           height: 116,
           fit: BoxFit.contain,
-          errorBuilder: (_, __, ___) => const Icon(Icons.place_rounded, size: 54, color: Colors.black38),
+          errorBuilder: (_, _, _) => const Icon(Icons.place_rounded, size: 54, color: Colors.black38),
         ),
       ),
     );
