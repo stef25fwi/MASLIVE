@@ -1,0 +1,1 @@
+Relance finale du déploiement Firebase après attribution des rôles IAM Secrets et Extensions.
