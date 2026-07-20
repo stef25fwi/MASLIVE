@@ -1,3 +1,4 @@
+import 'package:cloud_functions/cloud_functions.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -37,6 +38,31 @@ class _PhotographerSubscriptionView extends StatefulWidget {
 class _PhotographerSubscriptionViewState
     extends State<_PhotographerSubscriptionView> {
   String _billingInterval = 'month';
+  String? _creditPhotographerId;
+  Future<Map<String, dynamic>>? _creditFuture;
+
+  Future<Map<String, dynamic>> _loadAiCredits(String photographerId) async {
+    final response = await FirebaseFunctions.instanceFor(region: 'us-east1')
+        .httpsCallable('getPhotographerAiCreditBalance')
+        .call(<String, dynamic>{'photographerId': photographerId});
+    return Map<String, dynamic>.from(response.data as Map);
+  }
+
+  Future<Map<String, dynamic>>? _creditBalanceFor(String? photographerId) {
+    final normalized = photographerId?.trim();
+    if (normalized == null || normalized.isEmpty) return null;
+    if (_creditFuture == null || _creditPhotographerId != normalized) {
+      _creditPhotographerId = normalized;
+      _creditFuture = _loadAiCredits(normalized);
+    }
+    return _creditFuture;
+  }
+
+  void _refreshCredits() {
+    final id = _creditPhotographerId;
+    if (id == null || id.isEmpty) return;
+    setState(() => _creditFuture = _loadAiCredits(id));
+  }
 
   Future<void> _openCheckout(
     BuildContext context,
@@ -80,6 +106,8 @@ class _PhotographerSubscriptionViewState
         controller.activeSubscription?.quotaSnapshot.planCode ??
             controller.profile?.activePlanId ??
             'discovery';
+    final creditFuture =
+        _creditBalanceFor(controller.profile?.photographerId);
 
     return Scaffold(
       backgroundColor: MasliveTheme.surfaceAlt,
@@ -114,11 +142,16 @@ class _PhotographerSubscriptionViewState
                                   status:
                                       controller.activeSubscription?.status.name,
                                 ),
-                                const SizedBox(height: 18),
+                                const SizedBox(height: 14),
+                                _AiCreditBalanceCard(
+                                  future: creditFuture,
+                                  onRefresh: _refreshCredits,
+                                ),
+                                const SizedBox(height: 22),
                                 MediaMarketplaceSectionHeader(
                                   title: 'Formules photographes',
                                   subtitle:
-                                      'Quotas, qualité, conservation et commission selon la formule.',
+                                      'L’abonnement finance le stockage et les outils. Les analyses IA utilisent un solde séparé.',
                                   trailing: SegmentedButton<String>(
                                     segments: const <ButtonSegment<String>>[
                                       ButtonSegment<String>(
@@ -193,40 +226,49 @@ class _PhotographerSubscriptionViewState
                                   ),
                                 const SizedBox(height: 26),
                                 const MediaMarketplaceSectionHeader(
-                                  title: 'Extensions de stockage',
+                                  title: 'Extensions et crédits IA',
                                   subtitle:
-                                      'Les ventes restent actives. À 100 %, seuls les nouveaux imports sont suspendus.',
+                                      'Capacité récurrente, crédits à achat unique ou renfort événementiel de 30 jours.',
                                 ),
                                 const SizedBox(height: 12),
-                                Wrap(
-                                  spacing: 12,
-                                  runSpacing: 12,
-                                  children: MediaMarketplacePricing
-                                      .storageExtensions
-                                      .map(
-                                        (extension) => SizedBox(
-                                          width: 310,
-                                          child: _ExtensionCard(
-                                            extension: extension,
-                                            loading:
-                                                controller.processingCheckout,
-                                            onSelect: () => _openCheckout(
-                                              context,
-                                              controller,
-                                              planId:
-                                                  'extension:${extension.code}',
-                                              billingInterval:
-                                                  extension.durationDays == null
-                                                      ? 'month'
-                                                      : 'one_time',
+                                LayoutBuilder(
+                                  builder: (context, constraints) {
+                                    final width = constraints.maxWidth >= 1050
+                                        ? (constraints.maxWidth - 24) / 3
+                                        : constraints.maxWidth >= 680
+                                            ? (constraints.maxWidth - 12) / 2
+                                            : constraints.maxWidth;
+                                    return Wrap(
+                                      spacing: 12,
+                                      runSpacing: 12,
+                                      children: MediaMarketplacePricing
+                                          .storageExtensions
+                                          .map(
+                                            (extension) => SizedBox(
+                                              width: width,
+                                              child: _ExtensionCard(
+                                                extension: extension,
+                                                loading: controller
+                                                    .processingCheckout,
+                                                onSelect: () => _openCheckout(
+                                                  context,
+                                                  controller,
+                                                  planId:
+                                                      'extension:${extension.code}',
+                                                  billingInterval:
+                                                      extension.recurring
+                                                          ? 'month'
+                                                          : 'one_time',
+                                                ),
+                                              ),
                                             ),
-                                          ),
-                                        ),
-                                      )
-                                      .toList(growable: false),
+                                          )
+                                          .toList(growable: false),
+                                    );
+                                  },
                                 ),
                                 const SizedBox(height: 26),
-                                const _CommercialReminder(),
+                                const _BusinessModelReminder(),
                               ],
                             ),
                     ),
@@ -283,7 +325,173 @@ class _ActivePlanCard extends StatelessWidget {
           '${plan.maxPublishedPhotos} photos • '
           '${(plan.maxStorageBytes / (1024 * 1024 * 1024)).round()} Go • '
           '${(plan.commissionRate * 100).round()} % de commission'
-          '${status == null ? '' : ' • $status'}',
+          '${status == null ? '' : ' • $status'}\n'
+          'Les crédits IA sont achetés séparément et ne sont débités que lors d’une analyse.',
+        ),
+        isThreeLine: true,
+      ),
+    );
+  }
+}
+
+class _AiCreditBalanceCard extends StatelessWidget {
+  const _AiCreditBalanceCard({
+    required this.future,
+    required this.onRefresh,
+  });
+
+  final Future<Map<String, dynamic>>? future;
+  final VoidCallback onRefresh;
+
+  int _remaining(Map<String, dynamic> data, String mode) {
+    final raw = data[mode];
+    if (raw is! Map) return 0;
+    return (raw['remaining'] as num?)?.toInt() ?? 0;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (future == null) {
+      return const Card(
+        child: ListTile(
+          leading: Icon(Icons.auto_awesome_outlined),
+          title: Text('Crédits IA'),
+          subtitle: Text('Crée ou charge ton profil photographe pour consulter le solde.'),
+        ),
+      );
+    }
+    return FutureBuilder<Map<String, dynamic>>(
+      future: future,
+      builder: (context, snapshot) {
+        if (snapshot.connectionState != ConnectionState.done) {
+          return const Card(
+            child: ListTile(
+              leading: CircularProgressIndicator(),
+              title: Text('Chargement des crédits IA'),
+            ),
+          );
+        }
+        if (snapshot.hasError) {
+          return Card(
+            child: ListTile(
+              leading: const Icon(Icons.error_outline),
+              title: const Text('Solde IA indisponible'),
+              subtitle: Text('${snapshot.error}'),
+              trailing: IconButton(
+                onPressed: onRefresh,
+                icon: const Icon(Icons.refresh_rounded),
+              ),
+            ),
+          );
+        }
+        final data = snapshot.data ?? const <String, dynamic>{};
+        final basic = _remaining(data, 'basic');
+        final advanced = _remaining(data, 'advanced');
+        return Card(
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: <Widget>[
+                Row(
+                  children: <Widget>[
+                    const Icon(Icons.auto_awesome_rounded),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Text(
+                        'Solde de crédits IA',
+                        style: Theme.of(context)
+                            .textTheme
+                            .titleMedium
+                            ?.copyWith(fontWeight: FontWeight.w900),
+                      ),
+                    ),
+                    IconButton(
+                      tooltip: 'Actualiser',
+                      onPressed: onRefresh,
+                      icon: const Icon(Icons.refresh_rounded),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                Wrap(
+                  spacing: 12,
+                  runSpacing: 12,
+                  children: <Widget>[
+                    _CreditMetric(
+                      label: 'OCR / couleurs',
+                      value: '$basic',
+                      icon: Icons.document_scanner_outlined,
+                    ),
+                    _CreditMetric(
+                      label: 'Analyse avancée',
+                      value: '$advanced',
+                      icon: Icons.face_retouching_natural_outlined,
+                    ),
+                    const _CreditMetric(
+                      label: 'Coût prévisionnel',
+                      value: '0,01 € / analyse',
+                      icon: Icons.savings_outlined,
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 10),
+                const Text(
+                  'Première analyse : 1 crédit • Réanalyse manuelle : 1 crédit • '
+                  'déplacement, prix et tags : 0 crédit.',
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+}
+
+class _CreditMetric extends StatelessWidget {
+  const _CreditMetric({
+    required this.label,
+    required this.value,
+    required this.icon,
+  });
+
+  final String label;
+  final String value;
+  final IconData icon;
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      width: 210,
+      child: DecoratedBox(
+        decoration: BoxDecoration(
+          color: Theme.of(context).colorScheme.surfaceContainerHighest,
+          borderRadius: BorderRadius.circular(14),
+        ),
+        child: Padding(
+          padding: const EdgeInsets.all(12),
+          child: Row(
+            children: <Widget>[
+              Icon(icon),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: <Widget>[
+                    Text(label, style: Theme.of(context).textTheme.bodySmall),
+                    Text(
+                      value,
+                      style: Theme.of(context)
+                          .textTheme
+                          .titleMedium
+                          ?.copyWith(fontWeight: FontWeight.w900),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -368,6 +576,7 @@ class _PlanCard extends StatelessWidget {
             _FeatureLine(
               'Commission MASLIVE ${(spec.commissionRate * 100).round()} %',
             ),
+            const _FeatureLine('Crédits IA achetés séparément'),
             for (final feature in spec.features) _FeatureLine(feature),
             const SizedBox(height: 16),
             SizedBox(
@@ -422,6 +631,15 @@ class _ExtensionCard extends StatelessWidget {
   final bool loading;
   final VoidCallback onSelect;
 
+  IconData get _icon {
+    if (extension.kind == 'ai_basic') return Icons.document_scanner_outlined;
+    if (extension.kind == 'ai_advanced') {
+      return Icons.face_retouching_natural_outlined;
+    }
+    if (extension.isEventPack) return Icons.event_available_outlined;
+    return Icons.cloud_outlined;
+  }
+
   @override
   Widget build(BuildContext context) {
     return Card(
@@ -430,27 +648,51 @@ class _ExtensionCard extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: <Widget>[
-            Text(
-              extension.title,
-              style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                    fontWeight: FontWeight.w900,
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: <Widget>[
+                CircleAvatar(child: Icon(_icon)),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Text(
+                    extension.title,
+                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                          fontWeight: FontWeight.w900,
+                        ),
                   ),
+                ),
+              ],
             ),
             const SizedBox(height: 8),
+            Text(extension.description),
+            const SizedBox(height: 10),
             Text(
-              '${extension.monthlyPrice.toStringAsFixed(2)} €'
-              '${extension.durationDays == null ? ' / mois' : ' pour ${extension.durationDays} jours'}',
+              extension.billingLabel,
+              style: Theme.of(context)
+                  .textTheme
+                  .titleMedium
+                  ?.copyWith(fontWeight: FontWeight.w900),
             ),
-            const SizedBox(height: 6),
-            Text(
-              '+${extension.extraPhotos} photos • '
-              '+${(extension.extraStorageBytes / (1024 * 1024 * 1024)).round()} Go',
-            ),
+            const SizedBox(height: 8),
+            for (final line in extension.capacityLines)
+              Padding(
+                padding: const EdgeInsets.only(bottom: 5),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: <Widget>[
+                    const Icon(Icons.check_rounded, size: 18),
+                    const SizedBox(width: 6),
+                    Expanded(child: Text(line)),
+                  ],
+                ),
+              ),
             const SizedBox(height: 12),
             OutlinedButton.icon(
               onPressed: loading ? null : onSelect,
               icon: const Icon(Icons.add_circle_outline_rounded),
-              label: const Text('Ajouter cette extension'),
+              label: Text(
+                extension.recurring ? 'Ajouter au forfait' : 'Acheter ce pack',
+              ),
             ),
           ],
         ),
@@ -459,8 +701,8 @@ class _ExtensionCard extends StatelessWidget {
   }
 }
 
-class _CommercialReminder extends StatelessWidget {
-  const _CommercialReminder();
+class _BusinessModelReminder extends StatelessWidget {
+  const _BusinessModelReminder();
 
   @override
   Widget build(BuildContext context) {
@@ -472,21 +714,30 @@ class _CommercialReminder extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: <Widget>[
             Text(
-              'Packs acheteurs MASLIVE',
+              'Modèle économique MASLIVE Photo',
               style: TextStyle(
                 color: Colors.white,
                 fontSize: 18,
                 fontWeight: FontWeight.w900,
               ),
             ),
-            SizedBox(height: 8),
+            SizedBox(height: 10),
             Text(
-              '1 photo 6,90 € • 2 photos 10,90 € • 5 photos 19,90 € • 10 photos 29,90 € • 20 photos 44,90 €',
-              style: TextStyle(color: Colors.white70),
+              'Abonnement = stockage et outils de gestion',
+              style: TextStyle(color: Colors.white),
             ),
-            SizedBox(height: 6),
             Text(
-              'Le panier applique automatiquement la combinaison de packs la plus avantageuse.',
+              'Crédits IA = première analyse et réanalyses manuelles',
+              style: TextStyle(color: Colors.white),
+            ),
+            Text(
+              'Commission sur vente = paiement, trafic et téléchargement',
+              style: TextStyle(color: Colors.white),
+            ),
+            SizedBox(height: 10),
+            Text(
+              'Une photo consomme 1 emplacement actif + son volume réel. '
+              'Elle ne consomme un crédit IA qu’au moment où une analyse est effectivement lancée.',
               style: TextStyle(color: Colors.white70),
             ),
           ],
