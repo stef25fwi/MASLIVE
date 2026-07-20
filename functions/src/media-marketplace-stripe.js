@@ -57,7 +57,18 @@
  * handleMarketplaceInvoicePaymentFailed
  */
 
+const { AsyncLocalStorage } = require("node:async_hooks")
 const createImplementation = require("./media-marketplace-stripe-profitability")
+const { mediaDeliveryQuote } = require("./media-marketplace-pricing")
+const {
+  normalizeMediaDeliveryOptions,
+  mediaDeliveryOptionsFromPayload,
+  buildMediaDeliveryOrderPatch,
+  appendMediaDeliveryLineItem,
+  adjustMarketplaceOrderResult,
+} = require("./media-marketplace-delivery-policy")
+
+const mediaDeliveryContext = new AsyncLocalStorage()
 
 function databaseWithTransactionFallback(db) {
   if (typeof db?.runTransaction === "function") return db
@@ -99,6 +110,78 @@ function unique(values) {
   return [...new Set((Array.isArray(values) ? values : []).filter(Boolean))]
 }
 
+function stripeWithMediaDeliveryPolicy(stripe, deliveryOptions) {
+  const sessions = stripe?.checkout?.sessions
+  if (!sessions || typeof sessions.create !== "function") return stripe
+
+  const sessionsProxy = new Proxy(sessions, {
+    get(target, property) {
+      if (property === "create") {
+        return (payload, ...args) => target.create(
+          appendMediaDeliveryLineItem(payload, deliveryOptions),
+          ...args,
+        )
+      }
+      const value = target[property]
+      return typeof value === "function" ? value.bind(target) : value
+    },
+  })
+  const checkoutProxy = new Proxy(stripe.checkout, {
+    get(target, property) {
+      if (property === "sessions") return sessionsProxy
+      const value = target[property]
+      return typeof value === "function" ? value.bind(target) : value
+    },
+  })
+
+  return new Proxy(stripe, {
+    get(target, property) {
+      if (property === "checkout") return checkoutProxy
+      const value = target[property]
+      return typeof value === "function" ? value.bind(target) : value
+    },
+  })
+}
+
+async function persistMediaDeliveryPolicy({
+  db,
+  orderId,
+  deliveryOptions,
+  HttpsError,
+  serverTimestamp,
+}) {
+  if (!orderId) {
+    throw new HttpsError("failed-precondition", "Marketplace order is missing")
+  }
+  const normalized = normalizeMediaDeliveryOptions(deliveryOptions)
+  const orderRef = db.collection("orders").doc(orderId)
+
+  return db.runTransaction(async (transaction) => {
+    const snapshot = await transaction.get(orderRef)
+    if (!snapshot.exists) {
+      throw new HttpsError("not-found", "Marketplace order not found")
+    }
+    const order = snapshot.data() || {}
+    const existing = order.mediaDeliveryOptions
+    if (existing && typeof existing === "object" && existing.hdUpgrade !== normalized.hdUpgrade) {
+      throw new HttpsError(
+        "failed-precondition",
+        "Media delivery option is immutable once checkout starts",
+      )
+    }
+
+    const selectedOptions = existing && typeof existing === "object"
+      ? normalizeMediaDeliveryOptions(existing)
+      : normalized
+    const patch = buildMediaDeliveryOrderPatch(order, selectedOptions)
+    transaction.set(orderRef, {
+      ...patch,
+      updatedAt: serverTimestamp(),
+    }, { merge: true })
+    return patch
+  })
+}
+
 async function preservePurchasedPhotos({ db, admin, orderId }) {
   if (!orderId) return
   const orderSnapshot = await db.collection("orders").doc(orderId).get()
@@ -117,6 +200,39 @@ async function preservePurchasedPhotos({ db, admin, orderId }) {
       purgeAt,
       soldRetentionDays: 730,
       updatedAt: now,
+    }, { merge: true })
+  }
+  await batch.commit()
+}
+
+async function enforceDeliveryEntitlements({ db, orderId, serverTimestamp }) {
+  if (!orderId) return
+  const orderSnapshot = await db.collection("orders").doc(orderId).get()
+  if (!orderSnapshot.exists) return
+  const order = orderSnapshot.data() || {}
+  const deliveryOptions = order.mediaDeliveryOptions
+
+  // Legacy orders did not persist delivery options and already promised HD/original.
+  // Keep those rights unchanged to avoid a regression for previous customers.
+  if (!deliveryOptions || typeof deliveryOptions !== "object") return
+
+  const quote = mediaDeliveryQuote({
+    subtotal: number(order.baseMediaSubtotal, number(order.subtotal)),
+    hdUpgrade: deliveryOptions.hdUpgrade === true,
+  })
+  const snapshot = await db.collection("media_entitlements")
+    .where("orderId", "==", orderId)
+    .get()
+  if (snapshot.empty) return
+
+  const batch = db.batch()
+  for (const document of snapshot.docs || []) {
+    batch.set(document.ref, {
+      allowedVariants: [...quote.allowedVariants],
+      hdUpgrade: quote.hdUpgrade,
+      hdUpgradeAmount: quote.hdUpgradeAmount,
+      deliveryPolicyVersion: 1,
+      updatedAt: serverTimestamp(),
     }, { merge: true })
   }
   await batch.commit()
@@ -177,13 +293,64 @@ async function settleOrderPayouts({ db, getStripe, orderId, serverTimestamp }) {
 
 module.exports = function createMediaMarketplaceStripe(dependencies) {
   const db = databaseWithTransactionFallback(dependencies.db)
-  const handlers = createImplementation({ ...dependencies, db })
   const serverTimestamp = () => dependencies.admin.firestore.FieldValue.serverTimestamp()
+  const wrappedOnCall = (options, handler) => dependencies.onCall(
+    options,
+    async (request) => {
+      const deliveryOptions = mediaDeliveryOptionsFromPayload(request?.data)
+      return mediaDeliveryContext.run(deliveryOptions, async () => {
+        const result = await handler(request)
+        if (!result?.orderId) return result
+        const patch = await persistMediaDeliveryPolicy({
+          db,
+          orderId: result.orderId,
+          deliveryOptions,
+          HttpsError: dependencies.HttpsError,
+          serverTimestamp,
+        })
+        return adjustMarketplaceOrderResult(
+          result,
+          patch,
+          request?.data?.checkoutPayload,
+        )
+      })
+    },
+  )
+  const wrappedGetStripe = () => stripeWithMediaDeliveryPolicy(
+    dependencies.getStripe(),
+    mediaDeliveryContext.getStore() || normalizeMediaDeliveryOptions(null),
+  )
+  const handlers = createImplementation({
+    ...dependencies,
+    db,
+    onCall: wrappedOnCall,
+    getStripe: wrappedGetStripe,
+  })
+  const originalCreateOrderForPaymentIntent = handlers.createMarketplaceOrderForPaymentIntent
   const originalCheckoutHandler = handlers.handleMarketplaceCheckoutSessionCompleted
   const originalPaymentIntentHandler = handlers.fulfillMarketplaceOrderFromPaymentIntent
 
+  async function createMarketplaceOrderForPaymentIntent(args) {
+    const checkoutPayload = args?.checkoutPayload && typeof args.checkoutPayload === "object"
+      ? args.checkoutPayload
+      : {}
+    const deliveryOptions = mediaDeliveryOptionsFromPayload(checkoutPayload)
+    return mediaDeliveryContext.run(deliveryOptions, async () => {
+      const result = await originalCreateOrderForPaymentIntent(args)
+      const patch = await persistMediaDeliveryPolicy({
+        db,
+        orderId: result.orderId,
+        deliveryOptions,
+        HttpsError: dependencies.HttpsError,
+        serverTimestamp,
+      })
+      return adjustMarketplaceOrderResult(result, patch, checkoutPayload)
+    })
+  }
+
   async function finalize(orderId) {
     await preservePurchasedPhotos({ db, admin: dependencies.admin, orderId })
+    await enforceDeliveryEntitlements({ db, orderId, serverTimestamp })
     await settleOrderPayouts({
       db,
       getStripe: dependencies.getStripe,
@@ -194,6 +361,7 @@ module.exports = function createMediaMarketplaceStripe(dependencies) {
 
   return {
     ...handlers,
+    createMarketplaceOrderForPaymentIntent,
     handleMarketplaceCheckoutSessionCompleted: async (session) => {
       const fulfilled = await originalCheckoutHandler(session)
       if (fulfilled === true && session?.metadata?.orderId) {

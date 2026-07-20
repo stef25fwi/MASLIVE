@@ -5,6 +5,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_stripe/flutter_stripe.dart';
 
+import '../features/media_marketplace/presentation/widgets/media_delivery_option_dialog.dart';
 import '../pages/checkout/storex_checkout_stripe.dart';
 import '../providers/cart_provider.dart';
 import '../ui/snack/top_snack_bar.dart';
@@ -52,15 +53,47 @@ class CartCheckoutService {
     StorexCheckoutFlow.start(context);
   }
 
+  static Future<bool?> _resolveMediaHdUpgrade(
+    BuildContext context,
+    bool? explicitChoice,
+  ) async {
+    if (explicitChoice != null) return explicitChoice;
+    if (!context.mounted) return null;
+    return showMediaDeliveryOptionDialog(context);
+  }
+
+  static Map<String, dynamic> _checkoutPayloadWithDelivery(
+    CartProvider cart, {
+    required bool hdUpgrade,
+  }) {
+    return <String, dynamic>{
+      ...cart.buildCheckoutPayload(),
+      'mediaDeliveryOptions': <String, dynamic>{
+        'hdUpgrade': hdUpgrade,
+      },
+    };
+  }
+
   static Future<void> startMediaCheckout(
     BuildContext context,
-    CartProvider cart,
-  ) async {
+    CartProvider cart, {
+    bool? hdUpgrade,
+  }) async {
+    final selectedHdUpgrade = await _resolveMediaHdUpgrade(context, hdUpgrade);
+    if (selectedHdUpgrade == null || !context.mounted) return;
+
     final callable = FirebaseFunctions.instanceFor(region: 'us-east1')
         .httpsCallable('createMediaMarketplaceCheckout');
+    final checkoutPayload = _checkoutPayloadWithDelivery(
+      cart,
+      hdUpgrade: selectedHdUpgrade,
+    );
 
     final response = await callable.call<Map<String, dynamic>>(<String, dynamic>{
-      'checkoutPayload': cart.buildCheckoutPayload(),
+      'checkoutPayload': checkoutPayload,
+      'mediaDeliveryOptions': <String, dynamic>{
+        'hdUpgrade': selectedHdUpgrade,
+      },
     });
 
     final data = Map<String, dynamic>.from(response.data);
@@ -75,7 +108,13 @@ class CartCheckoutService {
     if (!context.mounted) return;
     TopSnackBar.show(
       context,
-      const SnackBar(content: Text('Checkout media ouvert dans Stripe')),
+      SnackBar(
+        content: Text(
+          selectedHdUpgrade
+              ? 'Checkout média HD ouvert dans Stripe (+${mediaHdUpgradePrice.toStringAsFixed(2)} €)'
+              : 'Checkout média ouvert avec la version Web incluse',
+        ),
+      ),
     );
   }
 
@@ -85,13 +124,24 @@ class CartCheckoutService {
     required int shippingCents,
     required String shippingMethod,
     String? promoCode,
+    bool? mediaHdUpgrade,
   }) async {
+    final selectedHdUpgrade = await _resolveMediaHdUpgrade(
+      context,
+      mediaHdUpgrade,
+    );
+    if (selectedHdUpgrade == null || !context.mounted) return;
+
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) {
       throw StateError('Utilisateur non connecté');
     }
 
     final shippingAddress = await _loadSavedShippingAddress(user.uid);
+    final checkoutPayload = _checkoutPayloadWithDelivery(
+      cart,
+      hdUpgrade: selectedHdUpgrade,
+    );
 
     if (kIsWeb) {
       final callable = FirebaseFunctions.instanceFor(region: 'us-east1')
@@ -103,7 +153,10 @@ class CartCheckoutService {
         'shippingMethod': shippingMethod,
         'address': shippingAddress,
         'promoCode': promoCode ?? '',
-        'checkoutPayload': cart.buildCheckoutPayload(),
+        'checkoutPayload': checkoutPayload,
+        'mediaDeliveryOptions': <String, dynamic>{
+          'hdUpgrade': selectedHdUpgrade,
+        },
         'successUrl': _webRouteUrl('/storex/paymentComplete'),
         'cancelUrl': _webRouteUrl('/cart'),
         'continueToRoute': '/cart',
@@ -130,7 +183,10 @@ class CartCheckoutService {
       'shippingMethod': shippingMethod,
       'address': shippingAddress,
       'promoCode': promoCode ?? '',
-      'checkoutPayload': cart.buildCheckoutPayload(),
+      'checkoutPayload': checkoutPayload,
+      'mediaDeliveryOptions': <String, dynamic>{
+        'hdUpgrade': selectedHdUpgrade,
+      },
     });
 
     final data = Map<String, dynamic>.from(response.data);
@@ -182,7 +238,13 @@ class CartCheckoutService {
     if (!context.mounted) return;
     TopSnackBar.show(
       context,
-      const SnackBar(content: Text('Paiement confirmé (merch + media)')),
+      SnackBar(
+        content: Text(
+          selectedHdUpgrade
+              ? 'Paiement confirmé (merch + média HD)'
+              : 'Paiement confirmé (merch + média Web)',
+        ),
+      ),
     );
   }
 

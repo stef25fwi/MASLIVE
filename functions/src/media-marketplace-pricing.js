@@ -2,6 +2,7 @@
 
 const GiB = 1024 * 1024 * 1024
 const MiB = 1024 * 1024
+const MEDIA_HD_UPGRADE_PRICE = 2.90
 
 const PHOTO_PACKS = Object.freeze([
   Object.freeze({ code: "single", title: "1 photo souvenir", photoCount: 1, price: 6.90, highlighted: false }),
@@ -99,6 +100,19 @@ function photoSelectionPrice(count) {
   return quoteForPhotoCount(count).total
 }
 
+function mediaDeliveryQuote({ subtotal = 0, hdUpgrade = false } = {}) {
+  const normalizedSubtotal = Math.max(0, Number(subtotal) || 0)
+  const hdUpgradeAmount = hdUpgrade ? MEDIA_HD_UPGRADE_PRICE : 0
+  return Object.freeze({
+    hdUpgrade: hdUpgrade === true,
+    hdUpgradeAmount,
+    allowedVariants: hdUpgrade === true
+      ? Object.freeze(["original", "hd", "preview", "web"])
+      : Object.freeze(["preview", "web"]),
+    total: roundCurrency(normalizedSubtotal + hdUpgradeAmount),
+  })
+}
+
 function stripeFeeEstimate(total) {
   const normalized = Math.max(0, Number(total) || 0)
   return normalized > 0 ? roundCurrency((normalized * 0.015) + 0.25) : 0
@@ -167,4 +181,4 @@ function defaultPackDocuments({ photographerId, ownerUid, galleryId, eventId, ti
   }))
 }
 
-module.exports = { GiB, MiB, PHOTO_PACKS, PHOTOGRAPHER_PLANS, STORAGE_EXTENSIONS, planFor, packForCode, packForCount, quoteForPhotoCount, bestPackCombination, photoSelectionPrice, stripeFeeEstimate, roundCurrency, quotaSnapshot, planDocument, defaultPackDocuments }
+module.exports = { GiB, MiB, MEDIA_HD_UPGRADE_PRICE, PHOTO_PACKS, PHOTOGRAPHER_PLANS, STORAGE_EXTENSIONS, planFor, packForCode, packForCount, quoteForPhotoCount, bestPackCombination, photoSelectionPrice, mediaDeliveryQuote, stripeFeeEstimate, roundCurrency, quotaSnapshot, planDocument, defaultPackDocuments }
