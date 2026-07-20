@@ -46,6 +46,8 @@ jobs:
           EOF
 
       - name: Build Flutter Web with Mapbox
+        id: flutter_build
+        continue-on-error: true
         working-directory: app
         env:
           MAPBOX_PUBLIC_TOKEN: ${{ secrets.MAPBOX_PUBLIC_TOKEN }}
@@ -53,9 +55,10 @@ jobs:
           STRIPE_PREMIUM_MONTHLY_PRICE_ID: ${{ secrets.STRIPE_PREMIUM_MONTHLY_PRICE_ID }}
           STRIPE_PREMIUM_YEARLY_PRICE_ID: ${{ secrets.STRIPE_PREMIUM_YEARLY_PRICE_ID }}
         run: |
-          set -euo pipefail
+          set +e
           if [ -z "${MAPBOX_PUBLIC_TOKEN}" ]; then
-            echo "::error::Le secret MAPBOX_PUBLIC_TOKEN est absent."
+            echo "Le secret MAPBOX_PUBLIC_TOKEN est absent." > flutter-build.log
+            cat flutter-build.log
             exit 1
           fi
 
@@ -63,7 +66,25 @@ jobs:
             --dart-define=MAPBOX_ACCESS_TOKEN="${MAPBOX_PUBLIC_TOKEN}" \
             --dart-define=STRIPE_PUBLISHABLE_KEY="${STRIPE_PUBLISHABLE_KEY}" \
             --dart-define=STRIPE_PREMIUM_MONTHLY_PRICE_ID="${STRIPE_PREMIUM_MONTHLY_PRICE_ID}" \
-            --dart-define=STRIPE_PREMIUM_YEARLY_PRICE_ID="${STRIPE_PREMIUM_YEARLY_PRICE_ID}"
+            --dart-define=STRIPE_PREMIUM_YEARLY_PRICE_ID="${STRIPE_PREMIUM_YEARLY_PRICE_ID}" \
+            > flutter-build.log 2>&1
+          status=$?
+          echo "=== Résumé des 220 dernières lignes ==="
+          tail -n 220 flutter-build.log
+          exit "$status"
+
+      - name: Upload Flutter build report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: flutter-web-build-report
+          path: app/flutter-build.log
+          if-no-files-found: error
+          retention-days: 7
+
+      - name: Enforce Flutter Web build
+        if: steps.flutter_build.outcome == 'failure'
+        run: exit 1
 
       - name: Setup Node.js for Firebase
         if: github.event_name == 'push' || github.event_name == 'workflow_dispatch' || (github.event_name == 'pull_request' && github.head_ref == 'deploy/maslive-production')
