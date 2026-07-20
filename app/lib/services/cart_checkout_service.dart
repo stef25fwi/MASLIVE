@@ -14,7 +14,6 @@ import 'checkout/checkout_gateway.dart';
 class CartCheckoutService {
   const CartCheckoutService._();
 
-  // Délègue à la passerelle Stripe commune (source unique de vérité).
   static String _webRouteUrl(String route) => CheckoutGateway.webRouteUrl(route);
 
   static Future<void> _openStripeCheckoutUrl(String rawUrl) =>
@@ -38,14 +37,36 @@ class CartCheckoutService {
     String promoCode, {
     required int subtotalCents,
   }) async {
+    final normalized = promoCode.trim().toUpperCase();
+
+    // Le serveur vérifie lui-même que le panier est composé uniquement de
+    // photos/packs, que le photographe et la galerie correspondent au code,
+    // puis mémorise la validation pendant dix minutes pour le checkout.
+    try {
+      final photographerResult = await validatePhotographerPromoCode(normalized);
+      if (photographerResult['valid'] == true) return photographerResult;
+    } on FirebaseFunctionsException {
+      // Ce n'est pas un panier média compatible : on essaie ensuite les codes
+      // généraux MASLIVE/StoreX, validés par leur propre fonction sécurisée.
+    }
+
     final callable = FirebaseFunctions.instanceFor(region: 'us-east1')
         .httpsCallable('validatePromoCode');
-
     final response = await callable.call<Map<String, dynamic>>(<String, dynamic>{
-      'promoCode': promoCode.trim().toUpperCase(),
+      'promoCode': normalized,
       'subtotalCents': subtotalCents,
     });
+    return Map<String, dynamic>.from(response.data);
+  }
 
+  static Future<Map<String, dynamic>> validatePhotographerPromoCode(
+    String promoCode,
+  ) async {
+    final callable = FirebaseFunctions.instanceFor(region: 'us-east1')
+        .httpsCallable('validatePhotographerPromoCode');
+    final response = await callable.call<Map<String, dynamic>>(<String, dynamic>{
+      'promoCode': promoCode.trim().toUpperCase(),
+    });
     return Map<String, dynamic>.from(response.data);
   }
 
@@ -78,12 +99,17 @@ class CartCheckoutService {
     BuildContext context,
     CartProvider cart, {
     bool? hdUpgrade,
+    String? promoCode,
   }) async {
     final selectedHdUpgrade = await _resolveMediaHdUpgrade(context, hdUpgrade);
     if (selectedHdUpgrade == null || !context.mounted) return;
 
-    final callable = FirebaseFunctions.instanceFor(region: 'us-east1')
-        .httpsCallable('createMediaMarketplaceCheckout');
+    final normalizedPromo = promoCode?.trim().toUpperCase() ?? '';
+    final callable = FirebaseFunctions.instanceFor(region: 'us-east1').httpsCallable(
+      normalizedPromo.isEmpty
+          ? 'createMediaMarketplaceCheckout'
+          : 'createMediaMarketplacePromoCheckout',
+    );
     final checkoutPayload = _checkoutPayloadWithDelivery(
       cart,
       hdUpgrade: selectedHdUpgrade,
@@ -91,9 +117,12 @@ class CartCheckoutService {
 
     final response = await callable.call<Map<String, dynamic>>(<String, dynamic>{
       'checkoutPayload': checkoutPayload,
+      'promoCode': normalizedPromo,
       'mediaDeliveryOptions': <String, dynamic>{
         'hdUpgrade': selectedHdUpgrade,
       },
+      'successUrl': _webRouteUrl('/media-marketplace/success'),
+      'cancelUrl': _webRouteUrl('/cart'),
     });
 
     final data = Map<String, dynamic>.from(response.data);
@@ -110,9 +139,11 @@ class CartCheckoutService {
       context,
       SnackBar(
         content: Text(
-          selectedHdUpgrade
-              ? 'Checkout média HD ouvert dans Stripe (+${mediaHdUpgradePrice.toStringAsFixed(2)} €)'
-              : 'Checkout média ouvert avec la version Web incluse',
+          normalizedPromo.isNotEmpty
+              ? 'Checkout média ouvert avec le code $normalizedPromo'
+              : selectedHdUpgrade
+                  ? 'Checkout média HD ouvert dans Stripe (+${mediaHdUpgradePrice.toStringAsFixed(2)} €)'
+                  : 'Checkout média ouvert avec la version Web incluse',
         ),
       ),
     );
@@ -224,7 +255,6 @@ class CartCheckoutService {
       rethrow;
     }
 
-    // Confirmation serveur (finalise sans dépendre uniquement du webhook).
     try {
       final confirm = FirebaseFunctions.instanceFor(region: 'us-east1')
           .httpsCallable('confirmStorexPayment');

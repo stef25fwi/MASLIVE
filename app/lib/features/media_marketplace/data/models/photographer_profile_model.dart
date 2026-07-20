@@ -11,6 +11,11 @@ Map<String, String> _profileStringMap(dynamic value) {
   );
 }
 
+Map<String, dynamic> _profileDynamicMap(dynamic value) {
+  if (value is! Map) return const <String, dynamic>{};
+  return Map<String, dynamic>.from(value);
+}
+
 int _profileInt(dynamic value, {int fallback = 0}) {
   if (value is int) return value;
   if (value is num) return value.toInt();
@@ -23,7 +28,7 @@ double _profileDouble(dynamic value, {double fallback = 0}) {
   return fallback;
 }
 
-/// Profil public/metier d'un photographe marketplace.
+/// Profil public/métier d'un photographe marketplace.
 class PhotographerProfileModel {
   final String photographerId;
   final String ownerUid;
@@ -36,6 +41,7 @@ class PhotographerProfileModel {
   final String? country;
   final String? city;
   final Map<String, String> socialLinks;
+  final Map<String, dynamic> publicStorefront;
   final PhotographerStatus status;
   final bool isVerified;
   final double averageRating;
@@ -66,6 +72,7 @@ class PhotographerProfileModel {
     this.country,
     this.city,
     this.socialLinks = const <String, String>{},
+    this.publicStorefront = const <String, dynamic>{},
     this.status = PhotographerStatus.pending,
     this.isVerified = false,
     this.averageRating = 0,
@@ -101,6 +108,7 @@ class PhotographerProfileModel {
       country: map['country']?.toString(),
       city: map['city']?.toString(),
       socialLinks: _profileStringMap(map['socialLinks']),
+      publicStorefront: _profileDynamicMap(map['publicStorefront']),
       status: photographerStatusFromString(map['status']?.toString()),
       isVerified: map['isVerified'] as bool? ?? false,
       averageRating: _profileDouble(map['averageRating']),
@@ -113,13 +121,12 @@ class PhotographerProfileModel {
       activeGalleryCount: _profileInt(map['activeGalleryCount']),
       activePackCount: _profileInt(map['activePackCount']),
       storageUsedBytes: _profileInt(map['storageUsedBytes']),
-      stripeAccountId: (map['stripe'] is Map)
-          ? (map['stripe'] as Map)['accountId']?.toString()
-          : null,
-      stripeChargesEnabled:
-          (map['stripe'] is Map) && (map['stripe'] as Map)['chargesEnabled'] == true,
-      stripePayoutsEnabled:
-          (map['stripe'] is Map) && (map['stripe'] as Map)['payoutsEnabled'] == true,
+      stripeAccountId: map['stripeAccountId']?.toString() ??
+          ((map['stripe'] is Map) ? (map['stripe'] as Map)['accountId']?.toString() : null),
+      stripeChargesEnabled: map['stripeChargesEnabled'] as bool? ??
+          ((map['stripe'] is Map) && (map['stripe'] as Map)['chargesEnabled'] == true),
+      stripePayoutsEnabled: map['stripePayoutsEnabled'] as bool? ??
+          ((map['stripe'] is Map) && (map['stripe'] as Map)['payoutsEnabled'] == true),
       createdAt: TimestampMapper.fromFirestoreOrNow(map['createdAt']),
       updatedAt: TimestampMapper.fromFirestoreOrNow(map['updatedAt']),
     );
@@ -128,7 +135,10 @@ class PhotographerProfileModel {
   factory PhotographerProfileModel.fromDocument(
     DocumentSnapshot<Map<String, dynamic>> doc,
   ) {
-    return PhotographerProfileModel.fromMap(doc.data() ?? const <String, dynamic>{}, photographerId: doc.id);
+    return PhotographerProfileModel.fromMap(
+      doc.data() ?? const <String, dynamic>{},
+      photographerId: doc.id,
+    );
   }
 
   Map<String, dynamic> toMap() {
@@ -144,6 +154,7 @@ class PhotographerProfileModel {
       if (country != null) 'country': country,
       if (city != null) 'city': city,
       'socialLinks': socialLinks,
+      'publicStorefront': publicStorefront,
       'status': status.firestoreValue,
       'isVerified': isVerified,
       'averageRating': averageRating,
@@ -156,6 +167,9 @@ class PhotographerProfileModel {
       'activeGalleryCount': activeGalleryCount,
       'activePackCount': activePackCount,
       'storageUsedBytes': storageUsedBytes,
+      if (stripeAccountId != null) 'stripeAccountId': stripeAccountId,
+      'stripeChargesEnabled': stripeChargesEnabled,
+      'stripePayoutsEnabled': stripePayoutsEnabled,
       'createdAt': TimestampMapper.toFirestore(createdAt),
       'updatedAt': TimestampMapper.toFirestore(updatedAt),
     };
@@ -173,6 +187,7 @@ class PhotographerProfileModel {
     String? country,
     String? city,
     Map<String, String>? socialLinks,
+    Map<String, dynamic>? publicStorefront,
     PhotographerStatus? status,
     bool? isVerified,
     double? averageRating,
@@ -185,6 +200,9 @@ class PhotographerProfileModel {
     int? activeGalleryCount,
     int? activePackCount,
     int? storageUsedBytes,
+    String? stripeAccountId,
+    bool? stripeChargesEnabled,
+    bool? stripePayoutsEnabled,
     DateTime? createdAt,
     DateTime? updatedAt,
   }) {
@@ -200,6 +218,7 @@ class PhotographerProfileModel {
       country: country ?? this.country,
       city: city ?? this.city,
       socialLinks: socialLinks ?? this.socialLinks,
+      publicStorefront: publicStorefront ?? this.publicStorefront,
       status: status ?? this.status,
       isVerified: isVerified ?? this.isVerified,
       averageRating: averageRating ?? this.averageRating,
@@ -212,6 +231,9 @@ class PhotographerProfileModel {
       activeGalleryCount: activeGalleryCount ?? this.activeGalleryCount,
       activePackCount: activePackCount ?? this.activePackCount,
       storageUsedBytes: storageUsedBytes ?? this.storageUsedBytes,
+      stripeAccountId: stripeAccountId ?? this.stripeAccountId,
+      stripeChargesEnabled: stripeChargesEnabled ?? this.stripeChargesEnabled,
+      stripePayoutsEnabled: stripePayoutsEnabled ?? this.stripePayoutsEnabled,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
     );
@@ -232,6 +254,7 @@ class PhotographerProfileModel {
         other.country == country &&
         other.city == city &&
         mapEquals(other.socialLinks, socialLinks) &&
+        mapEquals(other.publicStorefront, publicStorefront) &&
         other.status == status &&
         other.isVerified == isVerified &&
         other.averageRating == averageRating &&
@@ -244,6 +267,9 @@ class PhotographerProfileModel {
         other.activeGalleryCount == activeGalleryCount &&
         other.activePackCount == activePackCount &&
         other.storageUsedBytes == storageUsedBytes &&
+        other.stripeAccountId == stripeAccountId &&
+        other.stripeChargesEnabled == stripeChargesEnabled &&
+        other.stripePayoutsEnabled == stripePayoutsEnabled &&
         other.createdAt == createdAt &&
         other.updatedAt == updatedAt;
   }
@@ -261,6 +287,7 @@ class PhotographerProfileModel {
         country,
         city,
         Object.hashAll(socialLinks.entries),
+        Object.hashAll(publicStorefront.entries),
         status,
         isVerified,
         averageRating,
@@ -273,6 +300,9 @@ class PhotographerProfileModel {
         activeGalleryCount,
         activePackCount,
         storageUsedBytes,
+        stripeAccountId,
+        stripeChargesEnabled,
+        stripePayoutsEnabled,
         createdAt,
         updatedAt,
       ]);

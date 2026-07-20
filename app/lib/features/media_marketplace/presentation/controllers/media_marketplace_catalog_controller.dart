@@ -1,9 +1,11 @@
+import 'package:cloud_functions/cloud_functions.dart';
 import 'package:flutter/foundation.dart';
 
 import '../../core/pagination/media_gallery_pagination.dart';
 import '../../data/models/media_gallery_model.dart';
 import '../../data/models/media_pack_model.dart';
 import '../../data/models/media_photo_model.dart';
+import '../../data/models/photographer_profile_model.dart';
 import '../../data/repositories/media_gallery_repository.dart';
 import '../../data/repositories/media_pack_repository.dart';
 import '../../data/repositories/media_photo_repository.dart';
@@ -16,17 +18,20 @@ class MediaMarketplaceCatalogController extends ChangeNotifier {
     MediaPhotoRepository? mediaPhotoRepository,
     MediaPackRepository? mediaPackRepository,
     GalleryRelevanceService? galleryRelevanceService,
+    FirebaseFunctions? functions,
   })  : _mediaGalleryRepository =
             mediaGalleryRepository ?? MediaGalleryRepository(),
         _mediaPhotoRepository = mediaPhotoRepository ?? MediaPhotoRepository(),
         _mediaPackRepository = mediaPackRepository ?? MediaPackRepository(),
         _galleryRelevanceService =
-            galleryRelevanceService ?? const GalleryRelevanceService();
+            galleryRelevanceService ?? const GalleryRelevanceService(),
+        _functions = functions ?? FirebaseFunctions.instanceFor(region: 'us-east1');
 
   final MediaGalleryRepository _mediaGalleryRepository;
   final MediaPhotoRepository _mediaPhotoRepository;
   final MediaPackRepository _mediaPackRepository;
   final GalleryRelevanceService _galleryRelevanceService;
+  final FirebaseFunctions _functions;
   final MediaGalleryPaginationState<MediaPhotoModel> _photoPagination =
       MediaGalleryPaginationState<MediaPhotoModel>();
 
@@ -42,10 +47,14 @@ class MediaMarketplaceCatalogController extends ChangeNotifier {
   List<MediaGalleryModel> galleries = const <MediaGalleryModel>[];
   List<MediaPhotoModel> photos = const <MediaPhotoModel>[];
   List<MediaPackModel> packs = const <MediaPackModel>[];
+  PhotographerProfileModel? accessPhotographer;
+  Map<String, dynamic> accessStorefront = const <String, dynamic>{};
+  bool privateAccessMode = false;
 
   bool get loadingMorePhotos => _photoPagination.loading;
-  bool get hasMorePhotos => _photoPagination.hasMore;
-  bool get canLoadMorePhotos => _photoPagination.canLoadMore;
+  bool get hasMorePhotos => privateAccessMode ? false : _photoPagination.hasMore;
+  bool get canLoadMorePhotos =>
+      privateAccessMode ? false : _photoPagination.canLoadMore;
 
   Future<void> loadEventGalleries(
     String eventId, {
@@ -61,12 +70,109 @@ class MediaMarketplaceCatalogController extends ChangeNotifier {
     );
   }
 
+  Future<void> loadPrivateGallery({
+    required String galleryId,
+    required String accessToken,
+    String? participantCode,
+  }) async {
+    loading = true;
+    error = null;
+    privateAccessMode = true;
+    galleries = const <MediaGalleryModel>[];
+    photos = const <MediaPhotoModel>[];
+    packs = const <MediaPackModel>[];
+    accessPhotographer = null;
+    accessStorefront = const <String, dynamic>{};
+    selectedGalleryId = galleryId;
+    notifyListeners();
+
+    try {
+      final response = await _functions.httpsCallable('openMediaGalleryAccess').call(
+        <String, dynamic>{
+          'galleryId': galleryId,
+          'accessToken': accessToken,
+          if (participantCode?.trim().isNotEmpty == true)
+            'participantCode': participantCode!.trim(),
+        },
+      );
+      final data = Map<String, dynamic>.from(response.data as Map);
+      final galleryMap = Map<String, dynamic>.from(data['gallery'] as Map);
+      final galleryDocumentId =
+          galleryMap['id']?.toString() ?? galleryMap['galleryId']?.toString();
+      final gallery = MediaGalleryModel.fromMap(
+        galleryMap,
+        galleryId: galleryDocumentId,
+      );
+      final photoRows = (data['photos'] as Iterable? ?? const <dynamic>[])
+          .whereType<Map>()
+          .map((row) => Map<String, dynamic>.from(row))
+          .toList(growable: false);
+      final packRows = (data['packs'] as Iterable? ?? const <dynamic>[])
+          .whereType<Map>()
+          .map((row) => Map<String, dynamic>.from(row))
+          .toList(growable: false);
+      final photographerMap = data['photographer'] is Map
+          ? Map<String, dynamic>.from(data['photographer'] as Map)
+          : const <String, dynamic>{};
+      final storefront = data['storefront'] is Map
+          ? Map<String, dynamic>.from(data['storefront'] as Map)
+          : const <String, dynamic>{};
+      final now = DateTime.now();
+      galleries = <MediaGalleryModel>[gallery];
+      photos = photoRows
+          .map(
+            (row) => MediaPhotoModel.fromMap(
+              row,
+              photoId: row['id']?.toString() ?? row['photoId']?.toString(),
+            ),
+          )
+          .toList(growable: false);
+      packs = packRows
+          .map(
+            (row) => MediaPackModel.fromMap(
+              row,
+              packId: row['id']?.toString() ?? row['packId']?.toString(),
+            ),
+          )
+          .toList(growable: false);
+      accessStorefront = storefront;
+      accessPhotographer = PhotographerProfileModel.fromMap(
+        <String, dynamic>{
+          ...photographerMap,
+          'ownerUid': photographerMap['ownerUid'] ?? '',
+          'status': 'approved',
+          'isVerified': true,
+          'publicStorefront': storefront,
+          'createdAt': now,
+          'updatedAt': now,
+        },
+        photographerId: photographerMap['photographerId']?.toString(),
+      );
+      currentPhotographerId = gallery.photographerId;
+      currentEventId = gallery.eventId;
+      currentCircuitId = gallery.linkedCircuitId;
+    } catch (err) {
+      error = err;
+      galleries = const <MediaGalleryModel>[];
+      photos = const <MediaPhotoModel>[];
+      packs = const <MediaPackModel>[];
+      accessPhotographer = null;
+      accessStorefront = const <String, dynamic>{};
+    } finally {
+      loading = false;
+      notifyListeners();
+    }
+  }
+
   Future<void> loadContextGalleries(
     PhotoShopNavigationContext context, {
     Set<String> officialPhotographerIds = const <String>{},
   }) async {
     loading = true;
     error = null;
+    privateAccessMode = false;
+    accessPhotographer = null;
+    accessStorefront = const <String, dynamic>{};
     currentContext = context;
     currentCountryId = context.selectedCountryId;
     currentEventId = context.selectedEventId;
@@ -132,6 +238,11 @@ class MediaMarketplaceCatalogController extends ChangeNotifier {
       throw StateError('Galerie indisponible dans le contexte sélectionné.');
     }
     if (selectedGalleryId == galleryId && photos.isNotEmpty) return;
+    if (privateAccessMode) {
+      selectedGalleryId = galleryId;
+      notifyListeners();
+      return;
+    }
 
     loading = true;
     error = null;
@@ -152,6 +263,7 @@ class MediaMarketplaceCatalogController extends ChangeNotifier {
   }
 
   Future<void> loadMorePhotos() async {
+    if (privateAccessMode) return;
     final galleryId = selectedGalleryId;
     if (galleryId == null || galleryId.isEmpty) return;
     if (!_photoPagination.beginLoad()) return;
