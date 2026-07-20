@@ -2,11 +2,12 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 
 import '../../core/constants/media_marketplace_collections.dart';
 import '../../core/enums/photo_lifecycle_status.dart';
+import '../../core/pagination/media_gallery_pagination.dart';
 import '../models/media_photo_model.dart';
 
 class MediaPhotoRepository {
   MediaPhotoRepository({FirebaseFirestore? firestore})
-    : _firestore = firestore ?? FirebaseFirestore.instance;
+      : _firestore = firestore ?? FirebaseFirestore.instance;
 
   final FirebaseFirestore _firestore;
 
@@ -35,12 +36,64 @@ class MediaPhotoRepository {
   }
 
   Future<List<MediaPhotoModel>> getPublishedByGallery(String galleryId) async {
-    final snapshot = await _collection
-        .where('galleryId', isEqualTo: galleryId)
+    final page = await getPublishedPageByGallery(galleryId, pageSize: maxMediaGalleryPageSize);
+    return page.items;
+  }
+
+  Future<MediaGalleryPage<MediaPhotoModel>> getPublishedPageByGallery(
+    String galleryId, {
+    MediaGalleryCursor? cursor,
+    int pageSize = defaultMediaGalleryPageSize,
+  }) async {
+    final normalizedGalleryId = galleryId.trim();
+    if (normalizedGalleryId.isEmpty) {
+      return const MediaGalleryPage<MediaPhotoModel>(
+        items: <MediaPhotoModel>[],
+        hasMore: false,
+      );
+    }
+
+    final normalizedPageSize = normalizeMediaGalleryPageSize(pageSize);
+    Query<Map<String, dynamic>> query = _collection
+        .where('galleryId', isEqualTo: normalizedGalleryId)
         .where('isPublished', isEqualTo: true)
         .orderBy('createdAt', descending: true)
-        .get();
-    return snapshot.docs.map(MediaPhotoModel.fromDocument).toList(growable: false);
+        .orderBy(FieldPath.documentId, descending: true);
+
+    if (cursor != null) {
+      query = query.startAfter(<Object>[
+        Timestamp.fromMillisecondsSinceEpoch(cursor.createdAtMillis),
+        cursor.photoId,
+      ]);
+    }
+
+    final snapshot = await query.limit(normalizedPageSize + 1).get();
+    final hasMore = snapshot.docs.length > normalizedPageSize;
+    final pageDocs = hasMore
+        ? snapshot.docs.take(normalizedPageSize).toList(growable: false)
+        : snapshot.docs;
+    final items = pageDocs
+        .map(MediaPhotoModel.fromDocument)
+        .toList(growable: false);
+
+    MediaGalleryCursor? nextCursor;
+    if (hasMore && pageDocs.isNotEmpty) {
+      final last = pageDocs.last;
+      final rawCreatedAt = last.data()['createdAt'];
+      final createdAt = rawCreatedAt is Timestamp
+          ? rawCreatedAt
+          : Timestamp.fromDate(items.last.createdAt);
+      nextCursor = MediaGalleryCursor(
+        createdAtMillis: createdAt.millisecondsSinceEpoch,
+        photoId: last.id,
+      );
+    }
+
+    return MediaGalleryPage<MediaPhotoModel>(
+      items: items,
+      hasMore: hasMore,
+      nextCursor: nextCursor,
+    );
   }
 
   Future<void> publishPhoto(String photoId) async {

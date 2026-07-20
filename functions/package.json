@@ -1,7 +1,7 @@
 {
   "name": "functions",
   "version": "1.0.0",
-  "main": "index.js",
+  "main": "firebase-entrypoint.js",
   "scripts": {
     "test": "node --test test/*.test.js test/*security*.test.js",
     "test:rules": "node --test test/firestore-rules-emulator-security.test.js",

@@ -1,5 +1,6 @@
 import 'package:flutter/foundation.dart';
 
+import '../../core/pagination/media_gallery_pagination.dart';
 import '../../data/models/media_gallery_model.dart';
 import '../../data/models/media_pack_model.dart';
 import '../../data/models/media_photo_model.dart';
@@ -26,6 +27,8 @@ class MediaMarketplaceCatalogController extends ChangeNotifier {
   final MediaPhotoRepository _mediaPhotoRepository;
   final MediaPackRepository _mediaPackRepository;
   final GalleryRelevanceService _galleryRelevanceService;
+  final MediaGalleryPaginationState<MediaPhotoModel> _photoPagination =
+      MediaGalleryPaginationState<MediaPhotoModel>();
 
   bool loading = false;
   Object? error;
@@ -39,6 +42,10 @@ class MediaMarketplaceCatalogController extends ChangeNotifier {
   List<MediaGalleryModel> galleries = const <MediaGalleryModel>[];
   List<MediaPhotoModel> photos = const <MediaPhotoModel>[];
   List<MediaPackModel> packs = const <MediaPackModel>[];
+
+  bool get loadingMorePhotos => _photoPagination.loading;
+  bool get hasMorePhotos => _photoPagination.hasMore;
+  bool get canLoadMorePhotos => _photoPagination.canLoadMore;
 
   Future<void> loadEventGalleries(
     String eventId, {
@@ -66,18 +73,20 @@ class MediaMarketplaceCatalogController extends ChangeNotifier {
     currentPhotographerId = context.selectedPhotographerId;
     currentCircuitId = context.selectedCircuitId;
     selectedGalleryId = null;
-    photos = const <MediaPhotoModel>[];
+    galleries = const <MediaGalleryModel>[];
+    _resetPhotos();
     packs = const <MediaPackModel>[];
     notifyListeners();
 
     try {
-      final eventId = context.selectedEventId;
-      final photographerId = context.selectedPhotographerId;
-      final source = eventId != null && eventId.trim().isNotEmpty
+      final eventId = context.selectedEventId?.trim();
+      final photographerId = context.selectedPhotographerId?.trim();
+      final source = eventId != null && eventId.isNotEmpty
           ? await _mediaGalleryRepository.getByEvent(eventId)
-          : photographerId != null && photographerId.trim().isNotEmpty
+          : photographerId != null && photographerId.isNotEmpty
               ? await _mediaGalleryRepository.getByPhotographer(photographerId)
               : const <MediaGalleryModel>[];
+
       final scoped = _applySelectionScope(
         source,
         countryId: context.selectedCountryId,
@@ -92,7 +101,8 @@ class MediaMarketplaceCatalogController extends ChangeNotifier {
     } catch (err) {
       error = err;
       galleries = const <MediaGalleryModel>[];
-      photos = const <MediaPhotoModel>[];
+      selectedGalleryId = null;
+      _resetPhotos();
       packs = const <MediaPackModel>[];
     } finally {
       loading = false;
@@ -109,38 +119,31 @@ class MediaMarketplaceCatalogController extends ChangeNotifier {
   Future<void> _selectFirstGalleryByDefault() async {
     if (galleries.isEmpty) {
       selectedGalleryId = null;
-      photos = const <MediaPhotoModel>[];
+      _resetPhotos();
       packs = const <MediaPackModel>[];
       return;
     }
     selectedGalleryId = galleries.first.galleryId;
-    final results = await Future.wait<dynamic>(<Future<dynamic>>[
-      _mediaPhotoRepository.getPublishedByGallery(selectedGalleryId!),
-      _mediaPackRepository.getActiveByGallery(selectedGalleryId!),
-    ]);
-    photos = results[0] as List<MediaPhotoModel>;
-    packs = results[1] as List<MediaPackModel>;
+    await _loadSelectedGallery(reset: true);
   }
 
   Future<void> selectGallery(String galleryId) async {
     if (!galleries.any((gallery) => gallery.galleryId == galleryId)) {
       throw StateError('Galerie indisponible dans le contexte sélectionné.');
     }
+    if (selectedGalleryId == galleryId && photos.isNotEmpty) return;
+
     loading = true;
     error = null;
     selectedGalleryId = galleryId;
+    _resetPhotos();
     notifyListeners();
 
     try {
-      final results = await Future.wait<dynamic>(<Future<dynamic>>[
-        _mediaPhotoRepository.getPublishedByGallery(galleryId),
-        _mediaPackRepository.getActiveByGallery(galleryId),
-      ]);
-      photos = results[0] as List<MediaPhotoModel>;
-      packs = results[1] as List<MediaPackModel>;
+      await _loadSelectedGallery(reset: true);
     } catch (err) {
       error = err;
-      photos = const <MediaPhotoModel>[];
+      _resetPhotos();
       packs = const <MediaPackModel>[];
     } finally {
       loading = false;
@@ -148,11 +151,53 @@ class MediaMarketplaceCatalogController extends ChangeNotifier {
     }
   }
 
+  Future<void> loadMorePhotos() async {
+    final galleryId = selectedGalleryId;
+    if (galleryId == null || galleryId.isEmpty) return;
+    if (!_photoPagination.beginLoad()) return;
+    notifyListeners();
+
+    try {
+      final page = await _mediaPhotoRepository.getPublishedPageByGallery(
+        galleryId,
+        cursor: _photoPagination.cursor,
+        pageSize: _photoPagination.pageSize,
+      );
+      if (selectedGalleryId != galleryId) {
+        _photoPagination.failLoad();
+        return;
+      }
+      _photoPagination.completePage(page, idOf: (photo) => photo.photoId);
+      photos = _photoPagination.items;
+    } catch (err) {
+      _photoPagination.failLoad();
+      error = err;
+    } finally {
+      notifyListeners();
+    }
+  }
+
+  Future<void> _loadSelectedGallery({required bool reset}) async {
+    final galleryId = selectedGalleryId;
+    if (galleryId == null || galleryId.isEmpty) return;
+    if (reset) _resetPhotos();
+
+    final packsFuture = _mediaPackRepository.getActiveByGallery(galleryId);
+    await loadMorePhotos();
+    if (selectedGalleryId != galleryId) return;
+    packs = await packsFuture;
+  }
+
   void clearSelection() {
     selectedGalleryId = null;
-    photos = const <MediaPhotoModel>[];
+    _resetPhotos();
     packs = const <MediaPackModel>[];
     notifyListeners();
+  }
+
+  void _resetPhotos() {
+    _photoPagination.reset();
+    photos = const <MediaPhotoModel>[];
   }
 
   List<MediaGalleryModel> _applySelectionScope(
@@ -163,19 +208,21 @@ class MediaMarketplaceCatalogController extends ChangeNotifier {
     var scoped = source;
 
     if (countryId != null && countryId.trim().isNotEmpty) {
-      scoped = scoped
+      final byCountry = scoped
           .where(
             (gallery) => gallery.linkedCountry?.trim() == countryId.trim(),
           )
           .toList(growable: false);
+      if (byCountry.isNotEmpty) scoped = byCountry;
     }
 
     if (circuitId != null && circuitId.trim().isNotEmpty) {
-      scoped = scoped
+      final byCircuit = scoped
           .where(
             (gallery) => gallery.linkedCircuitId?.trim() == circuitId.trim(),
           )
           .toList(growable: false);
+      if (byCircuit.isNotEmpty) scoped = byCircuit;
     }
 
     return scoped;
