@@ -12,12 +12,12 @@ import '../../data/models/media_order_model.dart';
 import '../../data/models/photographer_profile_model.dart';
 import '../controllers/photographer_dashboard_controller.dart';
 import '../widgets/media_gallery_card.dart';
-import '../widgets/media_marketplace_back_to_catalog_button.dart';
 import '../widgets/media_marketplace_context_chips.dart';
 import '../widgets/media_marketplace_message_card.dart';
 import '../widgets/media_marketplace_metric_card.dart';
 import '../widgets/media_marketplace_section_header.dart';
 import '../widgets/media_marketplace_shell.dart';
+import 'photographer_business_center_page.dart';
 import 'photographer_gallery_manager_page.dart';
 import 'photographer_subscription_page.dart';
 
@@ -47,10 +47,8 @@ class PhotographerDashboardPage extends StatelessWidget {
       create: (_) {
         final controller = PhotographerDashboardController();
         Future<void>.microtask(() async {
-          final resolvedOwnerUid =
-              ownerUid ?? AuthService.instance.currentUser?.uid;
-          if (resolvedOwnerUid == null || resolvedOwnerUid.isEmpty) return;
-          await controller.loadForOwnerUid(resolvedOwnerUid);
+          final uid = ownerUid ?? AuthService.instance.currentUser?.uid;
+          if (uid != null && uid.isNotEmpty) await controller.loadForOwnerUid(uid);
         });
         return controller;
       },
@@ -83,50 +81,9 @@ class _DashboardView extends StatelessWidget {
   final String? circuitName;
   final bool showContextHeader;
 
-  Future<void> _openManager(BuildContext context) async {
-    await Navigator.of(context).push<void>(
-      MaterialPageRoute<void>(
-        builder: (_) => PhotographerGalleryManagerPage(
-          initialEventId: eventId,
-          initialEventName: eventName,
-          initialCircuitId: circuitId,
-          initialCircuitName: circuitName,
-        ),
-      ),
-    );
-    if (context.mounted) {
-      await context.read<PhotographerDashboardController>().refresh();
-    }
-  }
-
-  Future<void> _openSubscription(BuildContext context) async {
-    await Navigator.of(context).push<void>(
-      MaterialPageRoute<void>(
-        builder: (_) => const PhotographerSubscriptionPage(),
-      ),
-    );
-    if (context.mounted) {
-      await context.read<PhotographerDashboardController>().refresh();
-    }
-  }
-
-  void _openPublicShop(
-    BuildContext context,
-    PhotographerProfileModel profile,
-  ) {
-    Navigator.pushNamed(
-      context,
-      '/media-marketplace',
-      arguments: <String, dynamic>{
-        'initialTab': 0,
-        'photographerId': profile.photographerId,
-        if (eventId?.trim().isNotEmpty == true) 'eventId': eventId,
-        if (eventName?.trim().isNotEmpty == true) 'eventName': eventName,
-        if (circuitId?.trim().isNotEmpty == true) 'circuitId': circuitId,
-        if (circuitName?.trim().isNotEmpty == true)
-          'circuitName': circuitName,
-      },
-    );
+  Future<void> _open(BuildContext context, Widget page) async {
+    await Navigator.of(context).push<void>(MaterialPageRoute<void>(builder: (_) => page));
+    if (context.mounted) await context.read<PhotographerDashboardController>().refresh();
   }
 
   @override
@@ -138,70 +95,58 @@ class _DashboardView extends StatelessWidget {
         : RefreshIndicator(
             onRefresh: controller.refresh,
             child: ListView(
-              physics: const AlwaysScrollableScrollPhysics(
-                parent: BouncingScrollPhysics(),
-              ),
-              padding: const EdgeInsets.fromLTRB(10, 16, 10, 32),
+              physics: const AlwaysScrollableScrollPhysics(parent: BouncingScrollPhysics()),
+              padding: const EdgeInsets.fromLTRB(12, 16, 12, 32),
               children: <Widget>[
-                if (controller.error != null)
-                  MediaMarketplaceMessageCard.error(controller.error!),
+                if (controller.error != null) MediaMarketplaceMessageCard.error(controller.error!),
                 if (profile == null)
-                  MediaMarketplaceMessageCard.empty(
-                    title: 'Profil photographe introuvable',
-                    message:
-                        'Aucun profil photographe n’est rattaché à cet utilisateur.',
-                    icon: Icons.camera_alt_outlined,
+                  _CreateProfileCard(
+                    onCreate: () => _open(context, const PhotographerBusinessCenterPage(initialTab: 0)),
                   )
                 else ...<Widget>[
-                  if (showContextHeader &&
-                      eventId?.trim().isNotEmpty == true) ...<Widget>[
+                  if (showContextHeader && eventId?.trim().isNotEmpty == true) ...<Widget>[
                     MediaMarketplaceSectionHeader(
-                      title: eventName?.trim().isNotEmpty == true
-                          ? eventName!.trim()
-                          : 'Circuit sélectionné',
-                      subtitle:
-                          'La boutique publique affiche en priorité les photos liées à la carte choisie sur la Home.',
+                      title: eventName?.trim().isNotEmpty == true ? eventName!.trim() : 'Circuit sélectionné',
+                      subtitle: 'Les galeries liées à la carte choisie sont prioritaires dans la boutique.',
                     ),
                     const SizedBox(height: 10),
-                    MediaMarketplaceContextChips(
-                      eventId: eventId!.trim(),
-                      circuitName: circuitName,
-                    ),
-                    const SizedBox(height: 10),
-                    const MediaMarketplaceBackToCatalogButton(),
+                    MediaMarketplaceContextChips(eventId: eventId!.trim(), circuitName: circuitName),
                     const SizedBox(height: 16),
                   ],
-                  _ProfileHeader(profile: profile),
+                  _ProfileHeader(
+                    profile: profile,
+                    onEdit: () => _open(context, const PhotographerBusinessCenterPage(initialTab: 0)),
+                  ),
                   const SizedBox(height: 14),
                   _QuotaCard(
                     profile: profile,
-                    onUpgrade: () => _openSubscription(context),
+                    onUpgrade: () => _open(context, const PhotographerSubscriptionPage()),
                   ),
                   const SizedBox(height: 14),
-                  _QuickActions(
-                    onCreateGallery: () => _openManager(context),
-                    onAddPhotos: () => _openManager(context),
-                    onSales: () => Navigator.pushNamed(
+                  _ActionGrid(
+                    onCreateGallery: () => _open(
                       context,
-                      '/media-marketplace',
-                      arguments: const <String, dynamic>{'initialTab': 2},
+                      PhotographerGalleryManagerPage(
+                        initialEventId: eventId,
+                        initialEventName: eventName,
+                        initialCircuitId: circuitId,
+                        initialCircuitName: circuitName,
+                      ),
                     ),
-                    onPublicShop: () => _openPublicShop(context, profile),
+                    onPhotos: () => _open(context, const PhotographerBusinessCenterPage(initialTab: 1)),
+                    onSales: () => _open(context, const PhotographerBusinessCenterPage(initialTab: 2)),
+                    onBilling: () => _open(context, const PhotographerBusinessCenterPage(initialTab: 3)),
                   ),
                   const SizedBox(height: 18),
-                  _StatsGrid(controller: controller),
+                  _StatsGrid(profile: profile),
                   const SizedBox(height: 18),
-                  _StripeConnectCard(
-                    profile: profile,
-                    onRefreshed: controller.refresh,
-                  ),
+                  _StripeConnectCard(profile: profile, onRefreshed: controller.refresh),
                   const SizedBox(height: 22),
                   MediaMarketplaceSectionHeader(
                     title: 'Mes galeries',
-                    subtitle:
-                        'Galeries par circuit, miniatures, quotas et publication.',
+                    subtitle: 'Galeries par circuit, miniatures, quotas et publication.',
                     trailing: TextButton.icon(
-                      onPressed: () => _openManager(context),
+                      onPressed: () => _open(context, PhotographerGalleryManagerPage(initialEventId: eventId, initialEventName: eventName, initialCircuitId: circuitId, initialCircuitName: circuitName)),
                       icon: const Icon(Icons.tune_rounded),
                       label: const Text('Gérer'),
                     ),
@@ -210,8 +155,7 @@ class _DashboardView extends StatelessWidget {
                   if (controller.galleries.isEmpty)
                     MediaMarketplaceMessageCard.empty(
                       title: 'Aucune galerie',
-                      message:
-                          'Crée une galerie, rattache-la à un circuit puis importe tes photos.',
+                      message: 'Crée une galerie, rattache-la à un circuit puis importe tes photos.',
                       icon: Icons.photo_library_outlined,
                     )
                   else
@@ -220,52 +164,46 @@ class _DashboardView extends StatelessWidget {
                       child: ListView.separated(
                         scrollDirection: Axis.horizontal,
                         itemCount: controller.galleries.length,
-                        separatorBuilder: (_, __) =>
-                            const SizedBox(width: 12),
+                        separatorBuilder: (_, __) => const SizedBox(width: 12),
                         itemBuilder: (context, index) {
                           final gallery = controller.galleries[index];
                           return MediaGalleryCard(
                             gallery: gallery,
                             width: 290,
-                            selected: controller.selectedGalleryId ==
-                                gallery.galleryId,
+                            selected: controller.selectedGalleryId == gallery.galleryId,
                             trailing: const Icon(Icons.chevron_right),
-                            onTap: () =>
-                                controller.selectGallery(gallery.galleryId),
+                            onTap: () => controller.selectGallery(gallery.galleryId),
                           );
                         },
                       ),
                     ),
-                  if (controller.selectedGalleryId != null) ...<Widget>[
-                    const SizedBox(height: 16),
-                    _SelectedGallerySummary(controller: controller),
-                  ],
                   const SizedBox(height: 22),
                   const MediaMarketplaceSectionHeader(
                     title: 'Dernières ventes',
-                    subtitle:
-                        'Commandes récentes et revenus associés à la boutique.',
+                    subtitle: 'Résumé des commandes récentes et accès au détail complet.',
                   ),
                   const SizedBox(height: 10),
                   if (controller.recentOrders.isEmpty)
-                    const Card(
-                      child: Padding(
-                        padding: EdgeInsets.all(18),
-                        child: Text('Aucune vente pour le moment.'),
-                      ),
-                    )
-                  else
-                    for (final MediaOrderModel order
-                        in controller.recentOrders.take(10))
+                    const Card(child: Padding(padding: EdgeInsets.all(18), child: Text('Aucune vente pour le moment.')))
+                  else ...<Widget>[
+                    for (final MediaOrderModel order in controller.recentOrders.take(5))
                       Card(
                         child: ListTile(
                           leading: const Icon(Icons.receipt_long_outlined),
-                          title: Text('${order.total.toStringAsFixed(2)} €'),
-                          subtitle: Text(
-                            '${order.items.length} ligne(s) • ${order.orderId}',
-                          ),
+                          title: Text('${order.total.toStringAsFixed(2)} ${order.currency}'),
+                          subtitle: Text('${order.paymentStatus.name} • ${order.items.length} ligne(s)'),
+                          trailing: Text('${order.photographerNetTotal.toStringAsFixed(2)} € net'),
                         ),
                       ),
+                    Align(
+                      alignment: Alignment.centerRight,
+                      child: TextButton.icon(
+                        onPressed: () => _open(context, const PhotographerBusinessCenterPage(initialTab: 2)),
+                        icon: const Icon(Icons.open_in_new),
+                        label: const Text('Voir toutes les ventes'),
+                      ),
+                    ),
+                  ],
                 ],
               ],
             ),
@@ -288,10 +226,7 @@ class _DashboardView extends StatelessWidget {
                       child: MediaMarketplaceBrandHeader(
                         subtitle: 'MA BOUTIQUE PHOTOS',
                         onBack: () => Navigator.of(context).pop(),
-                        trailing: IconButton(
-                          onPressed: controller.refresh,
-                          icon: const Icon(Icons.refresh_rounded),
-                        ),
+                        trailing: IconButton(onPressed: controller.refresh, icon: const Icon(Icons.refresh_rounded)),
                       ),
                     ),
                     Expanded(child: content),
@@ -300,22 +235,10 @@ class _DashboardView extends StatelessWidget {
               ),
               MediaMarketplaceVerticalNav(
                 selected: MediaMarketplaceNavSection.photographer,
-                onOpenCatalog: () => Navigator.pushReplacementNamed(
-                  context,
-                  '/media-marketplace',
-                  arguments: const <String, dynamic>{'initialTab': 0},
-                ),
+                onOpenCatalog: () => Navigator.pushReplacementNamed(context, '/media-marketplace', arguments: const <String, dynamic>{'initialTab': 0}),
                 onOpenPhotographer: () {},
-                onOpenCart: () => Navigator.pushReplacementNamed(
-                  context,
-                  '/media-marketplace',
-                  arguments: const <String, dynamic>{'initialTab': 1},
-                ),
-                onOpenDownloads: () => Navigator.pushReplacementNamed(
-                  context,
-                  '/media-marketplace',
-                  arguments: const <String, dynamic>{'initialTab': 2},
-                ),
+                onOpenCart: () => Navigator.pushReplacementNamed(context, '/media-marketplace', arguments: const <String, dynamic>{'initialTab': 1}),
+                onOpenDownloads: () => Navigator.pushReplacementNamed(context, '/media-marketplace', arguments: const <String, dynamic>{'initialTab': 2}),
               ),
             ],
           ),
@@ -325,250 +248,115 @@ class _DashboardView extends StatelessWidget {
   }
 }
 
-class _QuickActions extends StatelessWidget {
-  const _QuickActions({
-    required this.onCreateGallery,
-    required this.onAddPhotos,
-    required this.onSales,
-    required this.onPublicShop,
-  });
-
-  final VoidCallback onCreateGallery;
-  final VoidCallback onAddPhotos;
-  final VoidCallback onSales;
-  final VoidCallback onPublicShop;
+class _CreateProfileCard extends StatelessWidget {
+  const _CreateProfileCard({required this.onCreate});
+  final VoidCallback onCreate;
 
   @override
-  Widget build(BuildContext context) {
-    final actions = <({IconData icon, String label, VoidCallback action})>[
-      (
-        icon: Icons.create_new_folder_outlined,
-        label: 'Créer une galerie',
-        action: onCreateGallery,
-      ),
-      (
-        icon: Icons.add_photo_alternate_outlined,
-        label: 'Ajouter des photos',
-        action: onAddPhotos,
-      ),
-      (
-        icon: Icons.payments_outlined,
-        label: 'Gérer mes ventes',
-        action: onSales,
-      ),
-      (
-        icon: Icons.storefront_outlined,
-        label: 'Voir ma boutique',
-        action: onPublicShop,
-      ),
-    ];
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        final width = constraints.maxWidth >= 700
-            ? (constraints.maxWidth - 36) / 4
-            : (constraints.maxWidth - 12) / 2;
-        return Wrap(
-          spacing: 12,
-          runSpacing: 12,
-          children: actions
-              .map(
-                (item) => SizedBox(
-                  width: width,
-                  height: 112,
-                  child: Card(
-                    child: InkWell(
-                      borderRadius: BorderRadius.circular(16),
-                      onTap: item.action,
-                      child: Padding(
-                        padding: const EdgeInsets.all(12),
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: <Widget>[
-                            Icon(item.icon, size: 30),
-                            const SizedBox(height: 8),
-                            Text(
-                              item.label,
-                              textAlign: TextAlign.center,
-                              style:
-                                  const TextStyle(fontWeight: FontWeight.w800),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-              )
-              .toList(growable: false),
-        );
-      },
-    );
-  }
+  Widget build(BuildContext context) => Card(
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            children: <Widget>[
+              const Icon(Icons.camera_alt_outlined, size: 54),
+              const SizedBox(height: 12),
+              Text('Crée ton profil photographe', style: Theme.of(context).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.w900)),
+              const SizedBox(height: 8),
+              const Text('Renseigne ta marque, ton territoire et tes coordonnées. La formule Découverte sera utilisée par défaut.'),
+              const SizedBox(height: 16),
+              FilledButton.icon(onPressed: onCreate, icon: const Icon(Icons.add), label: const Text('Créer mon profil')),
+            ],
+          ),
+        ),
+      );
+}
+
+class _ProfileHeader extends StatelessWidget {
+  const _ProfileHeader({required this.profile, required this.onEdit});
+  final PhotographerProfileModel profile;
+  final VoidCallback onEdit;
+
+  @override
+  Widget build(BuildContext context) => Card(
+        child: ListTile(
+          contentPadding: const EdgeInsets.all(16),
+          leading: CircleAvatar(radius: 34, backgroundImage: profile.avatarUrl?.isNotEmpty == true ? NetworkImage(profile.avatarUrl!) : null, child: profile.avatarUrl?.isNotEmpty == true ? null : const Icon(Icons.camera_alt_outlined)),
+          title: Text(profile.brandName, style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w900)),
+          subtitle: Text('${profile.city ?? ''}${profile.city != null && profile.country != null ? ' • ' : ''}${profile.country ?? ''}\n${profile.bio ?? ''}', maxLines: 3, overflow: TextOverflow.ellipsis),
+          trailing: IconButton(onPressed: onEdit, icon: const Icon(Icons.edit_outlined), tooltip: 'Modifier le profil'),
+        ),
+      );
 }
 
 class _QuotaCard extends StatelessWidget {
   const _QuotaCard({required this.profile, required this.onUpgrade});
-
   final PhotographerProfileModel profile;
   final VoidCallback onUpgrade;
 
   @override
   Widget build(BuildContext context) {
     final plan = MediaMarketplacePricing.planFor(profile.activePlanId);
-    final photoRatio = plan.photoRatio(profile.publishedPhotoCount);
-    final storageRatio = plan.storageRatio(profile.storageUsedBytes);
-    final ratio = photoRatio > storageRatio ? photoRatio : storageRatio;
-    final color = ratio >= .95
-        ? Colors.red
-        : ratio >= .8
-            ? Colors.orange
-            : Colors.green;
+    final photo = plan.photoRatio(profile.publishedPhotoCount).clamp(0, 1);
+    final storage = plan.storageRatio(profile.storageUsedBytes).clamp(0, 1);
+    final galleries = plan.maxActiveGalleries <= 0 ? 0.0 : (profile.activeGalleryCount / plan.maxActiveGalleries).clamp(0, 1).toDouble();
     return Card(
       child: Padding(
         padding: const EdgeInsets.all(18),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: <Widget>[
-            Row(
-              children: <Widget>[
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: <Widget>[
-                      Text(
-                        'Formule ${plan.name}',
-                        style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                              fontWeight: FontWeight.w900,
-                            ),
-                      ),
-                      Text(
-                        '${plan.qualityLabel} • ${(plan.commissionRate * 100).round()} % de commission',
-                      ),
-                    ],
-                  ),
-                ),
-                TextButton(
-                  onPressed: onUpgrade,
-                  child: const Text('Changer'),
-                ),
-              ],
-            ),
-            const SizedBox(height: 12),
-            Text('${profile.publishedPhotoCount} / ${plan.maxPublishedPhotos} photos'),
-            LinearProgressIndicator(value: photoRatio.clamp(0, 1), color: color),
-            const SizedBox(height: 10),
-            Text(
-              '${(profile.storageUsedBytes / (1024 * 1024 * 1024)).toStringAsFixed(1)} / ${(plan.maxStorageBytes / (1024 * 1024 * 1024)).round()} Go',
-            ),
-            LinearProgressIndicator(
-              value: storageRatio.clamp(0, 1),
-              color: color,
-            ),
-            const SizedBox(height: 8),
-            Text(
-              'Conservation ${plan.retentionDays} jours • fichier max ${(plan.maxFileBytes / (1024 * 1024)).round()} Mo',
-              style: Theme.of(context).textTheme.bodySmall,
-            ),
-            if (ratio >= .8) ...<Widget>[
-              const SizedBox(height: 8),
-              Text(
-                ratio >= .95
-                    ? 'Quota presque atteint. Les ventes restent actives, mais les nouveaux imports seront bloqués à 100 %.'
-                    : 'Plus de 80 % du quota est utilisé.',
-                style: TextStyle(color: color, fontWeight: FontWeight.w700),
-              ),
-            ],
-          ],
-        ),
+        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: <Widget>[
+          Row(children: <Widget>[Expanded(child: Text('Formule ${plan.name}', style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w900))), TextButton(onPressed: onUpgrade, child: const Text('Changer'))]),
+          Text('${plan.qualityLabel} • ${(plan.commissionRate * 100).round()} % de commission'),
+          const SizedBox(height: 14),
+          _QuotaLine(label: '${profile.publishedPhotoCount} / ${plan.maxPublishedPhotos} photos', value: photo),
+          _QuotaLine(label: '${(profile.storageUsedBytes / (1024 * 1024 * 1024)).toStringAsFixed(1)} / ${(plan.maxStorageBytes / (1024 * 1024 * 1024)).round()} Go', value: storage),
+          _QuotaLine(label: '${profile.activeGalleryCount} / ${plan.maxActiveGalleries} galeries actives', value: galleries),
+          const SizedBox(height: 6),
+          Text('Conservation ${plan.retentionDays} jours • fichier max ${(plan.maxFileBytes / (1024 * 1024)).round()} Mo', style: Theme.of(context).textTheme.bodySmall),
+        ]),
       ),
     );
   }
 }
 
-class _SelectedGallerySummary extends StatelessWidget {
-  const _SelectedGallerySummary({required this.controller});
-
-  final PhotographerDashboardController controller;
+class _QuotaLine extends StatelessWidget {
+  const _QuotaLine({required this.label, required this.value});
+  final String label;
+  final double value;
 
   @override
   Widget build(BuildContext context) {
-    return Row(
-      children: <Widget>[
-        Expanded(
-          child: MediaMarketplaceMetricCard(
-            label: 'Photos',
-            value: '${controller.selectedGalleryPhotos.length}',
-          ),
-        ),
-        const SizedBox(width: 12),
-        Expanded(
-          child: MediaMarketplaceMetricCard(
-            label: 'Packs',
-            value: '${controller.selectedGalleryPacks.length}',
-          ),
-        ),
-      ],
-    );
+    final color = value >= .95 ? Theme.of(context).colorScheme.error : value >= .8 ? Colors.orange : Colors.green;
+    return Padding(padding: const EdgeInsets.only(top: 10), child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: <Widget>[Text(label), const SizedBox(height: 4), LinearProgressIndicator(value: value, color: color)]));
   }
 }
 
-class _ProfileHeader extends StatelessWidget {
-  const _ProfileHeader({required this.profile});
-
-  final PhotographerProfileModel profile;
+class _ActionGrid extends StatelessWidget {
+  const _ActionGrid({required this.onCreateGallery, required this.onPhotos, required this.onSales, required this.onBilling});
+  final VoidCallback onCreateGallery;
+  final VoidCallback onPhotos;
+  final VoidCallback onSales;
+  final VoidCallback onBilling;
 
   @override
   Widget build(BuildContext context) {
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(18),
-        child: Row(
-          children: <Widget>[
-            CircleAvatar(
-              radius: 34,
-              backgroundImage: profile.avatarUrl?.isNotEmpty == true
-                  ? NetworkImage(profile.avatarUrl!)
-                  : null,
-              child: profile.avatarUrl?.isNotEmpty == true
-                  ? null
-                  : const Icon(Icons.camera_alt_outlined, size: 30),
-            ),
-            const SizedBox(width: 16),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: <Widget>[
-                  Text(
-                    profile.brandName,
-                    style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                          fontWeight: FontWeight.w900,
-                        ),
-                  ),
-                  Text(profile.email ?? 'Sans email'),
-                  if (profile.bio?.isNotEmpty == true)
-                    Text(
-                      profile.bio!,
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                ],
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
+    final actions = <({IconData icon, String label, VoidCallback action})>[
+      (icon: Icons.create_new_folder_outlined, label: 'Galeries et imports', action: onCreateGallery),
+      (icon: Icons.photo_library_outlined, label: 'Gérer les photos', action: onPhotos),
+      (icon: Icons.payments_outlined, label: 'Ventes et reversements', action: onSales),
+      (icon: Icons.receipt_long_outlined, label: 'Abonnement et factures', action: onBilling),
+    ];
+    return LayoutBuilder(builder: (context, constraints) {
+      final width = constraints.maxWidth >= 760 ? (constraints.maxWidth - 36) / 4 : (constraints.maxWidth - 12) / 2;
+      return Wrap(spacing: 12, runSpacing: 12, children: actions.map((item) => SizedBox(width: width, height: 110, child: Card(child: InkWell(borderRadius: BorderRadius.circular(16), onTap: item.action, child: Padding(padding: const EdgeInsets.all(12), child: Column(mainAxisAlignment: MainAxisAlignment.center, children: <Widget>[Icon(item.icon, size: 30), const SizedBox(height: 8), Text(item.label, textAlign: TextAlign.center, style: const TextStyle(fontWeight: FontWeight.w800))]))))).toList(growable: false));
+    });
   }
 }
 
 class _StatsGrid extends StatelessWidget {
-  const _StatsGrid({required this.controller});
-
-  final PhotographerDashboardController controller;
+  const _StatsGrid({required this.profile});
+  final PhotographerProfileModel profile;
 
   @override
   Widget build(BuildContext context) {
-    final profile = controller.profile!;
     final stats = <MapEntry<String, String>>[
       MapEntry('Photos publiées', '${profile.publishedPhotoCount}'),
       MapEntry('Galeries actives', '${profile.activeGalleryCount}'),
@@ -577,27 +365,12 @@ class _StatsGrid extends StatelessWidget {
       MapEntry('CA brut', '${profile.totalRevenueGross.toStringAsFixed(2)} €'),
       MapEntry('Revenus nets', '${profile.totalRevenueNet.toStringAsFixed(2)} €'),
     ];
-    return Wrap(
-      spacing: 12,
-      runSpacing: 12,
-      children: stats
-          .map(
-            (entry) => SizedBox(
-              width: 190,
-              child: MediaMarketplaceMetricCard(
-                label: entry.key,
-                value: entry.value,
-              ),
-            ),
-          )
-          .toList(growable: false),
-    );
+    return Wrap(spacing: 12, runSpacing: 12, children: stats.map((entry) => SizedBox(width: 190, child: MediaMarketplaceMetricCard(label: entry.key, value: entry.value))).toList(growable: false));
   }
 }
 
 class _StripeConnectCard extends StatefulWidget {
   const _StripeConnectCard({required this.profile, required this.onRefreshed});
-
   final PhotographerProfileModel profile;
   final Future<void> Function() onRefreshed;
 
@@ -608,48 +381,17 @@ class _StripeConnectCard extends StatefulWidget {
 class _StripeConnectCardState extends State<_StripeConnectCard> {
   bool _loading = false;
   String? _error;
+  FirebaseFunctions get _functions => FirebaseFunctions.instanceFor(region: 'us-east1');
 
-  FirebaseFunctions get _functions =>
-      FirebaseFunctions.instanceFor(region: 'us-east1');
-
-  Future<void> _onboard() async {
+  Future<void> _call(String name, {bool openUrl = false}) async {
     setState(() {
       _loading = true;
       _error = null;
     });
     try {
-      final result = await _functions
-          .httpsCallable('createPhotographerConnectOnboardingLink')
-          .call(<String, dynamic>{
-        'photographerId': widget.profile.photographerId,
-      });
-      final url = result.data is Map ? result.data['url'] : null;
-      if (url is! String || url.isEmpty) {
-        throw StateError('URL Stripe invalide.');
-      }
-      final opened = await launchUrl(
-        Uri.parse(url),
-        mode: LaunchMode.externalApplication,
-      );
-      if (!opened) throw StateError('Impossible d’ouvrir Stripe.');
-    } catch (error) {
-      if (mounted) setState(() => _error = error.toString());
-    } finally {
-      if (mounted) setState(() => _loading = false);
-    }
-  }
-
-  Future<void> _refresh() async {
-    setState(() {
-      _loading = true;
-      _error = null;
-    });
-    try {
-      await _functions
-          .httpsCallable('refreshPhotographerConnectStatus')
-          .call(<String, dynamic>{
-        'photographerId': widget.profile.photographerId,
-      });
+      final result = await _functions.httpsCallable(name).call(<String, dynamic>{'photographerId': widget.profile.photographerId});
+      final url = result.data is Map ? result.data['url']?.toString() : null;
+      if (openUrl && url != null && url.isNotEmpty) await launchUrl(Uri.parse(url), mode: LaunchMode.externalApplication);
       await widget.onRefreshed();
     } catch (error) {
       if (mounted) setState(() => _error = error.toString());
@@ -660,52 +402,22 @@ class _StripeConnectCardState extends State<_StripeConnectCard> {
 
   @override
   Widget build(BuildContext context) {
-    final profile = widget.profile;
-    final hasAccount = profile.stripeAccountId?.isNotEmpty == true;
-    final ready = profile.stripeChargesEnabled && profile.stripePayoutsEnabled;
+    final hasAccount = widget.profile.stripeAccountId?.isNotEmpty == true;
+    final ready = widget.profile.stripeChargesEnabled && widget.profile.stripePayoutsEnabled;
     return Card(
       child: Padding(
         padding: const EdgeInsets.all(18),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: <Widget>[
-            Text(
-              'Stripe Connect',
-              style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                    fontWeight: FontWeight.w900,
-                  ),
-            ),
-            const SizedBox(height: 6),
-            Text(
-              ready
-                  ? 'Paiements et reversements actifs. Les galeries peuvent être publiées.'
-                  : 'La publication est bloquée tant que les paiements et reversements ne sont pas actifs.',
-            ),
-            if (_error != null) ...<Widget>[
-              const SizedBox(height: 8),
-              Text(_error!, style: const TextStyle(color: Colors.red)),
-            ],
-            const SizedBox(height: 12),
-            Wrap(
-              spacing: 8,
-              runSpacing: 8,
-              children: <Widget>[
-                MasliveButton(
-                  label: hasAccount
-                      ? 'Reprendre la configuration'
-                      : 'Configurer Stripe',
-                  onPressed: _loading ? null : _onboard,
-                  expand: false,
-                ),
-                if (hasAccount)
-                  OutlinedButton(
-                    onPressed: _loading ? null : _refresh,
-                    child: const Text('Rafraîchir le statut'),
-                  ),
-              ],
-            ),
-          ],
-        ),
+        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: <Widget>[
+          Text('Stripe Connect', style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w900)),
+          const SizedBox(height: 6),
+          Text(ready ? 'Paiements et reversements actifs.' : 'La publication reste bloquée tant que Stripe Connect n’est pas payable.'),
+          if (_error != null) Padding(padding: const EdgeInsets.only(top: 8), child: Text(_error!, style: TextStyle(color: Theme.of(context).colorScheme.error))),
+          const SizedBox(height: 12),
+          Wrap(spacing: 8, runSpacing: 8, children: <Widget>[
+            MasliveButton(label: hasAccount ? 'Reprendre la configuration' : 'Configurer Stripe', onPressed: _loading ? null : () => _call('createPhotographerConnectOnboardingLink', openUrl: true), expand: false),
+            if (hasAccount) OutlinedButton(onPressed: _loading ? null : () => _call('refreshPhotographerConnectStatus'), child: const Text('Rafraîchir le statut')),
+          ]),
+        ]),
       ),
     );
   }
