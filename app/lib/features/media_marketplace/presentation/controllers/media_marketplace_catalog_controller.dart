@@ -7,20 +7,26 @@ import '../../data/models/media_photo_model.dart';
 import '../../data/repositories/media_gallery_repository.dart';
 import '../../data/repositories/media_pack_repository.dart';
 import '../../data/repositories/media_photo_repository.dart';
+import '../../domain/models/photo_shop_navigation_context.dart';
+import '../../domain/services/gallery_relevance_service.dart';
 
 class MediaMarketplaceCatalogController extends ChangeNotifier {
   MediaMarketplaceCatalogController({
     MediaGalleryRepository? mediaGalleryRepository,
     MediaPhotoRepository? mediaPhotoRepository,
     MediaPackRepository? mediaPackRepository,
+    GalleryRelevanceService? galleryRelevanceService,
   })  : _mediaGalleryRepository =
             mediaGalleryRepository ?? MediaGalleryRepository(),
         _mediaPhotoRepository = mediaPhotoRepository ?? MediaPhotoRepository(),
-        _mediaPackRepository = mediaPackRepository ?? MediaPackRepository();
+        _mediaPackRepository = mediaPackRepository ?? MediaPackRepository(),
+        _galleryRelevanceService =
+            galleryRelevanceService ?? const GalleryRelevanceService();
 
   final MediaGalleryRepository _mediaGalleryRepository;
   final MediaPhotoRepository _mediaPhotoRepository;
   final MediaPackRepository _mediaPackRepository;
+  final GalleryRelevanceService _galleryRelevanceService;
   final MediaGalleryPaginationState<MediaPhotoModel> _photoPagination =
       MediaGalleryPaginationState<MediaPhotoModel>();
 
@@ -30,6 +36,8 @@ class MediaMarketplaceCatalogController extends ChangeNotifier {
   String? currentEventId;
   String? currentPhotographerId;
   String? currentCircuitId;
+  PhotoShopNavigationContext currentContext =
+      const PhotoShopNavigationContext();
   String? selectedGalleryId;
   List<MediaGalleryModel> galleries = const <MediaGalleryModel>[];
   List<MediaPhotoModel> photos = const <MediaPhotoModel>[];
@@ -43,29 +51,57 @@ class MediaMarketplaceCatalogController extends ChangeNotifier {
     String eventId, {
     String? countryId,
     String? circuitId,
+  }) {
+    return loadContextGalleries(
+      PhotoShopNavigationContext(
+        selectedEventId: eventId,
+        selectedCountryId: countryId,
+        selectedCircuitId: circuitId,
+      ),
+    );
+  }
+
+  Future<void> loadContextGalleries(
+    PhotoShopNavigationContext context, {
+    Set<String> officialPhotographerIds = const <String>{},
   }) async {
     loading = true;
     error = null;
-    currentCountryId = countryId;
-    currentEventId = eventId;
-    currentPhotographerId = null;
-    currentCircuitId = circuitId;
+    currentContext = context;
+    currentCountryId = context.selectedCountryId;
+    currentEventId = context.selectedEventId;
+    currentPhotographerId = context.selectedPhotographerId;
+    currentCircuitId = context.selectedCircuitId;
     selectedGalleryId = null;
+    galleries = const <MediaGalleryModel>[];
     _resetPhotos();
     packs = const <MediaPackModel>[];
     notifyListeners();
 
     try {
-      final eventGalleries = await _mediaGalleryRepository.getByEvent(eventId);
-      galleries = _applySelectionScope(
-        eventGalleries,
-        countryId: countryId,
-        circuitId: circuitId,
+      final eventId = context.selectedEventId?.trim();
+      final photographerId = context.selectedPhotographerId?.trim();
+      final source = eventId != null && eventId.isNotEmpty
+          ? await _mediaGalleryRepository.getByEvent(eventId)
+          : photographerId != null && photographerId.isNotEmpty
+              ? await _mediaGalleryRepository.getByPhotographer(photographerId)
+              : const <MediaGalleryModel>[];
+
+      final scoped = _applySelectionScope(
+        source,
+        countryId: context.selectedCountryId,
+        circuitId: context.selectedCircuitId,
+      );
+      galleries = _galleryRelevanceService.rank(
+        galleries: scoped,
+        context: context,
+        officialPhotographerIds: officialPhotographerIds,
       );
       await _selectFirstGalleryByDefault();
     } catch (err) {
       error = err;
       galleries = const <MediaGalleryModel>[];
+      selectedGalleryId = null;
       _resetPhotos();
       packs = const <MediaPackModel>[];
     } finally {
@@ -74,41 +110,29 @@ class MediaMarketplaceCatalogController extends ChangeNotifier {
     }
   }
 
-  Future<void> loadPhotographerGalleries(String photographerId) async {
-    loading = true;
-    error = null;
-    currentCountryId = null;
-    currentPhotographerId = photographerId;
-    currentEventId = null;
-    currentCircuitId = null;
-    selectedGalleryId = null;
-    _resetPhotos();
-    packs = const <MediaPackModel>[];
-    notifyListeners();
-
-    try {
-      galleries =
-          await _mediaGalleryRepository.getByPhotographer(photographerId);
-      await _selectFirstGalleryByDefault();
-    } catch (err) {
-      error = err;
-      galleries = const <MediaGalleryModel>[];
-      _resetPhotos();
-      packs = const <MediaPackModel>[];
-    } finally {
-      loading = false;
-      notifyListeners();
-    }
+  Future<void> loadPhotographerGalleries(String photographerId) {
+    return loadContextGalleries(
+      PhotoShopNavigationContext(selectedPhotographerId: photographerId),
+    );
   }
 
   Future<void> _selectFirstGalleryByDefault() async {
-    if (galleries.isEmpty) return;
+    if (galleries.isEmpty) {
+      selectedGalleryId = null;
+      _resetPhotos();
+      packs = const <MediaPackModel>[];
+      return;
+    }
     selectedGalleryId = galleries.first.galleryId;
     await _loadSelectedGallery(reset: true);
   }
 
   Future<void> selectGallery(String galleryId) async {
+    if (!galleries.any((gallery) => gallery.galleryId == galleryId)) {
+      throw StateError('Galerie indisponible dans le contexte sélectionné.');
+    }
     if (selectedGalleryId == galleryId && photos.isNotEmpty) return;
+
     loading = true;
     error = null;
     selectedGalleryId = galleryId;
@@ -160,6 +184,7 @@ class MediaMarketplaceCatalogController extends ChangeNotifier {
 
     final packsFuture = _mediaPackRepository.getActiveByGallery(galleryId);
     await loadMorePhotos();
+    if (selectedGalleryId != galleryId) return;
     packs = await packsFuture;
   }
 
