@@ -4,21 +4,21 @@ import 'package:cloud_functions/cloud_functions.dart';
 import '../models/media_gallery_model.dart';
 import '../models/media_order_model.dart';
 import '../models/media_photo_model.dart';
-import '../models/photographer_profile_model.dart';
 
 class PhotographerPhotoPage {
   const PhotographerPhotoPage({
     required this.photos,
     required this.documents,
     required this.hasMore,
+    required this.nextCursor,
   });
 
   final List<MediaPhotoModel> photos;
   final List<QueryDocumentSnapshot<Map<String, dynamic>>> documents;
   final bool hasMore;
+  final DocumentSnapshot<Map<String, dynamic>>? nextCursor;
 
-  DocumentSnapshot<Map<String, dynamic>>? get cursor =>
-      documents.isEmpty ? null : documents.last;
+  DocumentSnapshot<Map<String, dynamic>>? get cursor => nextCursor;
 }
 
 class PhotographerCompleteFlowRepository {
@@ -26,7 +26,8 @@ class PhotographerCompleteFlowRepository {
     FirebaseFirestore? firestore,
     FirebaseFunctions? functions,
   })  : _firestore = firestore ?? FirebaseFirestore.instance,
-        _functions = functions ?? FirebaseFunctions.instanceFor(region: 'us-east1');
+        _functions =
+            functions ?? FirebaseFunctions.instanceFor(region: 'us-east1');
 
   final FirebaseFirestore _firestore;
   final FirebaseFunctions _functions;
@@ -44,7 +45,9 @@ class PhotographerCompleteFlowRepository {
     return Map<String, dynamic>.from(response.data as Map);
   }
 
-  Future<Map<String, dynamic>> loadWorkspaceConfig(String photographerId) async {
+  Future<Map<String, dynamic>> loadWorkspaceConfig(
+    String photographerId,
+  ) async {
     final response = await _functions
         .httpsCallable('getPhotographerWorkspaceConfig')
         .call(<String, dynamic>{'photographerId': photographerId});
@@ -64,13 +67,17 @@ class PhotographerCompleteFlowRepository {
     return Map<String, dynamic>.from(response.data as Map);
   }
 
-  Future<List<MediaGalleryModel>> loadGalleries(String photographerId) async {
+  Future<List<MediaGalleryModel>> loadGalleries(
+    String photographerId,
+  ) async {
     final snapshot = await _firestore
         .collection('media_galleries')
         .where('photographerId', isEqualTo: photographerId)
         .orderBy('updatedAt', descending: true)
         .get();
-    return snapshot.docs.map(MediaGalleryModel.fromDocument).toList(growable: false);
+    return snapshot.docs
+        .map(MediaGalleryModel.fromDocument)
+        .toList(growable: false);
   }
 
   Future<void> updateGallery({
@@ -96,14 +103,19 @@ class PhotographerCompleteFlowRepository {
       'photographerId': photographerId,
       'galleryId': galleryId,
     });
-    return Map<String, dynamic>.from(response.data as Map)['galleryId']?.toString() ?? '';
+    return Map<String, dynamic>.from(
+          response.data as Map,
+        )['galleryId']?.toString() ??
+        '';
   }
 
   Future<void> deleteGallery({
     required String photographerId,
     required String galleryId,
   }) async {
-    await _functions.httpsCallable('deletePhotographerGallery').call(<String, dynamic>{
+    await _functions
+        .httpsCallable('deletePhotographerGallery')
+        .call(<String, dynamic>{
       'photographerId': photographerId,
       'galleryId': galleryId,
     });
@@ -119,7 +131,8 @@ class PhotographerCompleteFlowRepository {
       'photographerId': photographerId,
       'galleryId': galleryId,
     });
-    return Map<String, dynamic>.from(response.data as Map)['url']?.toString() ?? '';
+    return Map<String, dynamic>.from(response.data as Map)['url']?.toString() ??
+        '';
   }
 
   Future<PhotographerPhotoPage> loadPhotoPage({
@@ -147,35 +160,57 @@ class PhotographerCompleteFlowRepository {
       }
     }
     if (from != null) {
-      query = query.where('createdAt', isGreaterThanOrEqualTo: Timestamp.fromDate(from));
+      query = query.where(
+        'createdAt',
+        isGreaterThanOrEqualTo: Timestamp.fromDate(from),
+      );
     }
     if (to != null) {
-      query = query.where('createdAt', isLessThanOrEqualTo: Timestamp.fromDate(to));
+      query = query.where(
+        'createdAt',
+        isLessThanOrEqualTo: Timestamp.fromDate(to),
+      );
     }
     query = query.orderBy('createdAt', descending: true).limit(pageSize + 1);
     if (cursor != null) query = query.startAfterDocument(cursor);
     final snapshot = await query.get();
-    final raw = snapshot.docs.take(pageSize).toList(growable: false);
+
+    // Le curseur doit toujours suivre le dernier document Firestore parcouru,
+    // même si le filtre texte local écarte toute la page. Sinon la même page
+    // serait rechargée indéfiniment ou certaines photos seraient sautées.
+    final rawPage = snapshot.docs.take(pageSize).toList(growable: false);
+    final nextCursor = rawPage.isEmpty ? cursor : rawPage.last;
     final normalizedQuery = queryText?.trim().toLowerCase() ?? '';
     final normalizedBib = bibNumber?.trim().toLowerCase() ?? '';
-    final filtered = raw.where((doc) {
+    final filtered = rawPage.where((doc) {
       final data = doc.data();
       final searchable = <String>[
         doc.id,
         data['eventName']?.toString() ?? '',
         data['downloadFileName']?.toString() ?? '',
-        ...(data['tags'] as Iterable? ?? const <dynamic>[]).map((value) => value.toString()),
-        ...(data['colorTags'] as Iterable? ?? const <dynamic>[]).map((value) => value.toString()),
-        ...(data['bibNumbers'] as Iterable? ?? const <dynamic>[]).map((value) => value.toString()),
+        ...(data['tags'] as Iterable? ?? const <dynamic>[])
+            .map((value) => value.toString()),
+        ...(data['colorTags'] as Iterable? ?? const <dynamic>[])
+            .map((value) => value.toString()),
+        ...(data['bibNumbers'] as Iterable? ?? const <dynamic>[])
+            .map((value) => value.toString()),
       ].join(' ').toLowerCase();
-      if (normalizedQuery.isNotEmpty && !searchable.contains(normalizedQuery)) return false;
-      if (normalizedBib.isNotEmpty && !searchable.contains(normalizedBib)) return false;
+      if (normalizedQuery.isNotEmpty &&
+          !searchable.contains(normalizedQuery)) {
+        return false;
+      }
+      if (normalizedBib.isNotEmpty && !searchable.contains(normalizedBib)) {
+        return false;
+      }
       return true;
     }).toList(growable: false);
     return PhotographerPhotoPage(
-      photos: filtered.map(MediaPhotoModel.fromDocument).toList(growable: false),
+      photos: filtered
+          .map(MediaPhotoModel.fromDocument)
+          .toList(growable: false),
       documents: filtered,
       hasMore: snapshot.docs.length > pageSize,
+      nextCursor: nextCursor,
     );
   }
 
@@ -262,15 +297,42 @@ class PhotographerCompleteFlowRepository {
   }
 
   Future<List<MediaOrderModel>> loadOrders(String photographerId) async {
-    final snapshot = await _firestore
-        .collection('orders')
-        .where('photographerIds', arrayContains: photographerId)
-        .orderBy('createdAt', descending: true)
-        .get();
-    return snapshot.docs.map(MediaOrderModel.fromDocument).toList(growable: false);
+    final snapshots = <QuerySnapshot<Map<String, dynamic>>>[];
+    try {
+      snapshots.add(
+        await _firestore
+            .collection('orders')
+            .where('photographerIds', arrayContains: photographerId)
+            .get(),
+      );
+    } catch (_) {
+      // Les commandes historiques n'avaient pas toujours photographerIds.
+    }
+    try {
+      snapshots.add(
+        await _firestore
+            .collection('orders')
+            .where('sellerIds', arrayContains: photographerId)
+            .get(),
+      );
+    } catch (_) {
+      // Le premier schéma reste utilisable si l'index legacy est absent.
+    }
+
+    final byId = <String, MediaOrderModel>{};
+    for (final snapshot in snapshots) {
+      for (final doc in snapshot.docs) {
+        byId[doc.id] = MediaOrderModel.fromDocument(doc);
+      }
+    }
+    final orders = byId.values.toList(growable: false)
+      ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
+    return orders;
   }
 
-  Future<List<Map<String, dynamic>>> loadPayouts(String photographerId) async {
+  Future<List<Map<String, dynamic>>> loadPayouts(
+    String photographerId,
+  ) async {
     final snapshot = await _firestore
         .collection('payout_ledger')
         .where('photographerId', isEqualTo: photographerId)
@@ -278,7 +340,9 @@ class PhotographerCompleteFlowRepository {
     final rows = snapshot.docs
         .map((doc) => <String, dynamic>{'id': doc.id, ...doc.data()})
         .toList(growable: false);
-    rows.sort((a, b) => _dateOf(b['createdAt']).compareTo(_dateOf(a['createdAt'])));
+    rows.sort(
+      (a, b) => _dateOf(b['createdAt']).compareTo(_dateOf(a['createdAt'])),
+    );
     return rows;
   }
 
@@ -293,6 +357,21 @@ class PhotographerCompleteFlowRepository {
         .call(<String, dynamic>{
       'photographerId': photographerId,
       'kind': kind,
+      if (from != null) 'from': from.toIso8601String(),
+      if (to != null) 'to': to.toIso8601String(),
+    });
+    return Map<String, dynamic>.from(response.data as Map);
+  }
+
+  Future<Map<String, dynamic>> generatePdfInvoice({
+    required String photographerId,
+    DateTime? from,
+    DateTime? to,
+  }) async {
+    final response = await _functions
+        .httpsCallable('generatePhotographerPdfInvoice')
+        .call(<String, dynamic>{
+      'photographerId': photographerId,
       if (from != null) 'from': from.toIso8601String(),
       if (to != null) 'to': to.toIso8601String(),
     });
@@ -316,13 +395,17 @@ class PhotographerCompleteFlowRepository {
     required String photographerId,
     required String keyId,
   }) async {
-    await _functions.httpsCallable('revokePhotographerApiKey').call(<String, dynamic>{
+    await _functions
+        .httpsCallable('revokePhotographerApiKey')
+        .call(<String, dynamic>{
       'photographerId': photographerId,
       'keyId': keyId,
     });
   }
 
-  Future<List<Map<String, dynamic>>> loadAudit(String photographerId) async {
+  Future<List<Map<String, dynamic>>> loadAudit(
+    String photographerId,
+  ) async {
     final snapshot = await _firestore
         .collection('photographer_audit_log')
         .where('photographerId', isEqualTo: photographerId)
@@ -344,6 +427,7 @@ class PhotographerCompleteFlowRepository {
   static DateTime _dateOf(dynamic value) {
     if (value is Timestamp) return value.toDate();
     if (value is DateTime) return value;
-    return DateTime.tryParse(value?.toString() ?? '') ?? DateTime.fromMillisecondsSinceEpoch(0);
+    return DateTime.tryParse(value?.toString() ?? '') ??
+        DateTime.fromMillisecondsSinceEpoch(0);
   }
 }
