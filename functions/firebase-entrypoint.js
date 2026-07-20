@@ -4,8 +4,10 @@ const legacyExports = require("./index")
 const admin = require("firebase-admin")
 const stripeModule = require("stripe")
 const { defineSecret } = require("firebase-functions/params")
-const { onCall, HttpsError } = require("firebase-functions/v2/https")
+const { onCall, onRequest, HttpsError } = require("firebase-functions/v2/https")
+const { onDocumentUpdated } = require("firebase-functions/v2/firestore")
 const createPhotographerSubscriptionLifecycle = require("./src/photographer-subscription-lifecycle")
+const createPhotographerCompleteFlow = require("./src/photographer-complete-flow")
 
 const STRIPE_SECRET_KEY = defineSecret("STRIPE_SECRET_KEY")
 let stripe = null
@@ -41,9 +43,11 @@ function isAllowedRedirectUrl(value) {
   }
 }
 
+const db = admin.firestore()
+
 const photographerSubscriptionLifecycle = createPhotographerSubscriptionLifecycle({
   admin,
-  db: admin.firestore(),
+  db,
   onCall,
   HttpsError,
   STRIPE_SECRET_KEY,
@@ -51,7 +55,17 @@ const photographerSubscriptionLifecycle = createPhotographerSubscriptionLifecycl
   isAllowedRedirectUrl,
 })
 
+const photographerCompleteFlow = createPhotographerCompleteFlow({
+  admin,
+  db,
+  onCall,
+  onRequest,
+  onDocumentUpdated,
+  HttpsError,
+})
+
 module.exports = {
   ...legacyExports,
   ...photographerSubscriptionLifecycle,
+  ...photographerCompleteFlow,
 }
