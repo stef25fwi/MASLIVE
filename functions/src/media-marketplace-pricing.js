@@ -3,6 +3,7 @@
 const GiB = 1024 * 1024 * 1024
 const MiB = 1024 * 1024
 const MEDIA_HD_UPGRADE_PRICE = 2.90
+const ESTIMATED_AI_COST_EUR = 0.01
 
 const PHOTO_PACKS = Object.freeze([
   Object.freeze({ code: "single", title: "1 photo souvenir", photoCount: 1, price: 6.90, highlighted: false }),
@@ -13,17 +14,106 @@ const PHOTO_PACKS = Object.freeze([
 ])
 
 const PHOTOGRAPHER_PLANS = Object.freeze([
-  Object.freeze({ id: "discovery", code: "discovery", name: "Découverte", monthlyPrice: 0, annualPrice: 0, maxPublishedPhotos: 250, maxStorageBytes: 3 * GiB, maxActiveGalleries: 2, maxActivePacks: 10, maxFileBytes: 8 * MiB, maxMegapixels: 12, retentionDays: 30, commissionRate: 0.30, maxCollaborators: 1, qualityLabel: "JPEG 12 MP" }),
-  Object.freeze({ id: "pro", code: "pro", name: "Pro", monthlyPrice: 19.90, annualPrice: 199, maxPublishedPhotos: 3000, maxStorageBytes: 30 * GiB, maxActiveGalleries: 20, maxActivePacks: 100, maxFileBytes: 20 * MiB, maxMegapixels: 24, retentionDays: 183, commissionRate: 0.25, maxCollaborators: 1, qualityLabel: "JPEG 24 MP" }),
-  Object.freeze({ id: "studio", code: "studio", name: "Studio", monthlyPrice: 39.90, annualPrice: 399, maxPublishedPhotos: 10000, maxStorageBytes: 120 * GiB, maxActiveGalleries: 999, maxActivePacks: 500, maxFileBytes: 40 * MiB, maxMegapixels: 40, retentionDays: 365, commissionRate: 0.20, maxCollaborators: 5, qualityLabel: "JPEG 40 MP" }),
-  Object.freeze({ id: "agency", code: "agency", name: "Agence", monthlyPrice: 79.90, annualPrice: 799, maxPublishedPhotos: 30000, maxStorageBytes: 400 * GiB, maxActiveGalleries: 9999, maxActivePacks: 2000, maxFileBytes: 60 * MiB, maxMegapixels: 60, retentionDays: 548, commissionRate: 0.15, maxCollaborators: 25, qualityLabel: "JPEG HD 60 MP" }),
+  Object.freeze({ id: "discovery", code: "discovery", name: "Découverte", monthlyPrice: 0, annualPrice: 0, maxPublishedPhotos: 250, maxStorageBytes: 3 * GiB, maxActiveGalleries: 2, maxActivePacks: 10, maxFileBytes: 8 * MiB, maxMegapixels: 12, retentionDays: 30, commissionRate: 0.30, maxCollaborators: 1, qualityLabel: "JPEG 12 MP", includedBasicAiCredits: 0, includedAdvancedAiCredits: 0 }),
+  Object.freeze({ id: "pro", code: "pro", name: "Pro", monthlyPrice: 19.90, annualPrice: 199, maxPublishedPhotos: 3000, maxStorageBytes: 30 * GiB, maxActiveGalleries: 20, maxActivePacks: 100, maxFileBytes: 20 * MiB, maxMegapixels: 24, retentionDays: 183, commissionRate: 0.25, maxCollaborators: 1, qualityLabel: "JPEG 24 MP", includedBasicAiCredits: 0, includedAdvancedAiCredits: 0 }),
+  Object.freeze({ id: "studio", code: "studio", name: "Studio", monthlyPrice: 39.90, annualPrice: 399, maxPublishedPhotos: 10000, maxStorageBytes: 120 * GiB, maxActiveGalleries: 999, maxActivePacks: 500, maxFileBytes: 40 * MiB, maxMegapixels: 40, retentionDays: 365, commissionRate: 0.20, maxCollaborators: 5, qualityLabel: "JPEG 40 MP", includedBasicAiCredits: 0, includedAdvancedAiCredits: 0 }),
+  Object.freeze({ id: "agency", code: "agency", name: "Agence", monthlyPrice: 79.90, annualPrice: 799, maxPublishedPhotos: 30000, maxStorageBytes: 400 * GiB, maxActiveGalleries: 9999, maxActivePacks: 2000, maxFileBytes: 60 * MiB, maxMegapixels: 60, retentionDays: 548, commissionRate: 0.15, maxCollaborators: 25, qualityLabel: "JPEG HD 60 MP", includedBasicAiCredits: 0, includedAdvancedAiCredits: 0 }),
 ])
 
+// Le moteur Stripe historique considère une extension sans durationDays comme
+// récurrente. Les packs IA à achat unique utilisent donc une durée technique
+// longue, tandis que leurs crédits sont enregistrés sans expiration par le
+// ledger IA. Les packs événementiels expirent réellement après 30 jours.
 const STORAGE_EXTENSIONS = Object.freeze([
-  Object.freeze({ code: "plus_1000", title: "+1 000 photos et +10 Go", price: 5.90, extraPhotos: 1000, extraStorageBytes: 10 * GiB }),
-  Object.freeze({ code: "plus_5000", title: "+5 000 photos et +50 Go", price: 19.90, extraPhotos: 5000, extraStorageBytes: 50 * GiB }),
-  Object.freeze({ code: "event_30d", title: "Stockage événementiel 30 jours", price: 9.90, extraPhotos: 5000, extraStorageBytes: 50 * GiB, durationDays: 30 }),
+  Object.freeze({
+    code: "plus_1000",
+    kind: "storage",
+    title: "+1 000 photos et +10 Go",
+    description: "Extension récurrente de capacité active.",
+    price: 5.90,
+    extraPhotos: 1000,
+    extraStorageBytes: 10 * GiB,
+    basicAiCredits: 0,
+    advancedAiCredits: 0,
+  }),
+  Object.freeze({
+    code: "plus_5000",
+    kind: "storage",
+    title: "+5 000 photos et +50 Go",
+    description: "Extension récurrente pour les volumes réguliers.",
+    price: 19.90,
+    extraPhotos: 5000,
+    extraStorageBytes: 50 * GiB,
+    basicAiCredits: 0,
+    advancedAiCredits: 0,
+  }),
+  Object.freeze({
+    code: "ai_basic_1000",
+    kind: "ai_basic",
+    title: "1 000 analyses OCR et couleurs",
+    description: "Dossards, couleurs dominantes et tags automatiques.",
+    price: 7.90,
+    extraPhotos: 0,
+    extraStorageBytes: 0,
+    basicAiCredits: 1000,
+    advancedAiCredits: 0,
+    durationDays: 36500,
+    creditsNeverExpire: true,
+  }),
+  Object.freeze({
+    code: "ai_advanced_1000",
+    kind: "ai_advanced",
+    title: "1 000 analyses avancées avec regroupement visuel",
+    description: "OCR, couleurs, tags et regroupement visuel anonyme avec consentement.",
+    price: 11.90,
+    extraPhotos: 0,
+    extraStorageBytes: 0,
+    basicAiCredits: 0,
+    advancedAiCredits: 1000,
+    durationDays: 36500,
+    creditsNeverExpire: true,
+  }),
+  Object.freeze({
+    code: "event_30d",
+    kind: "event_storage",
+    title: "Événement 30 jours sans analyse IA",
+    description: "+5 000 photos et +50 Go pendant 30 jours.",
+    price: 14.90,
+    extraPhotos: 5000,
+    extraStorageBytes: 50 * GiB,
+    basicAiCredits: 0,
+    advancedAiCredits: 0,
+    durationDays: 30,
+  }),
+  Object.freeze({
+    code: "event_30d_basic",
+    kind: "event_basic",
+    title: "Événement 30 jours avec 5 000 analyses basiques",
+    description: "+5 000 photos, +50 Go et 5 000 analyses OCR/couleurs.",
+    price: 29.90,
+    extraPhotos: 5000,
+    extraStorageBytes: 50 * GiB,
+    basicAiCredits: 5000,
+    advancedAiCredits: 0,
+    durationDays: 30,
+    creditsExpireWithExtension: true,
+  }),
+  Object.freeze({
+    code: "event_30d_advanced",
+    kind: "event_advanced",
+    title: "Événement 30 jours avec analyse avancée",
+    description: "+5 000 photos, +50 Go et 5 000 analyses avancées.",
+    price: 39.90,
+    extraPhotos: 5000,
+    extraStorageBytes: 50 * GiB,
+    basicAiCredits: 0,
+    advancedAiCredits: 5000,
+    durationDays: 30,
+    creditsExpireWithExtension: true,
+  }),
 ])
+
+const PHOTOGRAPHER_ADD_ONS = STORAGE_EXTENSIONS
 
 function normalizeCode(value) {
   return typeof value === "string" ? value.trim().toLowerCase() : ""
@@ -32,6 +122,11 @@ function normalizeCode(value) {
 function planFor(value) {
   const normalized = normalizeCode(value)
   return PHOTOGRAPHER_PLANS.find((plan) => plan.id === normalized || plan.code === normalized) || PHOTOGRAPHER_PLANS[0]
+}
+
+function extensionForCode(value) {
+  const normalized = normalizeCode(value)
+  return STORAGE_EXTENSIONS.find((extension) => extension.code === normalized) || null
 }
 
 function packForCode(value) {
@@ -132,6 +227,9 @@ function quotaSnapshot(plan, extensionTotals = {}) {
     maxCollaborators: selected.maxCollaborators,
     commissionRate: selected.commissionRate,
     qualityLabel: selected.qualityLabel,
+    includedBasicAiCredits: selected.includedBasicAiCredits,
+    includedAdvancedAiCredits: selected.includedAdvancedAiCredits,
+    aiCreditsBilledSeparately: true,
   }
 }
 
@@ -154,6 +252,9 @@ function planDocument(plan, timestampValue) {
     retentionDays: selected.retentionDays,
     maxCollaborators: selected.maxCollaborators,
     qualityLabel: selected.qualityLabel,
+    includedBasicAiCredits: selected.includedBasicAiCredits,
+    includedAdvancedAiCredits: selected.includedAdvancedAiCredits,
+    aiCreditsBilledSeparately: true,
     isActive: true,
     createdAt: timestampValue,
     updatedAt: timestampValue,
@@ -181,4 +282,26 @@ function defaultPackDocuments({ photographerId, ownerUid, galleryId, eventId, ti
   }))
 }
 
-module.exports = { GiB, MiB, MEDIA_HD_UPGRADE_PRICE, PHOTO_PACKS, PHOTOGRAPHER_PLANS, STORAGE_EXTENSIONS, planFor, packForCode, packForCount, quoteForPhotoCount, bestPackCombination, photoSelectionPrice, mediaDeliveryQuote, stripeFeeEstimate, roundCurrency, quotaSnapshot, planDocument, defaultPackDocuments }
+module.exports = {
+  GiB,
+  MiB,
+  MEDIA_HD_UPGRADE_PRICE,
+  ESTIMATED_AI_COST_EUR,
+  PHOTO_PACKS,
+  PHOTOGRAPHER_PLANS,
+  STORAGE_EXTENSIONS,
+  PHOTOGRAPHER_ADD_ONS,
+  planFor,
+  extensionForCode,
+  packForCode,
+  packForCount,
+  quoteForPhotoCount,
+  bestPackCombination,
+  photoSelectionPrice,
+  mediaDeliveryQuote,
+  stripeFeeEstimate,
+  roundCurrency,
+  quotaSnapshot,
+  planDocument,
+  defaultPackDocuments,
+}
