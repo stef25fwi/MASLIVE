@@ -1,12 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import '../../../../models/cart_item_model.dart' as unified_cart;
+import '../../../../providers/cart_provider.dart';
+import '../../../../ui/widgets/storage_image.dart';
+import '../../core/enums/media_asset_type.dart';
 import '../../data/models/media_pack_model.dart';
 import '../../data/models/media_photo_model.dart';
-import '../controllers/media_marketplace_cart_controller.dart';
 import '../controllers/media_marketplace_catalog_controller.dart';
-import '../widgets/media_pack_card.dart';
-import '../widgets/media_photo_card.dart';
 
 class PrivateMediaGalleryPage extends StatelessWidget {
   const PrivateMediaGalleryPage({
@@ -34,13 +35,25 @@ class PrivateMediaGalleryPage extends StatelessWidget {
         );
         return controller;
       },
-      child: const _PrivateMediaGalleryView(),
+      child: _PrivateMediaGalleryView(
+        galleryId: galleryId,
+        accessToken: accessToken,
+        participantCode: participantCode,
+      ),
     );
   }
 }
 
 class _PrivateMediaGalleryView extends StatelessWidget {
-  const _PrivateMediaGalleryView();
+  const _PrivateMediaGalleryView({
+    required this.galleryId,
+    required this.accessToken,
+    required this.participantCode,
+  });
+
+  final String galleryId;
+  final String accessToken;
+  final String? participantCode;
 
   @override
   Widget build(BuildContext context) {
@@ -52,6 +65,7 @@ class _PrivateMediaGalleryView extends StatelessWidget {
     final description = storefront['description']?.toString().trim();
     final layout = storefront['layout']?.toString() ?? 'grid';
     final showName = storefront['showPhotographerName'] as bool? ?? true;
+    final showEvent = storefront['showEventContext'] as bool? ?? true;
     final accent = _parseColor(storefront['accentColor']?.toString());
 
     return Scaffold(
@@ -63,11 +77,12 @@ class _PrivateMediaGalleryView extends StatelessWidget {
             onPressed: controller.loading
                 ? null
                 : () => controller.loadPrivateGallery(
-                      galleryId: controller.selectedGalleryId ?? '',
-                      accessToken: Uri.base.queryParameters['access'] ?? '',
-                      participantCode: Uri.base.queryParameters['participant'],
+                      galleryId: galleryId,
+                      accessToken: accessToken,
+                      participantCode: participantCode,
                     ),
             icon: const Icon(Icons.refresh_rounded),
+            tooltip: 'Actualiser',
           ),
         ],
       ),
@@ -87,7 +102,9 @@ class _PrivateMediaGalleryView extends StatelessWidget {
                             if (photographer?.avatarUrl?.isNotEmpty == true)
                               CircleAvatar(
                                 radius: 30,
-                                backgroundImage: NetworkImage(photographer!.avatarUrl!),
+                                backgroundImage: NetworkImage(
+                                  photographer!.avatarUrl!,
+                                ),
                               )
                             else
                               const CircleAvatar(
@@ -105,20 +122,24 @@ class _PrivateMediaGalleryView extends StatelessWidget {
                                       style: Theme.of(context)
                                           .textTheme
                                           .titleLarge
-                                          ?.copyWith(fontWeight: FontWeight.w900),
+                                          ?.copyWith(
+                                            fontWeight: FontWeight.w900,
+                                          ),
                                     ),
-                                  if (headline?.isNotEmpty == true) Text(headline!),
+                                  if (headline?.isNotEmpty == true)
+                                    Text(headline!),
                                   if (description?.isNotEmpty == true)
                                     Text(
                                       description!,
-                                      style: Theme.of(context).textTheme.bodySmall,
+                                      style:
+                                          Theme.of(context).textTheme.bodySmall,
                                     ),
                                 ],
                               ),
                             ),
-                            Chip(
-                              avatar: const Icon(Icons.lock_outline, size: 17),
-                              label: const Text('Accès sécurisé'),
+                            const Chip(
+                              avatar: Icon(Icons.lock_outline, size: 17),
+                              label: Text('Accès sécurisé'),
                             ),
                           ],
                         ),
@@ -138,19 +159,47 @@ class _PrivateMediaGalleryView extends StatelessWidget {
                           padding: const EdgeInsets.only(top: 6),
                           child: Text(gallery.description!),
                         ),
+                      if (showEvent) ...<Widget>[
+                        const SizedBox(height: 8),
+                        Wrap(
+                          spacing: 8,
+                          runSpacing: 8,
+                          children: <Widget>[
+                            if (gallery.eventId.isNotEmpty)
+                              Chip(
+                                avatar: const Icon(
+                                  Icons.celebration_outlined,
+                                  size: 17,
+                                ),
+                                label: Text(gallery.eventId),
+                              ),
+                            if (gallery.linkedCircuitId?.isNotEmpty == true)
+                              Chip(
+                                avatar: const Icon(
+                                  Icons.route_outlined,
+                                  size: 17,
+                                ),
+                                label: Text(gallery.linkedCircuitId!),
+                              ),
+                          ],
+                        ),
+                      ],
                     ],
                     const SizedBox(height: 18),
                     if (controller.photos.isEmpty)
                       const Card(
                         child: Padding(
                           padding: EdgeInsets.all(20),
-                          child: Text('Aucune photo publiée dans cette galerie.'),
+                          child: Text(
+                            'Aucune photo publiée dans cette galerie.',
+                          ),
                         ),
                       )
                     else
                       _PrivatePhotoGrid(
                         photos: controller.photos,
                         layout: layout,
+                        accent: accent,
                       ),
                     if (controller.packs.isNotEmpty) ...<Widget>[
                       const SizedBox(height: 26),
@@ -166,7 +215,12 @@ class _PrivateMediaGalleryView extends StatelessWidget {
                         spacing: 12,
                         runSpacing: 12,
                         children: controller.packs
-                            .map((pack) => _PrivatePack(pack: pack))
+                            .map(
+                              (pack) => _PrivatePack(
+                                pack: pack,
+                                accent: accent,
+                              ),
+                            )
                             .toList(growable: false),
                       ),
                     ],
@@ -185,10 +239,15 @@ class _PrivateMediaGalleryView extends StatelessWidget {
 }
 
 class _PrivatePhotoGrid extends StatelessWidget {
-  const _PrivatePhotoGrid({required this.photos, required this.layout});
+  const _PrivatePhotoGrid({
+    required this.photos,
+    required this.layout,
+    required this.accent,
+  });
 
   final List<MediaPhotoModel> photos;
   final String layout;
+  final Color? accent;
 
   @override
   Widget build(BuildContext context) {
@@ -213,16 +272,61 @@ class _PrivatePhotoGrid extends StatelessWidget {
             crossAxisCount: columns,
             mainAxisSpacing: 12,
             crossAxisSpacing: 12,
-            childAspectRatio: layout == 'editorial' ? .72 : .82,
+            childAspectRatio: layout == 'editorial' ? .68 : .78,
           ),
           itemCount: photos.length,
           itemBuilder: (context, index) {
             final photo = photos[index];
-            return MediaPhotoCard(
-              photo: photo,
-              selected: false,
-              onTap: () => _addPhoto(context, photo),
-              onAddToCart: () => _addPhoto(context, photo),
+            final image = photo.watermarkedPath.isNotEmpty
+                ? photo.watermarkedPath
+                : photo.thumbnailPath;
+            return Card(
+              clipBehavior: Clip.antiAlias,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: <Widget>[
+                  Expanded(
+                    child: image.isEmpty
+                        ? const ColoredBox(
+                            color: Colors.black12,
+                            child: Icon(Icons.image_outlined, size: 42),
+                          )
+                        : StorageImage(url: image, fit: BoxFit.cover),
+                  ),
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(10, 10, 10, 8),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: <Widget>[
+                        Text(
+                          photo.downloadFileName,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(fontWeight: FontWeight.w800),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          '${photo.unitPrice.toStringAsFixed(2)} ${photo.currency}',
+                        ),
+                        const SizedBox(height: 8),
+                        SizedBox(
+                          width: double.infinity,
+                          child: FilledButton.icon(
+                            style: accent == null
+                                ? null
+                                : FilledButton.styleFrom(
+                                    backgroundColor: accent,
+                                  ),
+                            onPressed: () => _addPhoto(context, photo),
+                            icon: const Icon(Icons.add_shopping_cart),
+                            label: const Text('Ajouter'),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
             );
           },
         );
@@ -231,8 +335,30 @@ class _PrivatePhotoGrid extends StatelessWidget {
   }
 
   Future<void> _addPhoto(BuildContext context, MediaPhotoModel photo) async {
-    final cart = context.read<MediaMarketplaceCartController>();
-    await cart.addPhoto(photo);
+    await context.read<CartProvider>().addCartItem(
+      unified_cart.CartItemModel(
+        id: '',
+        itemType: unified_cart.CartItemType.media,
+        productId: photo.photoId,
+        sellerId: photo.photographerId,
+        eventId: photo.eventId,
+        title: photo.downloadFileName,
+        subtitle:
+            photo.galleryId.isEmpty ? null : 'Galerie ${photo.galleryId}',
+        imageUrl: photo.thumbnailPath,
+        unitPrice: photo.unitPrice,
+        quantity: 1,
+        currency: photo.currency,
+        isDigital: true,
+        requiresShipping: false,
+        sourceType: 'media_marketplace_private',
+        metadata: <String, dynamic>{
+          'assetType': MediaAssetType.photo.firestoreValue,
+          'galleryId': photo.galleryId,
+          'privateAccessValidated': true,
+        },
+      ),
+    );
     if (!context.mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(
@@ -244,26 +370,90 @@ class _PrivatePhotoGrid extends StatelessWidget {
 }
 
 class _PrivatePack extends StatelessWidget {
-  const _PrivatePack({required this.pack});
+  const _PrivatePack({required this.pack, required this.accent});
 
   final MediaPackModel pack;
+  final Color? accent;
 
   @override
   Widget build(BuildContext context) {
     return SizedBox(
       width: 310,
-      child: MediaPackCard(
-        pack: pack,
-        onAddToCart: () async {
-          await context.read<MediaMarketplaceCartController>().addPack(pack);
-          if (!context.mounted) return;
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Pack ajouté au panier.'),
-              behavior: SnackBarBehavior.floating,
-            ),
-          );
+      child: Card(
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: <Widget>[
+              const Icon(Icons.collections_outlined, size: 38),
+              const SizedBox(height: 10),
+              Text(
+                pack.title,
+                style: Theme.of(context)
+                    .textTheme
+                    .titleMedium
+                    ?.copyWith(fontWeight: FontWeight.w900),
+              ),
+              if (pack.description?.isNotEmpty == true)
+                Padding(
+                  padding: const EdgeInsets.only(top: 5),
+                  child: Text(pack.description!),
+                ),
+              const SizedBox(height: 8),
+              Text(
+                '${pack.pickCount ?? pack.photoIds.length} photo(s) • ${pack.price.toStringAsFixed(2)} ${pack.currency}',
+              ),
+              const SizedBox(height: 12),
+              SizedBox(
+                width: double.infinity,
+                child: FilledButton.icon(
+                  style: accent == null
+                      ? null
+                      : FilledButton.styleFrom(backgroundColor: accent),
+                  onPressed: () => _addPack(context),
+                  icon: const Icon(Icons.add_shopping_cart),
+                  label: const Text('Ajouter au panier'),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Future<void> _addPack(BuildContext context) async {
+    await context.read<CartProvider>().addCartItem(
+      unified_cart.CartItemModel(
+        id: '',
+        itemType: unified_cart.CartItemType.media,
+        productId: pack.packId,
+        sellerId: pack.photographerId,
+        eventId: pack.eventId,
+        title: pack.title,
+        subtitle:
+            pack.galleryId.isEmpty ? null : 'Pack galerie ${pack.galleryId}',
+        imageUrl: pack.coverUrl ?? '',
+        unitPrice: pack.price,
+        quantity: 1,
+        currency: pack.currency,
+        isDigital: true,
+        requiresShipping: false,
+        sourceType: 'media_marketplace_private',
+        metadata: <String, dynamic>{
+          'assetType': MediaAssetType.pack.firestoreValue,
+          'galleryId': pack.galleryId,
+          'photoIds': pack.photoIds,
+          'photoCount': pack.pickCount ?? pack.photoIds.length,
+          'privateAccessValidated': true,
         },
+      ),
+    );
+    if (!context.mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('Pack ajouté au panier.'),
+        behavior: SnackBarBehavior.floating,
       ),
     );
   }
