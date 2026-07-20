@@ -1,0 +1,3 @@
+Déclenchement contrôlé du workflow Firebase Production Deploy Recovery.
+Date: 2026-07-20
+Objectif: déployer Firestore, Storage et Cloud Functions, puis vérifier le manifeste Hosting.
