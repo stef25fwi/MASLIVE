@@ -1,7 +1,20 @@
 enum MediaVisibility {
   public,
   private,
-  unlisted,
+  unlisted;
+
+  String get firestoreValue => name;
+
+  String get label {
+    switch (this) {
+      case MediaVisibility.public:
+        return 'Public';
+      case MediaVisibility.private:
+        return 'Privé';
+      case MediaVisibility.unlisted:
+        return 'Non listé';
+    }
+  }
 }
 
 MediaVisibility mediaVisibilityFromString(
@@ -17,20 +30,5 @@ MediaVisibility mediaVisibilityFromString(
       return MediaVisibility.unlisted;
     default:
       return fallback;
-  }
-}
-
-extension MediaVisibilityX on MediaVisibility {
-  String get firestoreValue => name;
-
-  String get label {
-    switch (this) {
-      case MediaVisibility.public:
-        return 'Public';
-      case MediaVisibility.private:
-        return 'Prive';
-      case MediaVisibility.unlisted:
-        return 'Non liste';
-    }
   }
 }

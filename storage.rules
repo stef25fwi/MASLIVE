@@ -120,6 +120,16 @@ service firebase.storage {
       allow delete: if isMasterAdmin();
     }
 
+    // Avatar public du photographe. Seul le propriétaire ou un administrateur
+    // peut remplacer ou supprimer le fichier, limité à 5 Mo et aux images.
+    match /photographers/{photographerId}/profile/{fileName} {
+      allow read: if true;
+      allow create, update: if canManageMarketplaceMedia(photographerId)
+                            && isValidImageType()
+                            && isValidImageSize();
+      allow delete: if canManageMarketplaceMedia(photographerId);
+    }
+
     // Originals: jamais publics. Le téléchargement après achat est délivré par
     // une URL signée serveur après validation de l'entitlement.
     match /photographers/{photographerId}/events/{eventId}/galleries/{galleryId}/originals/{fileName} {
