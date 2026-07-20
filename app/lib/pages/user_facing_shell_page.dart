@@ -1,6 +1,7 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 
+import '../features/media_marketplace/presentation/pages/photographer_public_storefront_page.dart';
 import '../features/media_marketplace/presentation/pages/private_media_gallery_page.dart';
 import '../features/shop/pages/media_photo_shop_page.dart';
 import 'account_page.dart';
@@ -202,6 +203,21 @@ class _UserFacingShellPageState extends State<UserFacingShellPage> {
         participantCode: _mediaArgs['participant']?.toString(),
       );
     }
+
+    final photographerId = _mediaArgs['photographerId']?.toString().trim();
+    if (photographerId?.isNotEmpty == true) {
+      return PhotographerPublicStorefrontPage(
+        key: ValueKey<String>('storefront:$photographerId:${_mediaArgs.toString()}'),
+        photographerId: photographerId!,
+        countryId: _mediaArgs['countryId'] as String?,
+        countryName: _mediaArgs['countryName'] as String?,
+        eventId: _mediaArgs['eventId'] as String?,
+        eventName: _mediaArgs['eventName'] as String?,
+        circuitId: _mediaArgs['circuitId'] as String?,
+        circuitName: _mediaArgs['circuitName'] as String?,
+      );
+    }
+
     return MediaPhotoShopPage(
       key: ValueKey<String>(_mediaArgs.toString()),
       countryId: _mediaArgs['countryId'] as String?,
