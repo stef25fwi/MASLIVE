@@ -40,11 +40,11 @@ class GalleryRelevanceService {
     final referenceDate = context.selectedEventDate;
     if (referenceDate != null) {
       final distance = gallery.updatedAt.difference(referenceDate).inHours.abs();
-      score += (240 - distance).clamp(0, 240);
+      score += (240 - distance).clamp(0, 240).toInt();
     }
 
     final freshnessHours = now.difference(gallery.updatedAt).inHours.abs();
-    score += (72 - freshnessHours).clamp(0, 72);
+    score += (72 - freshnessHours).clamp(0, 72).toInt();
     return score;
   }
 
