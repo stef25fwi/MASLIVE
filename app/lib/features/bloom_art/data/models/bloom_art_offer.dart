@@ -8,8 +8,6 @@ class BloomArtOffer {
     required this.sellerId,
     required this.proposedPrice,
     required this.buyerMessage,
-    required this.referencePriceSnapshot,
-    required this.autoAcceptThresholdPercent,
     required this.autoAccepted,
     required this.status,
     required this.checkoutEligible,
@@ -18,6 +16,9 @@ class BloomArtOffer {
     this.acceptedAt,
     this.declinedAt,
     this.paidAt,
+    this.paymentDeadlineAt,
+    this.closedAt,
+    this.closeReason,
   });
 
   final String id;
@@ -26,8 +27,6 @@ class BloomArtOffer {
   final String sellerId;
   final double proposedPrice;
   final String buyerMessage;
-  final double referencePriceSnapshot;
-  final double autoAcceptThresholdPercent;
   final bool autoAccepted;
   final String status;
   final bool checkoutEligible;
@@ -36,11 +35,25 @@ class BloomArtOffer {
   final DateTime? acceptedAt;
   final DateTime? declinedAt;
   final DateTime? paidAt;
+  final DateTime? paymentDeadlineAt;
+  final DateTime? closedAt;
+  final String? closeReason;
 
   bool get isPending => status == 'pending';
   bool get isAccepted => status == 'accepted' || status == 'auto_accepted';
   bool get isCheckoutStarted => status == 'checkout_started';
   bool get isPaid => status == 'paid';
+  bool get isDeclined => status == 'declined';
+  bool get isExpired => status == 'expired';
+  bool get isCancelled => status == 'cancelled';
+  bool get isClosed => isPaid || isDeclined || isExpired || isCancelled;
+
+  Duration? get remainingPaymentTime {
+    final deadline = paymentDeadlineAt;
+    if (deadline == null) return null;
+    final remaining = deadline.difference(DateTime.now());
+    return remaining.isNegative ? Duration.zero : remaining;
+  }
 
   BloomArtOffer copyWith({
     String? id,
@@ -49,8 +62,6 @@ class BloomArtOffer {
     String? sellerId,
     double? proposedPrice,
     String? buyerMessage,
-    double? referencePriceSnapshot,
-    double? autoAcceptThresholdPercent,
     bool? autoAccepted,
     String? status,
     bool? checkoutEligible,
@@ -59,6 +70,9 @@ class BloomArtOffer {
     DateTime? acceptedAt,
     DateTime? declinedAt,
     DateTime? paidAt,
+    DateTime? paymentDeadlineAt,
+    DateTime? closedAt,
+    String? closeReason,
   }) {
     return BloomArtOffer(
       id: id ?? this.id,
@@ -67,8 +81,6 @@ class BloomArtOffer {
       sellerId: sellerId ?? this.sellerId,
       proposedPrice: proposedPrice ?? this.proposedPrice,
       buyerMessage: buyerMessage ?? this.buyerMessage,
-      referencePriceSnapshot: referencePriceSnapshot ?? this.referencePriceSnapshot,
-      autoAcceptThresholdPercent: autoAcceptThresholdPercent ?? this.autoAcceptThresholdPercent,
       autoAccepted: autoAccepted ?? this.autoAccepted,
       status: status ?? this.status,
       checkoutEligible: checkoutEligible ?? this.checkoutEligible,
@@ -77,6 +89,9 @@ class BloomArtOffer {
       acceptedAt: acceptedAt ?? this.acceptedAt,
       declinedAt: declinedAt ?? this.declinedAt,
       paidAt: paidAt ?? this.paidAt,
+      paymentDeadlineAt: paymentDeadlineAt ?? this.paymentDeadlineAt,
+      closedAt: closedAt ?? this.closedAt,
+      closeReason: closeReason ?? this.closeReason,
     );
   }
 
@@ -87,8 +102,6 @@ class BloomArtOffer {
       'sellerId': sellerId,
       'proposedPrice': proposedPrice,
       'buyerMessage': buyerMessage,
-      'referencePriceSnapshot': referencePriceSnapshot,
-      'autoAcceptThresholdPercent': autoAcceptThresholdPercent,
       'autoAccepted': autoAccepted,
       'status': status,
       'checkoutEligible': checkoutEligible,
@@ -97,6 +110,10 @@ class BloomArtOffer {
       if (acceptedAt != null) 'acceptedAt': Timestamp.fromDate(acceptedAt!),
       if (declinedAt != null) 'declinedAt': Timestamp.fromDate(declinedAt!),
       if (paidAt != null) 'paidAt': Timestamp.fromDate(paidAt!),
+      if (paymentDeadlineAt != null)
+        'paymentDeadlineAt': Timestamp.fromDate(paymentDeadlineAt!),
+      if (closedAt != null) 'closedAt': Timestamp.fromDate(closedAt!),
+      if (closeReason != null) 'closeReason': closeReason,
     };
   }
 
@@ -108,8 +125,6 @@ class BloomArtOffer {
       sellerId: (map['sellerId'] ?? '').toString(),
       proposedPrice: _toDouble(map['proposedPrice']),
       buyerMessage: (map['buyerMessage'] ?? '').toString(),
-      referencePriceSnapshot: _toDouble(map['referencePriceSnapshot']),
-      autoAcceptThresholdPercent: _toDouble(map['autoAcceptThresholdPercent'], fallback: 0.9),
       autoAccepted: map['autoAccepted'] == true,
       status: (map['status'] ?? 'pending').toString(),
       checkoutEligible: map['checkoutEligible'] == true,
@@ -118,10 +133,15 @@ class BloomArtOffer {
       acceptedAt: _toDate(map['acceptedAt']),
       declinedAt: _toDate(map['declinedAt']),
       paidAt: _toDate(map['paidAt']),
+      paymentDeadlineAt: _toDate(map['paymentDeadlineAt']),
+      closedAt: _toDate(map['closedAt']),
+      closeReason: map['closeReason']?.toString(),
     );
   }
 
-  factory BloomArtOffer.fromDocument(DocumentSnapshot<Map<String, dynamic>> doc) {
+  factory BloomArtOffer.fromDocument(
+    DocumentSnapshot<Map<String, dynamic>> doc,
+  ) {
     return BloomArtOffer.fromMap(doc.id, doc.data() ?? <String, dynamic>{});
   }
 
