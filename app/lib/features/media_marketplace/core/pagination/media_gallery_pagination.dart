@@ -11,10 +11,7 @@ int normalizeMediaGalleryPageSize(int? value) {
 }
 
 class MediaGalleryCursor {
-  const MediaGalleryCursor({
-    required this.createdAtMillis,
-    required this.photoId,
-  });
+  const MediaGalleryCursor({required this.createdAtMillis, required this.photoId});
 
   final int createdAtMillis;
   final String photoId;
@@ -29,19 +26,12 @@ class MediaGalleryCursor {
     final createdAtMillis = (map['createdAtMillis'] as num?)?.toInt();
     final photoId = (map['photoId'] as String?)?.trim() ?? '';
     if (createdAtMillis == null || photoId.isEmpty) return null;
-    return MediaGalleryCursor(
-      createdAtMillis: createdAtMillis,
-      photoId: photoId,
-    );
+    return MediaGalleryCursor(createdAtMillis: createdAtMillis, photoId: photoId);
   }
 }
 
 class MediaGalleryPage<T> {
-  const MediaGalleryPage({
-    required this.items,
-    required this.hasMore,
-    this.nextCursor,
-  });
+  const MediaGalleryPage({required this.items, required this.hasMore, this.nextCursor});
 
   final List<T> items;
   final bool hasMore;
@@ -49,9 +39,8 @@ class MediaGalleryPage<T> {
 }
 
 class MediaGalleryPaginationState<T> {
-  MediaGalleryPaginationState({
-    this.pageSize = defaultMediaGalleryPageSize,
-  }) : pageSize = normalizeMediaGalleryPageSize(pageSize);
+  MediaGalleryPaginationState({int pageSize = defaultMediaGalleryPageSize})
+      : pageSize = normalizeMediaGalleryPageSize(pageSize);
 
   final int pageSize;
   final LinkedHashMap<String, T> _itemsById = LinkedHashMap<String, T>();
@@ -72,10 +61,7 @@ class MediaGalleryPaginationState<T> {
     return true;
   }
 
-  void completePage(
-    MediaGalleryPage<T> page, {
-    required String Function(T item) idOf,
-  }) {
+  void completePage(MediaGalleryPage<T> page, {required String Function(T item) idOf}) {
     for (final item in page.items) {
       final id = idOf(item).trim();
       if (id.isEmpty) continue;
