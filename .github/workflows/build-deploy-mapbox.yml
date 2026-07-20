@@ -10,6 +10,8 @@ on:
 permissions:
   contents: read
   id-token: write
+  issues: write
+  pull-requests: write
 
 concurrency:
   group: maslive-production-${{ github.ref }}
@@ -62,7 +64,6 @@ jobs:
           else
             echo "Token Mapbox public détecté." | tee -a flutter-build.log
           fi
-
           flutter build web --release \
             --dart-define=MAPBOX_ACCESS_TOKEN="${MAPBOX_TOKEN}" \
             --dart-define=STRIPE_PUBLISHABLE_KEY="${STRIPE_PUBLISHABLE_KEY}" \
@@ -70,7 +71,6 @@ jobs:
             --dart-define=STRIPE_PREMIUM_YEARLY_PRICE_ID="${STRIPE_PREMIUM_YEARLY_PRICE_ID}" \
             >> flutter-build.log 2>&1
           status=$?
-          echo "=== Résumé des 220 dernières lignes ==="
           tail -n 220 flutter-build.log
           exit "$status"
 
@@ -102,6 +102,7 @@ jobs:
           npm install --global firebase-tools@latest
 
       - name: Configure and validate Firebase authentication
+        id: firebase_auth
         if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
         env:
           FIREBASE_SERVICE_ACCOUNT_JSON: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_MASLIVE || secrets.FIREBASE_SERVICE_ACCOUNT || secrets.GOOGLE_CREDENTIALS }}
@@ -148,15 +149,10 @@ jobs:
           set +e
           : > firebase-rules.log
           AUTH_ARGS=()
-          if [ "${FIREBASE_AUTH_MODE}" = "token" ]; then
-            AUTH_ARGS+=(--token "${FIREBASE_TOKEN}")
-          fi
-          firebase deploy \
-            --project maslive \
+          if [ "${FIREBASE_AUTH_MODE}" = "token" ]; then AUTH_ARGS+=(--token "${FIREBASE_TOKEN}"); fi
+          firebase deploy --project maslive \
             --only firestore:rules,firestore:indexes,storage \
-            --non-interactive \
-            --debug \
-            "${AUTH_ARGS[@]}" \
+            --non-interactive --debug "${AUTH_ARGS[@]}" \
             > firebase-rules.log 2>&1
           status=$?
           tail -n 180 firebase-rules.log
@@ -172,15 +168,9 @@ jobs:
           set +e
           : > firebase-functions.log
           AUTH_ARGS=()
-          if [ "${FIREBASE_AUTH_MODE}" = "token" ]; then
-            AUTH_ARGS+=(--token "${FIREBASE_TOKEN}")
-          fi
-          firebase deploy \
-            --project maslive \
-            --only functions \
-            --non-interactive \
-            --debug \
-            "${AUTH_ARGS[@]}" \
+          if [ "${FIREBASE_AUTH_MODE}" = "token" ]; then AUTH_ARGS+=(--token "${FIREBASE_TOKEN}"); fi
+          firebase deploy --project maslive --only functions \
+            --non-interactive --debug "${AUTH_ARGS[@]}" \
             > firebase-functions.log 2>&1
           status=$?
           tail -n 220 firebase-functions.log
@@ -196,15 +186,9 @@ jobs:
           set +e
           : > firebase-hosting.log
           AUTH_ARGS=()
-          if [ "${FIREBASE_AUTH_MODE}" = "token" ]; then
-            AUTH_ARGS+=(--token "${FIREBASE_TOKEN}")
-          fi
-          firebase deploy \
-            --project maslive \
-            --only hosting \
-            --non-interactive \
-            --debug \
-            "${AUTH_ARGS[@]}" \
+          if [ "${FIREBASE_AUTH_MODE}" = "token" ]; then AUTH_ARGS+=(--token "${FIREBASE_TOKEN}"); fi
+          firebase deploy --project maslive --only hosting \
+            --non-interactive --debug "${AUTH_ARGS[@]}" \
             > firebase-hosting.log 2>&1
           status=$?
           tail -n 160 firebase-hosting.log
@@ -223,6 +207,44 @@ jobs:
             firebase-debug.log
           if-no-files-found: warn
           retention-days: 7
+
+      - name: Publish automatic diagnostic in PR 51
+        if: always() && (github.event_name == 'push' || github.event_name == 'workflow_dispatch')
+        env:
+          GH_TOKEN: ${{ github.token }}
+          AUTH_OUTCOME: ${{ steps.firebase_auth.outcome }}
+          RULES_OUTCOME: ${{ steps.deploy_rules.outcome }}
+          FUNCTIONS_OUTCOME: ${{ steps.deploy_functions.outcome }}
+          HOSTING_OUTCOME: ${{ steps.deploy_hosting.outcome }}
+        run: |
+          set -euo pipefail
+          redact() {
+            sed -E \
+              -e 's/(Authorization: Bearer|token|private_key|client_secret)[^[:space:]]*/\1 [REDACTED]/Ig' \
+              -e 's/AIza[0-9A-Za-z_-]{20,}/[API_KEY_REDACTED]/g'
+          }
+          {
+            echo "## Diagnostic Firebase automatique"
+            echo
+            echo "- Commit : \`${GITHUB_SHA}\`"
+            echo "- Run : [${GITHUB_RUN_ID}](https://github.com/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID})"
+            echo "- Authentification : **${AUTH_OUTCOME}**"
+            echo "- Règles / index : **${RULES_OUTCOME}**"
+            echo "- Functions : **${FUNCTIONS_OUTCOME}**"
+            echo "- Hosting : **${HOSTING_OUTCOME}**"
+            for item in firebase-auth.log firebase-rules.log firebase-functions.log firebase-hosting.log; do
+              if [ -s "${item}" ]; then
+                echo
+                echo "### ${item} — fin du journal"
+                echo '```text'
+                tail -n 45 "${item}" | redact
+                echo '```'
+              fi
+            done
+          } > deployment-comment.md
+          gh api --method POST \
+            "repos/${GITHUB_REPOSITORY}/issues/51/comments" \
+            -f body="$(cat deployment-comment.md)"
 
       - name: Enforce complete Firebase deployment
         if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
