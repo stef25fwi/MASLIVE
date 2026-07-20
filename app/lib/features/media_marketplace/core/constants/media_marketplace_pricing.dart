@@ -60,6 +60,8 @@ class PhotographerPlanSpec {
     this.maxCollaborators = 1,
     this.customWatermark = false,
     this.prioritySupport = false,
+    this.includedBasicAiCredits = 0,
+    this.includedAdvancedAiCredits = 0,
   });
 
   final String id;
@@ -81,6 +83,8 @@ class PhotographerPlanSpec {
   final int maxCollaborators;
   final bool customWatermark;
   final bool prioritySupport;
+  final int includedBasicAiCredits;
+  final int includedAdvancedAiCredits;
 
   double storageRatio(int usedBytes) => maxStorageBytes <= 0
       ? 0
@@ -111,6 +115,7 @@ class PhotographerPlanSpec {
         'Définition max: $maxMegapixels MP',
         'Conservation active: $retentionDays jours',
         'Commission MASLIVE: ${(commissionRate * 100).round()} %',
+        'Analyses IA: crédits séparés, débit uniquement lors de l’analyse',
       ],
       isActive: true,
       createdAt: timestamp,
@@ -122,23 +127,72 @@ class PhotographerPlanSpec {
 class StorageExtensionSpec {
   const StorageExtensionSpec({
     required this.code,
+    required this.kind,
     required this.title,
+    required this.description,
     required this.monthlyPrice,
     required this.extraPhotos,
     required this.extraStorageBytes,
+    this.basicAiCredits = 0,
+    this.advancedAiCredits = 0,
     this.durationDays,
+    this.creditsNeverExpire = false,
+    this.creditsExpireWithExtension = false,
   });
 
   final String code;
+  final String kind;
   final String title;
+  final String description;
   final double monthlyPrice;
   final int extraPhotos;
   final int extraStorageBytes;
+  final int basicAiCredits;
+  final int advancedAiCredits;
   final int? durationDays;
+  final bool creditsNeverExpire;
+  final bool creditsExpireWithExtension;
+
+  bool get recurring => durationDays == null;
+  bool get hasStorage => extraPhotos > 0 || extraStorageBytes > 0;
+  bool get hasAiCredits => basicAiCredits > 0 || advancedAiCredits > 0;
+  bool get isEventPack => kind.startsWith('event_');
+
+  String get billingLabel {
+    if (recurring) return '${monthlyPrice.toStringAsFixed(2)} € / mois';
+    if (creditsNeverExpire) {
+      return '${monthlyPrice.toStringAsFixed(2)} € • achat unique';
+    }
+    return '${monthlyPrice.toStringAsFixed(2)} € pour ${durationDays ?? 30} jours';
+  }
+
+  List<String> get capacityLines {
+    final values = <String>[];
+    if (hasStorage) {
+      values.add(
+        '+$extraPhotos photos • '
+        '+${(extraStorageBytes / _gib).round()} Go',
+      );
+    }
+    if (basicAiCredits > 0) {
+      values.add('$basicAiCredits crédits OCR, couleurs et tags');
+    }
+    if (advancedAiCredits > 0) {
+      values.add('$advancedAiCredits crédits avancés avec regroupement visuel');
+    }
+    if (creditsNeverExpire && hasAiCredits) {
+      values.add('Crédits sans expiration');
+    } else if (creditsExpireWithExtension && hasAiCredits) {
+      values.add('Crédits utilisables pendant la durée de l’événement');
+    }
+    return values;
+  }
 }
 
 class MediaMarketplacePricing {
   const MediaMarketplacePricing._();
+
+  static const double estimatedAiCostPerAnalysisEur = 0.01;
 
   static const List<PhotoPackTier> buyerPacks = <PhotoPackTier>[
     PhotoPackTier(
@@ -285,25 +339,80 @@ class MediaMarketplacePricing {
       <StorageExtensionSpec>[
     StorageExtensionSpec(
       code: 'plus_1000',
+      kind: 'storage',
       title: '+1 000 photos et +10 Go',
+      description: 'Extension récurrente de capacité active.',
       monthlyPrice: 5.90,
       extraPhotos: 1000,
       extraStorageBytes: 10 * _gib,
     ),
     StorageExtensionSpec(
       code: 'plus_5000',
+      kind: 'storage',
       title: '+5 000 photos et +50 Go',
+      description: 'Extension récurrente pour les volumes réguliers.',
       monthlyPrice: 19.90,
       extraPhotos: 5000,
       extraStorageBytes: 50 * _gib,
     ),
     StorageExtensionSpec(
+      code: 'ai_basic_1000',
+      kind: 'ai_basic',
+      title: '1 000 analyses OCR et couleurs',
+      description: 'Dossards, couleurs dominantes et tags automatiques.',
+      monthlyPrice: 7.90,
+      extraPhotos: 0,
+      extraStorageBytes: 0,
+      basicAiCredits: 1000,
+      durationDays: 36500,
+      creditsNeverExpire: true,
+    ),
+    StorageExtensionSpec(
+      code: 'ai_advanced_1000',
+      kind: 'ai_advanced',
+      title: '1 000 analyses avancées avec regroupement visuel',
+      description:
+          'OCR, couleurs, tags et regroupement visuel anonyme avec consentement.',
+      monthlyPrice: 11.90,
+      extraPhotos: 0,
+      extraStorageBytes: 0,
+      advancedAiCredits: 1000,
+      durationDays: 36500,
+      creditsNeverExpire: true,
+    ),
+    StorageExtensionSpec(
       code: 'event_30d',
-      title: 'Stockage événementiel 30 jours',
-      monthlyPrice: 9.90,
+      kind: 'event_storage',
+      title: 'Événement 30 jours sans analyse IA',
+      description: '+5 000 photos et +50 Go pendant 30 jours.',
+      monthlyPrice: 14.90,
       extraPhotos: 5000,
       extraStorageBytes: 50 * _gib,
       durationDays: 30,
+    ),
+    StorageExtensionSpec(
+      code: 'event_30d_basic',
+      kind: 'event_basic',
+      title: 'Événement 30 jours avec 5 000 analyses basiques',
+      description: '+5 000 photos, +50 Go et 5 000 analyses OCR/couleurs.',
+      monthlyPrice: 29.90,
+      extraPhotos: 5000,
+      extraStorageBytes: 50 * _gib,
+      basicAiCredits: 5000,
+      durationDays: 30,
+      creditsExpireWithExtension: true,
+    ),
+    StorageExtensionSpec(
+      code: 'event_30d_advanced',
+      kind: 'event_advanced',
+      title: 'Événement 30 jours avec analyse avancée',
+      description: '+5 000 photos, +50 Go et 5 000 analyses avancées.',
+      monthlyPrice: 39.90,
+      extraPhotos: 5000,
+      extraStorageBytes: 50 * _gib,
+      advancedAiCredits: 5000,
+      durationDays: 30,
+      creditsExpireWithExtension: true,
     ),
   ];
 
@@ -313,6 +422,14 @@ class MediaMarketplacePricing {
       (plan) => plan.id == normalized || plan.code == normalized,
       orElse: () => photographerPlans.first,
     );
+  }
+
+  static StorageExtensionSpec? extensionFor(String? value) {
+    final normalized = (value ?? '').trim().toLowerCase();
+    for (final extension in storageExtensions) {
+      if (extension.code == normalized) return extension;
+    }
+    return null;
   }
 
   static PhotoPackTier? exactPack(int photoCount) {
