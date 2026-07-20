@@ -101,4 +101,25 @@ jobs:
         run: npm ci
 
       - name: Run Functions tests
-        run: npm test
+        id: functions_tests
+        continue-on-error: true
+        run: |
+          set +e
+          npm test > functions-test.log 2>&1
+          status=$?
+          echo "=== Résumé des 220 dernières lignes ==="
+          tail -n 220 functions-test.log
+          exit "$status"
+
+      - name: Upload Functions test report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: functions-test-report
+          path: functions/functions-test.log
+          if-no-files-found: error
+          retention-days: 7
+
+      - name: Enforce Functions test results
+        if: steps.functions_tests.outcome == 'failure'
+        run: exit 1
