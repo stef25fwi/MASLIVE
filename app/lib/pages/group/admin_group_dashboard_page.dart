@@ -1,22 +1,18 @@
-// Dashboard Administrateur Groupe
-// Affiche profil, code 6 chiffres, liste trackers, boutons actions
-
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:qr_flutter/qr_flutter.dart';
-import '../../services/group/group_link_qr.dart';
+
 import '../../models/group_admin.dart';
-import '../../models/group_tracker.dart';
+import '../../security/profile_capability_policy.dart';
+import '../../services/group/group_link_qr.dart';
 import '../../services/group/group_link_service.dart';
 import '../../services/group/group_tracking_service.dart';
 import '../../ui/snack/top_snack_bar.dart';
-import '../../widgets/group_map_visibility_widget.dart';
-import '../../services/market_map_service.dart';
-import '../../ui/widgets/marketmap_poi_selector_sheet.dart';
 import '../../ui/widgets/maslive_empty_state.dart';
+import '../../widgets/capability_guard.dart';
+import 'group_export_page.dart';
 import 'group_map_live_page.dart';
 import 'group_track_history_page.dart';
-import 'group_export_page.dart';
 
 class AdminGroupDashboardPage extends StatefulWidget {
   const AdminGroupDashboardPage({super.key});
@@ -27,742 +23,360 @@ class AdminGroupDashboardPage extends StatefulWidget {
 }
 
 class _AdminGroupDashboardPageState extends State<AdminGroupDashboardPage> {
-  final _linkService = GroupLinkService.instance;
-  final _trackingService = GroupTrackingService.instance;
-  final _marketMapService = MarketMapService();
+  final GroupLinkService _linkService = GroupLinkService.instance;
+  final GroupTrackingService _trackingService = GroupTrackingService.instance;
 
+  late Future<ProfileCapabilities?> _capabilitiesFuture;
   GroupAdmin? _admin;
-  bool _isLoading = false;
-  bool _isTracking = false;
+  bool _loading = true;
+  bool _tracking = false;
 
   @override
   void initState() {
     super.initState();
-    _loadAdminProfile();
+    _capabilitiesFuture = ProfileCapabilityPolicy.instance.resolveCurrent();
+    _reload();
   }
 
-  Future<void> _loadAdminProfile() async {
-    setState(() => _isLoading = true);
+  Future<void> _reload() async {
+    if (mounted) setState(() => _loading = true);
     try {
       final uid = _linkService.currentUid;
-      if (uid != null) {
-        final admin = await _linkService.getAdminProfile(uid);
-        if (!mounted) return;
-        setState(() {
-          _admin = admin;
-          _isTracking =
-              admin != null &&
-              _trackingService.isTrackingFor(
-                adminGroupId: admin.adminGroupId,
-                role: 'admin',
-              );
-        });
-      }
+      final admin = uid == null ? null : await _linkService.getAdminProfile(uid);
+      if (!mounted) return;
+      setState(() {
+        _admin = admin;
+        _tracking = admin != null &&
+            _trackingService.isTrackingFor(
+              adminGroupId: admin.adminGroupId,
+              role: 'admin',
+            );
+        _capabilitiesFuture = ProfileCapabilityPolicy.instance.resolveCurrent();
+      });
     } finally {
-      if (mounted) setState(() => _isLoading = false);
+      if (mounted) setState(() => _loading = false);
     }
   }
 
-  Future<void> _createAdminProfile() async {
-    final nameController = TextEditingController();
-
-    final confirmed = await showDialog<bool>(
+  Future<void> _requestActivation() async {
+    final controller = TextEditingController();
+    final name = await showDialog<String>(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Créer profil Administrateur'),
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Demander Admin Groupe'),
         content: TextField(
-          controller: nameController,
+          controller: controller,
           decoration: const InputDecoration(
-            labelText: 'Nom d\'affichage',
-            hintText: 'Ex: Groupe Trail 2026',
+            labelText: 'Nom du groupe ou de l’organisation',
           ),
+          autofocus: true,
         ),
-        actions: [
+        actions: <Widget>[
           TextButton(
-            onPressed: () => Navigator.pop(context, false),
+            onPressed: () => Navigator.of(dialogContext).pop(),
             child: const Text('Annuler'),
           ),
-          ElevatedButton(
-            onPressed: () => Navigator.pop(context, true),
-            child: const Text('Créer'),
+          FilledButton(
+            onPressed: () =>
+                Navigator.of(dialogContext).pop(controller.text.trim()),
+            child: const Text('Envoyer la demande'),
           ),
         ],
       ),
     );
+    if (name == null || name.isEmpty) return;
 
-    if (confirmed == true && nameController.text.isNotEmpty) {
-      setState(() => _isLoading = true);
-      try {
-        final admin = await _linkService.createAdminProfile(
-          displayName: nameController.text,
+    setState(() => _loading = true);
+    try {
+      await _linkService.requestAdminProfile(displayName: name);
+      if (!mounted) return;
+      TopSnackBar.show(
+        context,
+        const SnackBar(
+          content: Text('Demande envoyée à MASLIVE.'),
+          backgroundColor: Colors.green,
+        ),
+      );
+      await _reload();
+    } catch (error) {
+      if (mounted) {
+        TopSnackBar.show(
+          context,
+          SnackBar(content: Text('Demande impossible : $error')),
         );
-        setState(() => _admin = admin);
-
-        if (mounted) {
-          TopSnackBar.show(
-            context,
-            SnackBar(
-              content: Text('Profil créé ! Code: ${admin.adminGroupId}'),
-              backgroundColor: Colors.green,
-            ),
-          );
-        }
-      } catch (e) {
-        if (mounted) {
-          TopSnackBar.show(context, SnackBar(content: Text('Erreur: $e')));
-        }
-      } finally {
-        setState(() => _isLoading = false);
       }
+    } finally {
+      if (mounted) setState(() => _loading = false);
     }
   }
 
   Future<void> _toggleTracking() async {
-    if (_admin == null) return;
-
-    setState(() => _isLoading = true);
+    final admin = _admin;
+    if (admin == null) return;
+    setState(() => _loading = true);
     try {
-      if (_isTracking) {
+      if (_tracking) {
         await _trackingService.stopTracking();
-        setState(() => _isTracking = false);
-        if (mounted) {
-          TopSnackBar.show(
-            context,
-            const SnackBar(content: Text('Tracking arrêté')),
-          );
-        }
       } else {
         await _trackingService.startTracking(
-          adminGroupId: _admin!.adminGroupId,
+          adminGroupId: admin.adminGroupId,
           role: 'admin',
         );
-        setState(() => _isTracking = true);
-        if (mounted) {
-          TopSnackBar.show(
-            context,
-            const SnackBar(content: Text('Tracking démarré')),
-          );
-        }
       }
-    } catch (e) {
+      if (mounted) setState(() => _tracking = !_tracking);
+    } catch (error) {
       if (mounted) {
-        TopSnackBar.show(context, SnackBar(content: Text('Erreur: $e')));
+        TopSnackBar.show(context, SnackBar(content: Text('Erreur : $error')));
       }
     } finally {
-      setState(() => _isLoading = false);
+      if (mounted) setState(() => _loading = false);
     }
   }
 
   Future<void> _toggleVisibility() async {
-    if (_admin == null) return;
-
-    final newVisibility = !_admin!.isVisible;
-
-    setState(() => _isLoading = true);
-    try {
-      await _linkService.updateAdminVisibility(
-        adminUid: _admin!.uid,
-        isVisible: newVisibility,
-      );
-      setState(() => _admin = _admin!.copyWith(isVisible: newVisibility));
-
-      if (mounted) {
-        TopSnackBar.show(
-          context,
-          SnackBar(
-            content: Text(newVisibility ? 'Groupe visible' : 'Groupe masqué'),
-          ),
-        );
-      }
-    } catch (e) {
-      if (mounted) {
-        TopSnackBar.show(context, SnackBar(content: Text('Erreur: $e')));
-      }
-    } finally {
-      setState(() => _isLoading = false);
-    }
-  }
-
-  Future<void> _selectActiveCircuit() async {
-    final selection = await showMarketMapCircuitSelectorSheet(
-      context,
-      service: _marketMapService,
-    );
-    if (!mounted || selection == null) return;
-
-    final country = selection.country;
-    final event = selection.event;
-    final circuit = selection.circuit;
-    if (!selection.enabled ||
-        country == null ||
-        event == null ||
-        circuit == null) {
-      return;
-    }
-
     final admin = _admin;
     if (admin == null) return;
-
-    final selectedCircuit = GroupSelectedCircuit(
-      countryId: country.id,
-      countryName: country.name,
-      eventId: event.id,
-      eventName: event.name,
-      circuitId: circuit.id,
-      circuitName: circuit.name,
-    );
-
-    setState(() => _isLoading = true);
+    setState(() => _loading = true);
     try {
-      await _linkService.updateSelectedCircuit(
+      await _linkService.updateAdminVisibility(
         adminUid: admin.uid,
-        selectedCircuit: selectedCircuit,
+        isVisible: !admin.isVisible,
       );
-
-      setState(() {
-        _admin = admin.copyWith(
-          selectedCircuit: selectedCircuit,
-          isVisible: true,
-        );
-      });
-
       if (mounted) {
-        TopSnackBar.show(
-          context,
-          const SnackBar(
-            content: Text('Circuit actif enregistré'),
-            backgroundColor: Colors.green,
-          ),
-        );
+        setState(() => _admin = admin.copyWith(isVisible: !admin.isVisible));
       }
-    } catch (e) {
+    } catch (error) {
       if (mounted) {
-        TopSnackBar.show(context, SnackBar(content: Text('Erreur: $e')));
+        TopSnackBar.show(context, SnackBar(content: Text('Erreur : $error')));
       }
     } finally {
-      if (mounted) setState(() => _isLoading = false);
+      if (mounted) setState(() => _loading = false);
     }
   }
 
-  void _copyCodeToClipboard() {
-    if (_admin != null) {
-      Clipboard.setData(ClipboardData(text: _admin!.adminGroupId));
-      TopSnackBar.show(
-        context,
-        const SnackBar(content: Text('Code copié dans le presse-papier')),
-      );
-    }
+  void _copyCode() {
+    final code = _admin?.adminGroupId;
+    if (code == null) return;
+    Clipboard.setData(ClipboardData(text: code));
+    TopSnackBar.show(
+      context,
+      const SnackBar(content: Text('Code groupe copié')),
+    );
   }
 
   @override
   Widget build(BuildContext context) {
-    if (_isLoading) {
+    if (_loading) {
       return const Scaffold(body: Center(child: CircularProgressIndicator()));
     }
 
-    if (_admin == null) {
-      return Scaffold(
-        appBar: AppBar(title: const Text('Admin Groupe')),
-        body: Center(
-          child: MasliveEmptyState(
-            icon: Icons.admin_panel_settings,
-            title: 'Vous n\'avez pas encore de profil\nAdministrateur Groupe',
-            actionLabel: 'Créer mon profil Admin',
-            onAction: _createAdminProfile,
-          ),
-        ),
-      );
-    }
+    return FutureBuilder<ProfileCapabilities?>(
+      future: _capabilitiesFuture,
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const Scaffold(body: Center(child: CircularProgressIndicator()));
+        }
+        final profile = snapshot.data;
+        if (profile == null || !profile.isActive) {
+          return const _GroupAccessState(
+            icon: Icons.lock_outline,
+            title: 'Connexion requise',
+            message: 'Connectez-vous pour demander ou gérer un groupe.',
+          );
+        }
 
+        if (profile.can(Capability.manageGroupTracking) && _admin != null) {
+          return CapabilityGuard(
+            capability: Capability.manageGroupTracking,
+            fullPage: true,
+            child: _buildApprovedDashboard(_admin!),
+          );
+        }
+
+        if (profile.hasPendingGroupAdminRequest) {
+          return const _GroupAccessState(
+            icon: Icons.pending_actions_rounded,
+            title: 'Demande en attente',
+            message:
+                'MASLIVE doit valider votre demande avant de créer le code groupe et d’activer les commandes de gestion.',
+          );
+        }
+
+        if (profile.hasRejectedGroupAdminRequest) {
+          return _GroupAccessState(
+            icon: Icons.cancel_outlined,
+            title: 'Demande refusée',
+            message:
+                'Votre précédente demande n’a pas été validée. Vous pouvez corriger les informations puis envoyer une nouvelle demande.',
+            actionLabel: 'Refaire une demande',
+            onAction: _requestActivation,
+          );
+        }
+
+        return _GroupAccessState(
+          icon: Icons.group_add_outlined,
+          title: 'Devenir Admin Groupe',
+          message:
+              'La création d’un groupe nécessite une validation MASLIVE. Aucun profil administrateur ni code de rattachement ne sera créé avant approbation.',
+          actionLabel: 'Demander l’activation',
+          onAction: _requestActivation,
+        );
+      },
+    );
+  }
+
+  Widget _buildApprovedDashboard(GroupAdmin admin) {
+    final qrData = buildGroupQrPayload(
+      code: admin.adminGroupId,
+      groupName: admin.displayName,
+    );
     return Scaffold(
       appBar: AppBar(
         title: const Text('Dashboard Admin Groupe'),
-        actions: [
-          IconButton(
-            icon: Icon(
-              _admin!.isVisible ? Icons.visibility : Icons.visibility_off,
+        actions: <Widget>[
+          IconButton(onPressed: _reload, icon: const Icon(Icons.refresh)),
+        ],
+      ),
+      body: ListView(
+        padding: const EdgeInsets.all(16),
+        children: <Widget>[
+          Card(
+            child: Padding(
+              padding: const EdgeInsets.all(18),
+              child: Column(
+                children: <Widget>[
+                  Text(
+                    admin.displayName,
+                    style: const TextStyle(
+                      fontSize: 22,
+                      fontWeight: FontWeight.w900,
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  QrImageView(data: qrData, size: 180),
+                  const SizedBox(height: 8),
+                  Text(
+                    admin.adminGroupId,
+                    style: const TextStyle(
+                      fontSize: 28,
+                      fontWeight: FontWeight.w900,
+                      letterSpacing: 5,
+                    ),
+                  ),
+                  TextButton.icon(
+                    onPressed: _copyCode,
+                    icon: const Icon(Icons.copy),
+                    label: const Text('Copier le code'),
+                  ),
+                ],
+              ),
             ),
-            onPressed: _toggleVisibility,
-            tooltip: _admin!.isVisible ? 'Masquer groupe' : 'Rendre visible',
+          ),
+          const SizedBox(height: 12),
+          SwitchListTile(
+            value: admin.isVisible,
+            onChanged: (_) => _toggleVisibility(),
+            title: const Text('Visibilité publique du groupe'),
+            subtitle: Text(admin.isVisible ? 'Groupe visible' : 'Groupe masqué'),
+          ),
+          const SizedBox(height: 8),
+          FilledButton.icon(
+            onPressed: _toggleTracking,
+            icon: Icon(_tracking ? Icons.stop : Icons.play_arrow),
+            label: Text(_tracking ? 'Arrêter le tracking' : 'Démarrer le tracking'),
+          ),
+          const SizedBox(height: 12),
+          _ActionTile(
+            icon: Icons.map_outlined,
+            title: 'Carte live du groupe',
+            onTap: () => Navigator.of(context).push(
+              MaterialPageRoute<void>(
+                builder: (_) => GroupMapLivePage(
+                  adminGroupId: admin.adminGroupId,
+                ),
+              ),
+            ),
+          ),
+          _ActionTile(
+            icon: Icons.history,
+            title: 'Historique du groupe',
+            onTap: () => Navigator.of(context).push(
+              MaterialPageRoute<void>(
+                builder: (_) => GroupTrackHistoryPage(
+                  adminGroupId: admin.adminGroupId,
+                ),
+              ),
+            ),
+          ),
+          _ActionTile(
+            icon: Icons.file_download_outlined,
+            title: 'Exports du groupe',
+            onTap: () => Navigator.of(context).push(
+              MaterialPageRoute<void>(
+                builder: (_) => GroupExportPage(
+                  adminGroupId: admin.adminGroupId,
+                ),
+              ),
+            ),
           ),
         ],
       ),
-      body: RefreshIndicator(
-        onRefresh: _loadAdminProfile,
-        child: ListView(
-          padding: const EdgeInsets.all(16),
-          children: [
-            _buildAdminCard(),
-            const SizedBox(height: 16),
-            _buildTrackingCard(),
-            const SizedBox(height: 16),
-            _buildCircuitSelectionCard(),
-            const SizedBox(height: 16),
-            GroupMapVisibilityWidget(
-              adminUid: _admin!.uid,
-              groupId: _admin!.adminGroupId,
-            ),
-            const SizedBox(height: 16),
-            _buildActionsGrid(),
-            const SizedBox(height: 24),
-            _buildTrackersList(),
-          ],
+    );
+  }
+}
+
+class _GroupAccessState extends StatelessWidget {
+  const _GroupAccessState({
+    required this.icon,
+    required this.title,
+    required this.message,
+    this.actionLabel,
+    this.onAction,
+  });
+
+  final IconData icon;
+  final String title;
+  final String message;
+  final String? actionLabel;
+  final VoidCallback? onAction;
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: const Text('Admin Groupe')),
+      body: Center(
+        child: MasliveEmptyState(
+          icon: icon,
+          title: title,
+          subtitle: message,
+          actionLabel: actionLabel,
+          onAction: onAction,
         ),
       ),
     );
   }
+}
 
-  Widget _buildCircuitSelectionCard() {
-    final selected = _admin?.selectedCircuit;
-    final hasSelection = selected != null && selected.isValid;
+class _ActionTile extends StatelessWidget {
+  const _ActionTile({
+    required this.icon,
+    required this.title,
+    required this.onTap,
+  });
 
+  final IconData icon;
+  final String title;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
     return Card(
-      elevation: 2,
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Icon(
-                  Icons.flag,
-                  size: 24,
-                  color: Theme.of(context).colorScheme.primary,
-                ),
-                const SizedBox(width: 10),
-                const Expanded(
-                  child: Text(
-                    'Circuit actif du groupe',
-                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
-                  ),
-                ),
-                TextButton.icon(
-                  onPressed: _selectActiveCircuit,
-                  icon: const Icon(Icons.edit),
-                  label: const Text('Choisir'),
-                ),
-              ],
-            ),
-            const SizedBox(height: 8),
-            if (!hasSelection)
-              Text(
-                'Aucun circuit sélectionné',
-                style: TextStyle(color: Colors.grey[600]),
-              )
-            else
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text('Pays: ${selected.countryName}'),
-                  Text('Événement: ${selected.eventName}'),
-                  Text('Circuit: ${selected.circuitName}'),
-                  const SizedBox(height: 8),
-                  Align(
-                    alignment: Alignment.centerLeft,
-                    child: OutlinedButton.icon(
-                      onPressed: () => Navigator.pushNamed(
-                        context,
-                        '/media-marketplace',
-                        arguments: <String, dynamic>{
-                          'eventId': selected.eventId,
-                          'eventName': selected.eventName,
-                          'circuitName': selected.circuitName,
-                        },
-                      ),
-                      icon: const Icon(Icons.photo_library_outlined),
-                      label: const Text('Ouvrir les médias de l’événement'),
-                    ),
-                  ),
-                ],
-              ),
-            const SizedBox(height: 8),
-            Text(
-              'La position moyenne du groupe sera publiée sur ce circuit.',
-              style: TextStyle(color: Colors.grey[600], fontSize: 12),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildAdminCard() {
-    final primary = Theme.of(context).colorScheme.primary;
-    return Card(
-      elevation: 4,
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Icon(Icons.admin_panel_settings, size: 40, color: primary),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        _admin!.displayName,
-                        style: const TextStyle(
-                          fontSize: 20,
-                          fontWeight: FontWeight.w700,
-                        ),
-                      ),
-                      const SizedBox(height: 4),
-                      Text(
-                        'Admin Groupe',
-                        style: TextStyle(color: Colors.grey[600]),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-            const Divider(height: 24),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Code Groupe',
-                      style: TextStyle(color: Colors.grey[600], fontSize: 12),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      _admin!.adminGroupId,
-                      style: TextStyle(
-                        fontSize: 32,
-                        fontWeight: FontWeight.w700,
-                        letterSpacing: 4,
-                        color: primary,
-                      ),
-                    ),
-                  ],
-                ),
-                IconButton(
-                  icon: const Icon(Icons.copy),
-                  onPressed: _copyCodeToClipboard,
-                  tooltip: 'Copier le code',
-                ),
-              ],
-            ),
-            const SizedBox(height: 8),
-            Text(
-              'Partagez ce code avec vos trackers',
-              style: TextStyle(color: Colors.grey[600], fontSize: 12),
-            ),
-            const SizedBox(height: 16),
-            // QR de rattachement: le traceur le scanne pour se lier au groupe
-            // sans saisir le code manuellement.
-            Center(
-              child: Column(
-                children: [
-                  Container(
-                    padding: const EdgeInsets.all(12),
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(16),
-                      border: Border.all(color: Colors.grey.shade200),
-                    ),
-                    child: QrImageView(
-                      data: buildGroupQrPayload(
-                        _admin!.adminGroupId,
-                        groupName: _admin!.displayName,
-                      ),
-                      version: QrVersions.auto,
-                      size: 180,
-                      gapless: true,
-                      backgroundColor: Colors.white,
-                      errorStateBuilder: (context, error) => const SizedBox(
-                        width: 180,
-                        height: 180,
-                        child: Center(child: Text('QR indisponible')),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    'Ou faites scanner ce QR code',
-                    style: TextStyle(color: Colors.grey[600], fontSize: 12),
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildTrackingCard() {
-    return Card(
-      elevation: 4,
-      color: _isTracking ? Colors.green[50] : null,
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          children: [
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Row(
-                  children: [
-                    Icon(
-                      _isTracking ? Icons.gps_fixed : Icons.gps_off,
-                      color: _isTracking ? Colors.green : Colors.grey,
-                      size: 32,
-                    ),
-                    const SizedBox(width: 12),
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          _isTracking ? 'Tracking actif' : 'Tracking inactif',
-                          style: const TextStyle(
-                            fontSize: 18,
-                            fontWeight: FontWeight.w700,
-                          ),
-                        ),
-                        Text(
-                          _isTracking
-                              ? 'Position envoyée en temps réel'
-                              : 'Démarrez pour commencer',
-                          style: TextStyle(
-                            color: Colors.grey[600],
-                            fontSize: 12,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
-                ElevatedButton.icon(
-                  onPressed: _toggleTracking,
-                  icon: Icon(_isTracking ? Icons.stop : Icons.play_arrow),
-                  label: Text(_isTracking ? 'Arrêter' : 'Démarrer'),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: _isTracking ? Colors.red : Colors.green,
-                    foregroundColor: Colors.white,
-                  ),
-                ),
-              ],
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildActionsGrid() {
-    return GridView.count(
-      crossAxisCount: 2,
-      shrinkWrap: true,
-      physics: const NeverScrollableScrollPhysics(),
-      mainAxisSpacing: 12,
-      crossAxisSpacing: 12,
-      children: [
-        _buildActionButton(
-          icon: Icons.map,
-          label: 'Carte Live',
-          color: Colors.blue,
-          onTap: () => Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (_) =>
-                  GroupMapLivePage(adminGroupId: _admin!.adminGroupId),
-            ),
-          ),
-        ),
-        _buildActionButton(
-          icon: Icons.history,
-          label: 'Historique',
-          color: Colors.orange,
-          onTap: () => Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (_) =>
-                  GroupTrackHistoryPage(adminGroupId: _admin!.adminGroupId),
-            ),
-          ),
-        ),
-        _buildActionButton(
-          icon: Icons.file_download,
-          label: 'Exports',
-          color: Colors.purple,
-          onTap: () => Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (_) =>
-                  GroupExportPage(adminGroupId: _admin!.adminGroupId),
-            ),
-          ),
-        ),
-        _buildActionButton(
-          icon: Icons.analytics,
-          label: 'Statistiques',
-          color: Colors.teal,
-          onTap: () {
-            TopSnackBar.show(
-              context,
-              const SnackBar(content: Text('Page Stats à venir')),
-            );
-          },
-        ),
-        _buildActionButton(
-          icon: Icons.store,
-          label: 'Boutique',
-          color: Colors.pink,
-          onTap: () {
-            TopSnackBar.show(
-              context,
-              const SnackBar(content: Text('Page Boutique à venir')),
-            );
-          },
-        ),
-        _buildActionButton(
-          icon: Icons.photo_library,
-          label: 'Médias',
-          color: Colors.indigo,
-          onTap: () {
-            TopSnackBar.show(
-              context,
-              const SnackBar(content: Text('Page Médias à venir')),
-            );
-          },
-        ),
-      ],
-    );
-  }
-
-  Widget _buildActionButton({
-    required IconData icon,
-    required String label,
-    required Color color,
-    required VoidCallback onTap,
-  }) {
-    return Card(
-      elevation: 2,
-      child: InkWell(
+      child: ListTile(
+        leading: Icon(icon),
+        title: Text(title, style: const TextStyle(fontWeight: FontWeight.w700)),
+        trailing: const Icon(Icons.chevron_right),
         onTap: onTap,
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(icon, size: 48, color: color),
-            const SizedBox(height: 8),
-            Text(
-              label,
-              style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700),
-              textAlign: TextAlign.center,
-            ),
-          ],
-        ),
       ),
-    );
-  }
-
-  Widget _buildTrackersList() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const Text(
-          'Trackers rattachés',
-          style: TextStyle(fontSize: 20, fontWeight: FontWeight.w700),
-        ),
-        const SizedBox(height: 12),
-        StreamBuilder<List<GroupTracker>>(
-          stream: _linkService.streamAdminTrackers(_admin!.adminGroupId),
-          builder: (context, snapshot) {
-            if (snapshot.connectionState == ConnectionState.waiting) {
-              return const Center(child: CircularProgressIndicator());
-            }
-
-            if (!snapshot.hasData || snapshot.data!.isEmpty) {
-              return Card(
-                child: Padding(
-                  padding: const EdgeInsets.all(24),
-                  child: Center(
-                    child: Column(
-                      children: [
-                        Icon(
-                          Icons.people_outline,
-                          size: 64,
-                          color: Colors.grey[400],
-                        ),
-                        const SizedBox(height: 16),
-                        Text(
-                          'Aucun tracker rattaché',
-                          style: TextStyle(color: Colors.grey[600]),
-                        ),
-                        const SizedBox(height: 8),
-                        Text(
-                          'Partagez le code ${_admin!.adminGroupId}',
-                          style: TextStyle(
-                            color: Colors.grey[600],
-                            fontSize: 12,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              );
-            }
-
-            final trackers = snapshot.data!;
-            return StreamBuilder<Set<String>>(
-              stream: _trackingService.streamActiveMemberUids(
-                _admin!.adminGroupId,
-              ),
-              builder: (context, liveSnapshot) {
-                final activeUids = liveSnapshot.data ?? const <String>{};
-                return ListView.builder(
-                  shrinkWrap: true,
-                  physics: const NeverScrollableScrollPhysics(),
-                  itemCount: trackers.length,
-                  itemBuilder: (context, index) {
-                    final tracker = trackers[index];
-                    final isLive = activeUids.contains(tracker.uid);
-                    final stale = tracker.trackingActive && !isLive;
-                    final initial = tracker.displayName.trim().isEmpty
-                        ? '?'
-                        : tracker.displayName.trim()[0].toUpperCase();
-                    return Card(
-                      child: ListTile(
-                        leading: CircleAvatar(child: Text(initial)),
-                        title: Text(tracker.displayName),
-                        subtitle: Text(
-                          isLive
-                              ? 'GPS actif • position live reçue'
-                              : stale
-                              ? 'Signal expiré • relance requise'
-                              : 'GPS inactif',
-                        ),
-                        trailing: Icon(
-                          isLive
-                              ? Icons.gps_fixed
-                              : stale
-                              ? Icons.gps_not_fixed
-                              : Icons.gps_off,
-                          color: isLive
-                              ? Colors.green
-                              : stale
-                              ? Colors.orange
-                              : Colors.grey,
-                        ),
-                      ),
-                    );
-                  },
-                );
-              },
-            );
-          },
-        ),
-      ],
     );
   }
 }
