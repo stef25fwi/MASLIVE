@@ -6,20 +6,26 @@ import '../../data/models/media_photo_model.dart';
 import '../../data/repositories/media_gallery_repository.dart';
 import '../../data/repositories/media_pack_repository.dart';
 import '../../data/repositories/media_photo_repository.dart';
+import '../../domain/models/photo_shop_navigation_context.dart';
+import '../../domain/services/gallery_relevance_service.dart';
 
 class MediaMarketplaceCatalogController extends ChangeNotifier {
   MediaMarketplaceCatalogController({
     MediaGalleryRepository? mediaGalleryRepository,
     MediaPhotoRepository? mediaPhotoRepository,
     MediaPackRepository? mediaPackRepository,
-  }) : _mediaGalleryRepository =
-           mediaGalleryRepository ?? MediaGalleryRepository(),
-       _mediaPhotoRepository = mediaPhotoRepository ?? MediaPhotoRepository(),
-       _mediaPackRepository = mediaPackRepository ?? MediaPackRepository();
+    GalleryRelevanceService? galleryRelevanceService,
+  })  : _mediaGalleryRepository =
+            mediaGalleryRepository ?? MediaGalleryRepository(),
+        _mediaPhotoRepository = mediaPhotoRepository ?? MediaPhotoRepository(),
+        _mediaPackRepository = mediaPackRepository ?? MediaPackRepository(),
+        _galleryRelevanceService =
+            galleryRelevanceService ?? const GalleryRelevanceService();
 
   final MediaGalleryRepository _mediaGalleryRepository;
   final MediaPhotoRepository _mediaPhotoRepository;
   final MediaPackRepository _mediaPackRepository;
+  final GalleryRelevanceService _galleryRelevanceService;
 
   bool loading = false;
   Object? error;
@@ -27,6 +33,8 @@ class MediaMarketplaceCatalogController extends ChangeNotifier {
   String? currentEventId;
   String? currentPhotographerId;
   String? currentCircuitId;
+  PhotoShopNavigationContext currentContext =
+      const PhotoShopNavigationContext();
   String? selectedGalleryId;
   List<MediaGalleryModel> galleries = const <MediaGalleryModel>[];
   List<MediaPhotoModel> photos = const <MediaPhotoModel>[];
@@ -36,24 +44,49 @@ class MediaMarketplaceCatalogController extends ChangeNotifier {
     String eventId, {
     String? countryId,
     String? circuitId,
+  }) {
+    return loadContextGalleries(
+      PhotoShopNavigationContext(
+        selectedEventId: eventId,
+        selectedCountryId: countryId,
+        selectedCircuitId: circuitId,
+      ),
+    );
+  }
+
+  Future<void> loadContextGalleries(
+    PhotoShopNavigationContext context, {
+    Set<String> officialPhotographerIds = const <String>{},
   }) async {
     loading = true;
     error = null;
-    currentCountryId = countryId;
-    currentEventId = eventId;
-    currentPhotographerId = null;
-    currentCircuitId = circuitId;
+    currentContext = context;
+    currentCountryId = context.selectedCountryId;
+    currentEventId = context.selectedEventId;
+    currentPhotographerId = context.selectedPhotographerId;
+    currentCircuitId = context.selectedCircuitId;
     selectedGalleryId = null;
     photos = const <MediaPhotoModel>[];
     packs = const <MediaPackModel>[];
     notifyListeners();
 
     try {
-      final eventGalleries = await _mediaGalleryRepository.getByEvent(eventId);
-      galleries = _applySelectionScope(
-        eventGalleries,
-        countryId: countryId,
-        circuitId: circuitId,
+      final eventId = context.selectedEventId;
+      final photographerId = context.selectedPhotographerId;
+      final source = eventId != null && eventId.trim().isNotEmpty
+          ? await _mediaGalleryRepository.getByEvent(eventId)
+          : photographerId != null && photographerId.trim().isNotEmpty
+              ? await _mediaGalleryRepository.getByPhotographer(photographerId)
+              : const <MediaGalleryModel>[];
+      final scoped = _applySelectionScope(
+        source,
+        countryId: context.selectedCountryId,
+        circuitId: context.selectedCircuitId,
+      );
+      galleries = _galleryRelevanceService.rank(
+        galleries: scoped,
+        context: context,
+        officialPhotographerIds: officialPhotographerIds,
       );
       await _selectFirstGalleryByDefault();
     } catch (err) {
@@ -67,35 +100,19 @@ class MediaMarketplaceCatalogController extends ChangeNotifier {
     }
   }
 
-  Future<void> loadPhotographerGalleries(String photographerId) async {
-    loading = true;
-    error = null;
-    currentCountryId = null;
-    currentPhotographerId = photographerId;
-    currentEventId = null;
-    currentCircuitId = null;
-    selectedGalleryId = null;
-    photos = const <MediaPhotoModel>[];
-    packs = const <MediaPackModel>[];
-    notifyListeners();
-
-    try {
-      galleries =
-          await _mediaGalleryRepository.getByPhotographer(photographerId);
-      await _selectFirstGalleryByDefault();
-    } catch (err) {
-      error = err;
-      galleries = const <MediaGalleryModel>[];
-      photos = const <MediaPhotoModel>[];
-      packs = const <MediaPackModel>[];
-    } finally {
-      loading = false;
-      notifyListeners();
-    }
+  Future<void> loadPhotographerGalleries(String photographerId) {
+    return loadContextGalleries(
+      PhotoShopNavigationContext(selectedPhotographerId: photographerId),
+    );
   }
 
   Future<void> _selectFirstGalleryByDefault() async {
-    if (galleries.isEmpty) return;
+    if (galleries.isEmpty) {
+      selectedGalleryId = null;
+      photos = const <MediaPhotoModel>[];
+      packs = const <MediaPackModel>[];
+      return;
+    }
     selectedGalleryId = galleries.first.galleryId;
     final results = await Future.wait<dynamic>(<Future<dynamic>>[
       _mediaPhotoRepository.getPublishedByGallery(selectedGalleryId!),
@@ -106,6 +123,9 @@ class MediaMarketplaceCatalogController extends ChangeNotifier {
   }
 
   Future<void> selectGallery(String galleryId) async {
+    if (!galleries.any((gallery) => gallery.galleryId == galleryId)) {
+      throw StateError('Galerie indisponible dans le contexte sélectionné.');
+    }
     loading = true;
     error = null;
     selectedGalleryId = galleryId;
@@ -143,21 +163,19 @@ class MediaMarketplaceCatalogController extends ChangeNotifier {
     var scoped = source;
 
     if (countryId != null && countryId.trim().isNotEmpty) {
-      final byCountry = scoped
+      scoped = scoped
           .where(
             (gallery) => gallery.linkedCountry?.trim() == countryId.trim(),
           )
           .toList(growable: false);
-      if (byCountry.isNotEmpty) scoped = byCountry;
     }
 
     if (circuitId != null && circuitId.trim().isNotEmpty) {
-      final byCircuit = scoped
+      scoped = scoped
           .where(
             (gallery) => gallery.linkedCircuitId?.trim() == circuitId.trim(),
           )
           .toList(growable: false);
-      if (byCircuit.isNotEmpty) scoped = byCircuit;
     }
 
     return scoped;
