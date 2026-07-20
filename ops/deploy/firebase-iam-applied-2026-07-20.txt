@@ -1,0 +1,4 @@
+IAM Firebase corrigé dans Google Cloud Shell le 2026-07-20.
+Compte propriétaire: sahai.stephane@gmail.com
+Compte de déploiement: firebase-adminsdk-fbsvc@maslive.iam.gserviceaccount.com
+Objectif: relancer automatiquement le build, le déploiement Firebase complet et la vérification du manifeste de production.
