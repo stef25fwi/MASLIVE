@@ -143,7 +143,7 @@ class PhotographerImportSessionService extends ChangeNotifier {
   }
 
   Future<List<XFile>> pickFolderOrBatch() async {
-    final result = await FilePicker.platform.pickFiles(
+    final result = await FilePicker().pickFiles(
       dialogTitle: 'Sélectionne un dossier ou un lot de photos',
       allowMultiple: true,
       withData: true,
