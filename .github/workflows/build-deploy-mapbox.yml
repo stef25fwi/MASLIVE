@@ -5,24 +5,161 @@ on:
     branches: [main]
   pull_request:
     branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  id-token: write
+
+concurrency:
+  group: maslive-production-${{ github.ref }}
+  cancel-in-progress: false
 
 jobs:
   build-and-deploy:
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout repository
+        uses: actions/checkout@v4
 
-      - uses: subosito/flutter-action@v2
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
         with:
           flutter-version: "3.44.4"
           cache: true
 
-      - name: Install dependencies
-        run: cd app && flutter pub get
+      - name: Install Flutter dependencies
+        working-directory: app
+        run: flutter pub get
+
+      - name: Write deployment manifest
+        if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
+        run: |
+          cat > app/web/deployment-manifest.json <<EOF
+          {
+            "commit": "${GITHUB_SHA}",
+            "runId": "${GITHUB_RUN_ID}",
+            "repository": "${GITHUB_REPOSITORY}",
+            "deployedAt": "$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+          }
+          EOF
 
       - name: Build Flutter Web with Mapbox
+        id: flutter_build
+        continue-on-error: true
+        working-directory: app
+        env:
+          MAPBOX_TOKEN: ${{ secrets.MAPBOX_PUBLIC_TOKEN || secrets.MAPBOX_ACCESS_TOKEN || secrets.MAPBOX_TOKEN || vars.MAPBOX_PUBLIC_TOKEN || vars.MAPBOX_ACCESS_TOKEN || vars.MAPBOX_TOKEN }}
+          STRIPE_PUBLISHABLE_KEY: ${{ secrets.STRIPE_PUBLISHABLE_KEY || vars.STRIPE_PUBLISHABLE_KEY }}
+          STRIPE_PREMIUM_MONTHLY_PRICE_ID: ${{ secrets.STRIPE_PREMIUM_MONTHLY_PRICE_ID || vars.STRIPE_PREMIUM_MONTHLY_PRICE_ID }}
+          STRIPE_PREMIUM_YEARLY_PRICE_ID: ${{ secrets.STRIPE_PREMIUM_YEARLY_PRICE_ID || vars.STRIPE_PREMIUM_YEARLY_PRICE_ID }}
         run: |
-          cd app
+          set +e
+          : > flutter-build.log
+          if [ -z "${MAPBOX_TOKEN}" ]; then
+            echo "AVERTISSEMENT: aucun token Mapbox GitHub n'est configuré; le sélecteur runtime de l'application restera disponible." | tee -a flutter-build.log
+          else
+            echo "Token Mapbox public détecté." | tee -a flutter-build.log
+          fi
+
           flutter build web --release \
-            --dart-define=MAPBOX_ACCESS_TOKEN=${{ secrets.MAPBOX_PUBLIC_TOKEN }}
+            --dart-define=MAPBOX_ACCESS_TOKEN="${MAPBOX_TOKEN}" \
+            --dart-define=STRIPE_PUBLISHABLE_KEY="${STRIPE_PUBLISHABLE_KEY}" \
+            --dart-define=STRIPE_PREMIUM_MONTHLY_PRICE_ID="${STRIPE_PREMIUM_MONTHLY_PRICE_ID}" \
+            --dart-define=STRIPE_PREMIUM_YEARLY_PRICE_ID="${STRIPE_PREMIUM_YEARLY_PRICE_ID}" \
+            >> flutter-build.log 2>&1
+          status=$?
+          echo "=== Résumé des 220 dernières lignes ==="
+          tail -n 220 flutter-build.log
+          exit "$status"
+
+      - name: Upload Flutter build report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: flutter-web-build-report
+          path: app/flutter-build.log
+          if-no-files-found: error
+          retention-days: 7
+
+      - name: Enforce Flutter Web build
+        if: steps.flutter_build.outcome == 'failure'
+        run: exit 1
+
+      - name: Setup Node.js for Firebase
+        if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: functions/package-lock.json
+
+      - name: Install Functions and Firebase dependencies
+        if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
+        run: |
+          npm ci --prefix functions
+          npm install --global firebase-tools@latest
+
+      - name: Configure Firebase authentication
+        if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
+        env:
+          FIREBASE_SERVICE_ACCOUNT_JSON: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_MASLIVE || secrets.FIREBASE_SERVICE_ACCOUNT || secrets.GOOGLE_CREDENTIALS }}
+          FIREBASE_TOKEN: ${{ secrets.FIREBASE_TOKEN }}
+        run: |
+          set -euo pipefail
+          if [ -n "${FIREBASE_SERVICE_ACCOUNT_JSON}" ]; then
+            CREDENTIALS_FILE="${RUNNER_TEMP}/maslive-firebase-service-account.json"
+            printf '%s' "${FIREBASE_SERVICE_ACCOUNT_JSON}" > "${CREDENTIALS_FILE}"
+            chmod 600 "${CREDENTIALS_FILE}"
+            echo "GOOGLE_APPLICATION_CREDENTIALS=${CREDENTIALS_FILE}" >> "${GITHUB_ENV}"
+            echo "FIREBASE_AUTH_MODE=service_account" >> "${GITHUB_ENV}"
+          elif [ -n "${FIREBASE_TOKEN}" ]; then
+            echo "FIREBASE_AUTH_MODE=token" >> "${GITHUB_ENV}"
+          else
+            echo "::error::Ajoute FIREBASE_SERVICE_ACCOUNT_MASLIVE (recommandé) ou FIREBASE_TOKEN dans les secrets GitHub Actions."
+            exit 1
+          fi
+
+      - name: Deploy MASLIVE production to Firebase
+        if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
+        env:
+          FIREBASE_TOKEN: ${{ secrets.FIREBASE_TOKEN }}
+        run: |
+          set -euo pipefail
+          DEPLOY_ARGS=(
+            --project maslive
+            --only hosting,functions,firestore:rules,firestore:indexes,storage
+            --non-interactive
+          )
+
+          if [ "${FIREBASE_AUTH_MODE}" = "token" ]; then
+            DEPLOY_ARGS+=(--token "${FIREBASE_TOKEN}")
+          fi
+
+          firebase deploy "${DEPLOY_ARGS[@]}"
+
+      - name: Verify production manifest
+        if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
+        run: |
+          set -euo pipefail
+          expected="${GITHUB_SHA}"
+          for attempt in 1 2 3 4 5 6; do
+            manifest="$(curl --fail --silent --show-error --max-time 20 "https://maslive.web.app/deployment-manifest.json?run=${GITHUB_RUN_ID}" || true)"
+            if printf '%s' "${manifest}" | grep -Fq "${expected}"; then
+              echo "Production vérifiée sur le commit ${expected}."
+              exit 0
+            fi
+            sleep 10
+          done
+          echo "::error::Le manifeste de production ne correspond pas au commit ${expected}."
+          exit 1
+
+      - name: Production deployment summary
+        if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
+        run: |
+          echo "### MASLIVE déployé" >> "${GITHUB_STEP_SUMMARY}"
+          echo "- Commit : \`${GITHUB_SHA}\`" >> "${GITHUB_STEP_SUMMARY}"
+          echo "- Hosting : https://maslive.web.app" >> "${GITHUB_STEP_SUMMARY}"
+          echo "- Firebase project : maslive" >> "${GITHUB_STEP_SUMMARY}"
+          echo "- Ressources : hosting, functions, règles/index Firestore et règles Storage" >> "${GITHUB_STEP_SUMMARY}"
