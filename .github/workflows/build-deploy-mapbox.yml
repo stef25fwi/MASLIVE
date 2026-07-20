@@ -50,24 +50,25 @@ jobs:
         continue-on-error: true
         working-directory: app
         env:
-          MAPBOX_PUBLIC_TOKEN: ${{ secrets.MAPBOX_PUBLIC_TOKEN }}
-          STRIPE_PUBLISHABLE_KEY: ${{ secrets.STRIPE_PUBLISHABLE_KEY }}
-          STRIPE_PREMIUM_MONTHLY_PRICE_ID: ${{ secrets.STRIPE_PREMIUM_MONTHLY_PRICE_ID }}
-          STRIPE_PREMIUM_YEARLY_PRICE_ID: ${{ secrets.STRIPE_PREMIUM_YEARLY_PRICE_ID }}
+          MAPBOX_TOKEN: ${{ secrets.MAPBOX_PUBLIC_TOKEN || secrets.MAPBOX_ACCESS_TOKEN || secrets.MAPBOX_TOKEN || vars.MAPBOX_PUBLIC_TOKEN || vars.MAPBOX_ACCESS_TOKEN || vars.MAPBOX_TOKEN }}
+          STRIPE_PUBLISHABLE_KEY: ${{ secrets.STRIPE_PUBLISHABLE_KEY || vars.STRIPE_PUBLISHABLE_KEY }}
+          STRIPE_PREMIUM_MONTHLY_PRICE_ID: ${{ secrets.STRIPE_PREMIUM_MONTHLY_PRICE_ID || vars.STRIPE_PREMIUM_MONTHLY_PRICE_ID }}
+          STRIPE_PREMIUM_YEARLY_PRICE_ID: ${{ secrets.STRIPE_PREMIUM_YEARLY_PRICE_ID || vars.STRIPE_PREMIUM_YEARLY_PRICE_ID }}
         run: |
           set +e
-          if [ -z "${MAPBOX_PUBLIC_TOKEN}" ]; then
-            echo "Le secret MAPBOX_PUBLIC_TOKEN est absent." > flutter-build.log
-            cat flutter-build.log
-            exit 1
+          : > flutter-build.log
+          if [ -z "${MAPBOX_TOKEN}" ]; then
+            echo "AVERTISSEMENT: aucun token Mapbox GitHub n'est configuré; le sélecteur runtime de l'application restera disponible." | tee -a flutter-build.log
+          else
+            echo "Token Mapbox public détecté." | tee -a flutter-build.log
           fi
 
           flutter build web --release \
-            --dart-define=MAPBOX_ACCESS_TOKEN="${MAPBOX_PUBLIC_TOKEN}" \
+            --dart-define=MAPBOX_ACCESS_TOKEN="${MAPBOX_TOKEN}" \
             --dart-define=STRIPE_PUBLISHABLE_KEY="${STRIPE_PUBLISHABLE_KEY}" \
             --dart-define=STRIPE_PREMIUM_MONTHLY_PRICE_ID="${STRIPE_PREMIUM_MONTHLY_PRICE_ID}" \
             --dart-define=STRIPE_PREMIUM_YEARLY_PRICE_ID="${STRIPE_PREMIUM_YEARLY_PRICE_ID}" \
-            > flutter-build.log 2>&1
+            >> flutter-build.log 2>&1
           status=$?
           echo "=== Résumé des 220 dernières lignes ==="
           tail -n 220 flutter-build.log
