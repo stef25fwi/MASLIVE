@@ -8,6 +8,7 @@ const { onCall, onRequest, HttpsError } = require("firebase-functions/v2/https")
 const { onDocumentUpdated } = require("firebase-functions/v2/firestore")
 const createPhotographerSubscriptionLifecycle = require("./src/photographer-subscription-lifecycle")
 const createPhotographerCompleteFlow = require("./src/photographer-complete-flow")
+const createPhotographerEndToEnd = require("./src/photographer-end-to-end")
 
 const STRIPE_SECRET_KEY = defineSecret("STRIPE_SECRET_KEY")
 let stripe = null
@@ -64,8 +65,20 @@ const photographerCompleteFlow = createPhotographerCompleteFlow({
   HttpsError,
 })
 
+const photographerEndToEnd = createPhotographerEndToEnd({
+  admin,
+  db,
+  onCall,
+  onDocumentUpdated,
+  HttpsError,
+  STRIPE_SECRET_KEY,
+  getStripe,
+  isAllowedRedirectUrl,
+})
+
 module.exports = {
   ...legacyExports,
   ...photographerSubscriptionLifecycle,
   ...photographerCompleteFlow,
+  ...photographerEndToEnd,
 }
