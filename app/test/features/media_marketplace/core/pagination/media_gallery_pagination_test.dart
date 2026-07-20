@@ -23,6 +23,14 @@ void main() {
   });
 
   group('MediaGalleryPaginationState', () {
+    test('normalise la taille fournie au constructeur', () {
+      expect(MediaGalleryPaginationState<String>(pageSize: 0).pageSize, 1);
+      expect(
+        MediaGalleryPaginationState<String>(pageSize: 1000).pageSize,
+        maxMediaGalleryPageSize,
+      );
+    });
+
     test('empêche deux chargements simultanés', () {
       final state = MediaGalleryPaginationState<String>();
       expect(state.beginLoad(), isTrue);
@@ -56,6 +64,19 @@ void main() {
       expect(state.items, <String>['a', 'b', 'c']);
       expect(state.hasMore, isFalse);
       expect(state.canLoadMore, isFalse);
+    });
+
+    test('une page suivante exige un curseur', () {
+      final state = MediaGalleryPaginationState<String>();
+      state.beginLoad();
+      state.completePage(
+        const MediaGalleryPage<String>(
+          items: <String>['a'],
+          hasMore: true,
+        ),
+        idOf: (item) => item,
+      );
+      expect(state.hasMore, isFalse);
     });
 
     test('reset réinitialise entièrement la pagination', () {
