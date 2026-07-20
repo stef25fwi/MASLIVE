@@ -19,7 +19,8 @@ class CommerceService {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   final FirebaseStorage _storage = FirebaseStorage.instance;
   final FirebaseAuth _auth = FirebaseAuth.instance;
-  final FirebaseFunctions _functions = FirebaseFunctions.instance;
+  final FirebaseFunctions _functions =
+      FirebaseFunctions.instanceFor(region: 'us-east1');
   final StorageService _storageService = StorageService.instance;
 
   CollectionReference<Map<String, dynamic>> get _submissions =>
@@ -124,11 +125,16 @@ class CommerceService {
       }
     }
 
-    await _submissions.doc(submissionId).update({
-      'status': SubmissionStatus.pending.toJson(),
-      'submittedAt': FieldValue.serverTimestamp(),
-      'updatedAt': FieldValue.serverTimestamp(),
-    });
+    try {
+      final callable = _functions.httpsCallable('submitCommerceForReview');
+      await callable.call(<String, dynamic>{'submissionId': submissionId});
+    } on FirebaseFunctionsException catch (error) {
+      final details = error.details;
+      if (details is Map && details['message'] is String) {
+        throw Exception(details['message'] as String);
+      }
+      throw Exception(error.message ?? 'Impossible de soumettre la publication.');
+    }
   }
 
   Future<void> deleteSubmission(String submissionId) async {

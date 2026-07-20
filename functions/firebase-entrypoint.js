@@ -11,6 +11,7 @@ const createPhotographerCompleteFlow = require("./src/photographer-complete-flow
 const createPhotographerEndToEnd = require("./src/photographer-end-to-end")
 const createPhotographerFinalOverrides = require("./src/photographer-final-overrides")
 const createPhotographerAiCredits = require("./src/photographer-ai-credits")
+const createCommerceSubmissionHandlers = require("./src/commerce-submissions")
 
 const STRIPE_SECRET_KEY = defineSecret("STRIPE_SECRET_KEY")
 let stripe = null
@@ -94,12 +95,20 @@ const photographerAiCredits = createPhotographerAiCredits({
   HttpsError,
 })
 
+const commerceSubmissionHandlers = createCommerceSubmissionHandlers({
+  admin,
+  db,
+  onCall,
+  HttpsError,
+})
+
 module.exports = {
   ...legacyExports,
   ...photographerSubscriptionLifecycle,
   ...photographerCompleteFlow,
   ...photographerEndToEnd,
   ...photographerFinalOverrides,
+  ...commerceSubmissionHandlers,
   // Placé en dernier pour remplacer l'ancien analysePhotographerPhoto sans
   // déployer deux triggers concurrents sur media_photos/{photoId}.
   ...photographerAiCredits,

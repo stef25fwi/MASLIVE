@@ -1,0 +1,80 @@
+name: PR58 Consolidation
+
+on:
+  push:
+    branches: [feat/consolidate-pr40-user-flows]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  apply-and-validate:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: feat/consolidate-pr40-user-flows
+          fetch-depth: 0
+
+      - name: Apply consolidation patch
+        run: python3 scripts/apply_pr58_consolidation.py
+
+      - name: Commit generated wiring
+        run: |
+          if git diff --quiet; then
+            echo "Aucun changement généré."
+          else
+            git config user.name "github-actions[bot]"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git add app/lib/services/commerce/commerce_service.dart firestore.rules
+            git commit -m "feat(pr58): câble la soumission sécurisée et verrouille les transitions"
+            git push origin HEAD:feat/consolidate-pr40-user-flows
+          fi
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: functions/package-lock.json
+
+      - name: Install Functions dependencies
+        run: npm ci --prefix functions
+
+      - name: Validate Functions syntax
+        run: |
+          node --check functions/firebase-entrypoint.js
+          node --check functions/src/commerce-submissions.js
+
+      - name: Run Functions tests
+        run: npm test --prefix functions
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: "3.44.4"
+          cache: true
+
+      - name: Install Flutter dependencies
+        working-directory: app
+        run: flutter pub get
+
+      - name: Flutter analyze
+        working-directory: app
+        run: flutter analyze --fatal-infos --fatal-warnings
+
+      - name: Flutter tests
+        working-directory: app
+        run: flutter test
+
+      - name: Build Flutter Web
+        working-directory: app
+        env:
+          MAPBOX_TOKEN: ${{ secrets.MAPBOX_PUBLIC_TOKEN || secrets.MAPBOX_ACCESS_TOKEN || secrets.MAPBOX_TOKEN || vars.MAPBOX_PUBLIC_TOKEN || vars.MAPBOX_ACCESS_TOKEN || vars.MAPBOX_TOKEN }}
+          STRIPE_PUBLISHABLE_KEY: ${{ secrets.STRIPE_PUBLISHABLE_KEY || vars.STRIPE_PUBLISHABLE_KEY }}
+        run: |
+          flutter build web --release \
+            --dart-define=MAPBOX_ACCESS_TOKEN="${MAPBOX_TOKEN}" \
+            --dart-define=STRIPE_PUBLISHABLE_KEY="${STRIPE_PUBLISHABLE_KEY}"
