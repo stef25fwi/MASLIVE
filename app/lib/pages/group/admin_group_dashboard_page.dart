@@ -227,7 +227,7 @@ class _AdminGroupDashboardPageState extends State<AdminGroupDashboardPage> {
 
   Widget _buildApprovedDashboard(GroupAdmin admin) {
     final qrData = buildGroupQrPayload(
-      code: admin.adminGroupId,
+      admin.adminGroupId,
       groupName: admin.displayName,
     );
     return Scaffold(
@@ -348,7 +348,7 @@ class _GroupAccessState extends StatelessWidget {
         child: MasliveEmptyState(
           icon: icon,
           title: title,
-          subtitle: message,
+          message: message,
           actionLabel: actionLabel,
           onAction: onAction,
         ),
