@@ -3,7 +3,6 @@ import 'package:firebase_auth/firebase_auth.dart';
 
 import 'role_normalizer.dart';
 
-/// Profils fonctionnels affichés dans l'application.
 enum ProfileKind {
   user,
   artisanArt,
@@ -14,7 +13,6 @@ enum ProfileKind {
   superAdmin,
 }
 
-/// Capacités métier réellement utilisables dans l'UI et les guards.
 enum Capability {
   viewProfile,
   editOwnProfile,
@@ -63,6 +61,7 @@ class ProfileCapabilities {
     required this.photoUrl,
     required this.isActive,
     required this.kind,
+    required this.activeKinds,
     required this.canonicalRole,
     required this.groupId,
     required this.adminGroupId,
@@ -79,37 +78,58 @@ class ProfileCapabilities {
   final String displayName;
   final String? photoUrl;
   final bool isActive;
+
+  /// Profil principal utilisé uniquement pour le libellé et l'ordre de
+  /// présentation. Les autorisations proviennent de [activeKinds] cumulés.
   final ProfileKind kind;
+  final Set<ProfileKind> activeKinds;
   final String canonicalRole;
   final String? groupId;
   final String? adminGroupId;
 
-  /// Compat données existantes : le champ reste disponible, mais le profil
-  /// fonctionnel "Compte Pro" est supprimé de MASLIVE.
+  /// Le profil générique « Compte Pro » est retiré. Les vendeurs utilisent les
+  /// espaces métier Artisan d'art, Créateur digital ou Admin Groupe.
   final bool hasBusiness;
-
-  /// Profil vendeur Bloom Art, exposé comme profil fonctionnel Artisan d’art.
   final bool hasBloomArtSellerProfile;
-
-  /// Compat données existantes : les documents `photographers` restent la source
-  /// métier du module médias, mais côté profil utilisateur ils sont exposés comme
-  /// un profil unique "Créateur digital".
   final bool hasPhotographerProfile;
   final String? groupAdminRequestStatus;
   final Set<Capability> capabilities;
   final Map<String, dynamic> rawUserData;
 
-  bool can(Capability capability) => capabilities.contains(capability);
+  bool can(Capability capability) => isActive && capabilities.contains(capability);
+  bool hasKind(ProfileKind value) => activeKinds.contains(value);
 
   bool get canSubmitCommerce =>
       can(Capability.submitProduct) ||
       can(Capability.submitMedia) ||
       can(Capability.submitArtwork);
 
-  bool get hasPendingGroupAdminRequest => groupAdminRequestStatus == 'pending';
+  bool get canManageSellerInbox =>
+      can(Capability.manageOwnGallery) ||
+      can(Capability.manageArtGallery) ||
+      can(Capability.manageGroupShop) ||
+      can(Capability.manageAllOrders);
 
-  String get roleLabel {
-    switch (kind) {
+  bool get hasPendingGroupAdminRequest => groupAdminRequestStatus == 'pending';
+  bool get hasRejectedGroupAdminRequest => groupAdminRequestStatus == 'rejected';
+
+  String get roleLabel => labelFor(kind);
+
+  List<String> get activeRoleLabels {
+    const order = <ProfileKind>[
+      ProfileKind.superAdmin,
+      ProfileKind.admin,
+      ProfileKind.groupAdmin,
+      ProfileKind.tracker,
+      ProfileKind.artisanArt,
+      ProfileKind.creatorDigital,
+      ProfileKind.user,
+    ];
+    return order.where(activeKinds.contains).map(labelFor).toList(growable: false);
+  }
+
+  static String labelFor(ProfileKind value) {
+    switch (value) {
       case ProfileKind.superAdmin:
         return 'SuperAdmin';
       case ProfileKind.admin:
@@ -152,10 +172,6 @@ class ProfileCapabilityPolicy {
     String? fallbackName,
     String? fallbackPhotoUrl,
   }) async {
-    // Ces 6 lectures ne dépendent que de `uid` (pas les unes des autres) :
-    // on les lance en parallèle plutôt qu'en série pour éviter d'empiler
-    // les allers-retours réseau (c'était la cause du chargement lent de la
-    // page profil : jusqu'à 6x la latence réseau au lieu de 1x).
     final results = await Future.wait(<Future<dynamic>>[
       _firestore.collection('users').doc(uid).get(),
       _firestore
@@ -171,26 +187,25 @@ class ProfileCapabilityPolicy {
 
     final userDoc = results[0] as DocumentSnapshot<Map<String, dynamic>>;
     final photographerSnap = results[1] as QuerySnapshot<Map<String, dynamic>>;
-    final bloomArtSellerDoc = results[2] as DocumentSnapshot<Map<String, dynamic>>;
+    final bloomArtSellerDoc =
+        results[2] as DocumentSnapshot<Map<String, dynamic>>;
     final groupAdminDoc = results[3] as DocumentSnapshot<Map<String, dynamic>>;
     final trackerDoc = results[4] as DocumentSnapshot<Map<String, dynamic>>;
     final groupRequestDoc = results[5] as DocumentSnapshot<Map<String, dynamic>>;
 
     final userData = userDoc.data() ?? <String, dynamic>{};
-
     final isAdminFlag = userData['isAdmin'] == true;
     final canonicalRole = RoleNormalizer.normalize(
       userData['role'] as String?,
       isAdminFlag: isAdminFlag,
     );
-
     final activities = (userData['activities'] as List<dynamic>?)
-            ?.map((e) => e.toString())
+            ?.map((value) => value.toString().trim().toLowerCase())
+            .where((value) => value.isNotEmpty)
             .toSet() ??
         const <String>{};
 
     final hasPhotographerProfile = photographerSnap.docs.isNotEmpty;
-
     final bloomArtSellerData = bloomArtSellerDoc.data();
     final bloomArtProfileType =
         (bloomArtSellerData?['profileType'] as String?)?.trim();
@@ -203,9 +218,11 @@ class ProfileCapabilityPolicy {
     final groupAdminData = groupAdminDoc.data();
     final trackerData = trackerDoc.data();
     final requestData = groupRequestDoc.data();
-    final adminGroupId = (groupAdminData?['adminGroupId'] ?? trackerData?['adminGroupId']) as String?;
+    final adminGroupId =
+        (groupAdminData?['adminGroupId'] ?? trackerData?['adminGroupId'])
+            as String?;
 
-    final kind = _resolveKind(
+    final activeKinds = _resolveActiveKinds(
       canonicalRole: canonicalRole,
       activities: activities,
       hasBloomArtSellerProfile: hasBloomArtSellerProfile,
@@ -213,14 +230,20 @@ class ProfileCapabilityPolicy {
       hasGroupAdminProfile: groupAdminDoc.exists,
       hasTrackerProfile: trackerDoc.exists,
     );
+    final primaryKind = _primaryKind(activeKinds);
 
     return ProfileCapabilities(
       uid: uid,
       email: (userData['email'] as String?) ?? fallbackEmail ?? '',
-      displayName: ((userData['displayName'] as String?) ?? fallbackName ?? fallbackEmail ?? 'Utilisateur').trim(),
+      displayName: ((userData['displayName'] as String?) ??
+              fallbackName ??
+              fallbackEmail ??
+              'Utilisateur')
+          .trim(),
       photoUrl: (userData['photoUrl'] as String?) ?? fallbackPhotoUrl,
       isActive: userData['isActive'] as bool? ?? true,
-      kind: kind,
+      kind: primaryKind,
+      activeKinds: Set<ProfileKind>.unmodifiable(activeKinds),
       canonicalRole: canonicalRole,
       groupId: userData['groupId'] as String?,
       adminGroupId: adminGroupId,
@@ -228,12 +251,14 @@ class ProfileCapabilityPolicy {
       hasBloomArtSellerProfile: hasBloomArtSellerProfile,
       hasPhotographerProfile: hasPhotographerProfile,
       groupAdminRequestStatus: requestData?['status'] as String?,
-      capabilities: _capabilitiesFor(kind),
+      capabilities: Set<Capability>.unmodifiable(
+        _capabilitiesForAll(activeKinds),
+      ),
       rawUserData: userData,
     );
   }
 
-  ProfileKind _resolveKind({
+  Set<ProfileKind> _resolveActiveKinds({
     required String canonicalRole,
     required Set<String> activities,
     required bool hasBloomArtSellerProfile,
@@ -241,27 +266,59 @@ class ProfileCapabilityPolicy {
     required bool hasGroupAdminProfile,
     required bool hasTrackerProfile,
   }) {
-    if (canonicalRole == RoleNormalizer.superAdmin) return ProfileKind.superAdmin;
-    if (canonicalRole == RoleNormalizer.admin) return ProfileKind.admin;
+    final kinds = <ProfileKind>{ProfileKind.user};
+
+    if (canonicalRole == RoleNormalizer.superAdmin) {
+      kinds.add(ProfileKind.superAdmin);
+    } else if (canonicalRole == RoleNormalizer.admin) {
+      kinds.add(ProfileKind.admin);
+    }
+
     if (canonicalRole == RoleNormalizer.group || hasGroupAdminProfile) {
-      return ProfileKind.groupAdmin;
+      kinds.add(ProfileKind.groupAdmin);
     }
     if (canonicalRole == RoleNormalizer.tracker || hasTrackerProfile) {
-      return ProfileKind.tracker;
+      kinds.add(ProfileKind.tracker);
     }
     if (hasBloomArtSellerProfile || activities.contains('artisan_art')) {
-      return ProfileKind.artisanArt;
+      kinds.add(ProfileKind.artisanArt);
     }
     if (hasPhotographerProfile ||
         activities.contains('createur_digital') ||
         activities.contains('creator_digital')) {
-      return ProfileKind.creatorDigital;
+      kinds.add(ProfileKind.creatorDigital);
     }
-    return ProfileKind.user;
+
+    return kinds;
+  }
+
+  ProfileKind _primaryKind(Set<ProfileKind> kinds) {
+    const priority = <ProfileKind>[
+      ProfileKind.superAdmin,
+      ProfileKind.admin,
+      ProfileKind.groupAdmin,
+      ProfileKind.tracker,
+      ProfileKind.artisanArt,
+      ProfileKind.creatorDigital,
+      ProfileKind.user,
+    ];
+    return priority.firstWhere(kinds.contains);
+  }
+
+  Set<Capability> _capabilitiesForAll(Set<ProfileKind> kinds) {
+    if (kinds.contains(ProfileKind.superAdmin)) {
+      return Capability.values.toSet();
+    }
+
+    final result = <Capability>{};
+    for (final kind in kinds) {
+      result.addAll(_capabilitiesFor(kind));
+    }
+    return result;
   }
 
   Set<Capability> _capabilitiesFor(ProfileKind kind) {
-    final base = <Capability>{
+    const base = <Capability>{
       Capability.viewProfile,
       Capability.editOwnProfile,
       Capability.manageFavorites,
@@ -273,70 +330,59 @@ class ProfileCapabilityPolicy {
       Capability.requestGroupAdmin,
     };
 
-    final artisanArt = <Capability>{
-      ...base,
-      Capability.manageArtGallery,
-      Capability.submitArtwork,
-      Capability.receiveArtOffers,
-      Capability.viewOwnOrders,
-    };
-
-    final creator = <Capability>{
-      ...base,
-      Capability.submitMedia,
-      Capability.manageOwnGallery,
-    };
-
-    // Le tracker ne gère rien : il envoie uniquement sa position GPS vers le
-    // groupe rattaché. Le calcul de position moyenne du groupe est ensuite fait
-    // par l'app/backend et représenté côté Admin Groupe.
-    final tracker = <Capability>{
-      ...base,
-      Capability.trackOwnLocation,
-      Capability.viewOwnTrackHistory,
-      Capability.exportOwnTracks,
-    };
-
-    final groupAdmin = <Capability>{
-      ...tracker,
-      Capability.viewGroupLiveMap,
-      Capability.manageGroupMembers,
-      Capability.manageGroupShop,
-      Capability.manageGroupTracking,
-      Capability.viewGroupStats,
-      Capability.submitProduct,
-      Capability.submitMedia,
-    };
-
-    final admin = <Capability>{
-      ...base,
-      Capability.moderateCommerce,
-      Capability.accessAdminPanel,
-      Capability.manageAllUsers,
-      Capability.manageAllGroups,
-      Capability.manageAllProducts,
-      Capability.manageAllOrders,
-      Capability.managePlaces,
-      Capability.managePOIs,
-      Capability.manageCircuits,
-      Capability.viewAllStats,
-    };
-
     switch (kind) {
-      case ProfileKind.superAdmin:
-        return Capability.values.toSet();
-      case ProfileKind.admin:
-        return admin;
-      case ProfileKind.groupAdmin:
-        return groupAdmin;
-      case ProfileKind.tracker:
-        return tracker;
-      case ProfileKind.artisanArt:
-        return artisanArt;
-      case ProfileKind.creatorDigital:
-        return creator;
       case ProfileKind.user:
         return base;
+      case ProfileKind.creatorDigital:
+        return <Capability>{
+          ...base,
+          Capability.submitMedia,
+          Capability.manageOwnGallery,
+        };
+      case ProfileKind.artisanArt:
+        return <Capability>{
+          ...base,
+          Capability.manageArtGallery,
+          Capability.submitArtwork,
+          Capability.receiveArtOffers,
+        };
+      case ProfileKind.tracker:
+        return <Capability>{
+          ...base,
+          Capability.trackOwnLocation,
+          Capability.viewOwnTrackHistory,
+          Capability.exportOwnTracks,
+        };
+      case ProfileKind.groupAdmin:
+        return <Capability>{
+          ...base,
+          Capability.trackOwnLocation,
+          Capability.viewOwnTrackHistory,
+          Capability.exportOwnTracks,
+          Capability.viewGroupLiveMap,
+          Capability.manageGroupMembers,
+          Capability.manageGroupShop,
+          Capability.manageGroupTracking,
+          Capability.viewGroupStats,
+          Capability.submitProduct,
+          Capability.submitMedia,
+        };
+      case ProfileKind.admin:
+        return <Capability>{
+          ...base,
+          Capability.moderateCommerce,
+          Capability.accessAdminPanel,
+          Capability.manageAllUsers,
+          Capability.manageAllGroups,
+          Capability.manageAllProducts,
+          Capability.manageAllOrders,
+          Capability.managePlaces,
+          Capability.managePOIs,
+          Capability.manageCircuits,
+          Capability.viewAllStats,
+        };
+      case ProfileKind.superAdmin:
+        return Capability.values.toSet();
     }
   }
 }
