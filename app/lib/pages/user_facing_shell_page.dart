@@ -1,6 +1,7 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 
+import '../features/media_marketplace/presentation/pages/private_media_gallery_page.dart';
 import '../features/shop/pages/media_photo_shop_page.dart';
 import 'account_page.dart';
 import 'default_map_page.dart';
@@ -14,14 +15,6 @@ class UserFacingShellPage extends StatefulWidget {
 
   final Object? initialTab;
 
-  /// Bascule l'onglet du shell déjà présent dans la pile de navigation, en
-  /// dépilant les pages posées au-dessus (détail produit, checkout, …).
-  ///
-  /// Objectif anti-flash: le shell garde ses onglets (et la carte Mapbox)
-  /// vivants; y revenir est instantané, alors que `pushReplacementNamed`
-  /// reconstruit tout à froid (flash blanc). Renvoie false s'il n'existe pas
-  /// de shell vivant atteignable depuis ce context — l'appelant garde alors
-  /// son repli navigation classique.
   static bool switchToExistingShell(
     BuildContext context,
     UserFacingBottomBarTab tab,
@@ -45,8 +38,6 @@ class UserFacingShellPage extends StatefulWidget {
 }
 
 class _UserFacingShellPageState extends State<UserFacingShellPage> {
-  /// Shell actuellement vivant (au plus un: la navigation par onglets ne
-  /// crée jamais deux shells empilés).
   static _UserFacingShellPageState? _active;
 
   ModalRoute<Object?>? _route;
@@ -58,10 +49,6 @@ class _UserFacingShellPageState extends State<UserFacingShellPage> {
   final Map<UserFacingBottomBarTab, Widget> _tabCache =
       <UserFacingBottomBarTab, Widget>{};
 
-  /// Reflète si la carte (onglets Home/Explorer) est actuellement au premier
-  /// plan. Passé à [DefaultMapPage] pour masquer ses contrôles superposés
-  /// (zoom, boussole, géolocalisation — de vrais éléments DOM sur web) quand
-  /// un autre onglet est affiché par-dessus la carte gardée vivante.
   final ValueNotifier<bool> _homeMapForegroundVisible = ValueNotifier<bool>(
     true,
   );
@@ -70,12 +57,39 @@ class _UserFacingShellPageState extends State<UserFacingShellPage> {
   void initState() {
     super.initState();
     _active = this;
-    // Publie le basculement d'onglet pour la bottom bar des pages hors shell
-    // (via le pont léger, sans que la bar importe cette bibliothèque différée).
     activeShellTabSwitcher = UserFacingShellPage.switchToExistingShell;
     _currentTab = _resolveTab(widget.initialTab);
     _mediaArgs = _resolveMediaArgs(widget.initialTab);
+    _mergeMediaLinkQuery();
     _syncHomeMapForegroundVisible();
+  }
+
+  void _mergeMediaLinkQuery() {
+    final galleryId = _routeQueryParam('galleryId');
+    final access = _routeQueryParam('access');
+    final participant = _routeQueryParam('participant');
+    if (galleryId == null || access == null) return;
+    _currentTab = UserFacingBottomBarTab.media;
+    _mediaArgs = <String, dynamic>{
+      ..._mediaArgs,
+      'galleryId': galleryId,
+      'access': access,
+      if (participant != null) 'participant': participant,
+    };
+  }
+
+  String? _routeQueryParam(String key) {
+    final direct = Uri.base.queryParameters[key];
+    if (direct?.trim().isNotEmpty == true) return direct!.trim();
+    final fragment = Uri.base.fragment;
+    final index = fragment.indexOf('?');
+    if (index == -1 || index == fragment.length - 1) return null;
+    try {
+      final value = Uri.splitQueryString(fragment.substring(index + 1))[key];
+      return value?.trim().isNotEmpty == true ? value!.trim() : null;
+    } catch (_) {
+      return null;
+    }
   }
 
   void _syncHomeMapForegroundVisible() {
@@ -88,8 +102,6 @@ class _UserFacingShellPageState extends State<UserFacingShellPage> {
     _route = ModalRoute.of(context);
   }
 
-  /// Sélection d'onglet commune (bar du shell et retours depuis les pages
-  /// posées au-dessus via [UserFacingShellPage.switchToExistingShell]).
   void _selectTab(UserFacingBottomBarTab tab) {
     if (!mounted) return;
 
@@ -115,6 +127,8 @@ class _UserFacingShellPageState extends State<UserFacingShellPage> {
     if (oldWidget.initialTab != widget.initialTab) {
       _currentTab = _resolveTab(widget.initialTab);
       _mediaArgs = _resolveMediaArgs(widget.initialTab);
+      _mergeMediaLinkQuery();
+      _tabCache.remove(UserFacingBottomBarTab.media);
       _syncHomeMapForegroundVisible();
       if (_currentTab == UserFacingBottomBarTab.explorer) {
         _homeActionsMenuSignal.value++;
@@ -178,6 +192,16 @@ class _UserFacingShellPageState extends State<UserFacingShellPage> {
   }
 
   Widget _buildMediaPage() {
+    final galleryId = _mediaArgs['galleryId']?.toString().trim();
+    final access = _mediaArgs['access']?.toString().trim();
+    if (galleryId?.isNotEmpty == true && access?.isNotEmpty == true) {
+      return PrivateMediaGalleryPage(
+        key: ValueKey<String>('private:$galleryId:$access'),
+        galleryId: galleryId!,
+        accessToken: access!,
+        participantCode: _mediaArgs['participant']?.toString(),
+      );
+    }
     return MediaPhotoShopPage(
       key: ValueKey<String>(_mediaArgs.toString()),
       countryId: _mediaArgs['countryId'] as String?,
