@@ -136,10 +136,10 @@ class _OrderContent extends StatelessWidget {
           final shippingAddress = data['shippingAddress'] is Map
               ? Map<String, dynamic>.from(data['shippingAddress'] as Map)
               : const <String, dynamic>{};
-          final sellerTotal = myItems.fold<int>(0, (sum, item) {
+          final sellerTotal = myItems.fold<int>(0, (total, item) {
             final quantity = (item['qty'] ?? item['quantity'] ?? 1) as num? ?? 1;
             final price = (item['priceCents'] ?? item['pricePerUnit'] ?? 0) as num? ?? 0;
-            return sum + quantity.toInt() * price.toInt();
+            return total + quantity.toInt() * price.toInt();
           });
 
           return ListView(
