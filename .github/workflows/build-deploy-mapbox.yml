@@ -101,43 +101,147 @@ jobs:
           npm ci --prefix functions
           npm install --global firebase-tools@latest
 
-      - name: Configure Firebase authentication
+      - name: Configure and validate Firebase authentication
         if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
         env:
           FIREBASE_SERVICE_ACCOUNT_JSON: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_MASLIVE || secrets.FIREBASE_SERVICE_ACCOUNT || secrets.GOOGLE_CREDENTIALS }}
           FIREBASE_TOKEN: ${{ secrets.FIREBASE_TOKEN }}
         run: |
           set -euo pipefail
+          : > firebase-auth.log
           if [ -n "${FIREBASE_SERVICE_ACCOUNT_JSON}" ]; then
             CREDENTIALS_FILE="${RUNNER_TEMP}/maslive-firebase-service-account.json"
             printf '%s' "${FIREBASE_SERVICE_ACCOUNT_JSON}" > "${CREDENTIALS_FILE}"
             chmod 600 "${CREDENTIALS_FILE}"
+            node - "${CREDENTIALS_FILE}" <<'NODE' | tee -a firebase-auth.log
+          const fs = require('node:fs');
+          const file = process.argv[2];
+          const credentials = JSON.parse(fs.readFileSync(file, 'utf8'));
+          if (credentials.project_id !== 'maslive') {
+            console.error(`La clé cible le projet ${credentials.project_id || 'inconnu'} au lieu de maslive.`);
+            process.exit(1);
+          }
+          if (!credentials.client_email || !credentials.private_key) {
+            console.error('La clé de compte de service est incomplète.');
+            process.exit(1);
+          }
+          console.log(`Compte Firebase détecté: ${credentials.client_email}`);
+          console.log(`Projet Firebase détecté: ${credentials.project_id}`);
+          NODE
             echo "GOOGLE_APPLICATION_CREDENTIALS=${CREDENTIALS_FILE}" >> "${GITHUB_ENV}"
             echo "FIREBASE_AUTH_MODE=service_account" >> "${GITHUB_ENV}"
           elif [ -n "${FIREBASE_TOKEN}" ]; then
+            echo "Authentification Firebase par token CI." | tee -a firebase-auth.log
             echo "FIREBASE_AUTH_MODE=token" >> "${GITHUB_ENV}"
           else
-            echo "::error::Ajoute FIREBASE_SERVICE_ACCOUNT_MASLIVE (recommandé) ou FIREBASE_TOKEN dans les secrets GitHub Actions."
+            echo "::error::Ajoute FIREBASE_SERVICE_ACCOUNT_MASLIVE ou FIREBASE_TOKEN dans les secrets GitHub Actions."
             exit 1
           fi
 
-      - name: Deploy MASLIVE production to Firebase
+      - name: Deploy Firestore rules, indexes and Storage rules
+        id: deploy_rules
+        continue-on-error: true
         if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
         env:
           FIREBASE_TOKEN: ${{ secrets.FIREBASE_TOKEN }}
         run: |
-          set -euo pipefail
-          DEPLOY_ARGS=(
-            --project maslive
-            --only hosting,functions,firestore:rules,firestore:indexes,storage
-            --non-interactive
-          )
-
+          set +e
+          : > firebase-rules.log
+          AUTH_ARGS=()
           if [ "${FIREBASE_AUTH_MODE}" = "token" ]; then
-            DEPLOY_ARGS+=(--token "${FIREBASE_TOKEN}")
+            AUTH_ARGS+=(--token "${FIREBASE_TOKEN}")
           fi
+          firebase deploy \
+            --project maslive \
+            --only firestore:rules,firestore:indexes,storage \
+            --non-interactive \
+            --debug \
+            "${AUTH_ARGS[@]}" \
+            > firebase-rules.log 2>&1
+          status=$?
+          tail -n 180 firebase-rules.log
+          exit "$status"
 
-          firebase deploy "${DEPLOY_ARGS[@]}"
+      - name: Deploy Cloud Functions
+        id: deploy_functions
+        continue-on-error: true
+        if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
+        env:
+          FIREBASE_TOKEN: ${{ secrets.FIREBASE_TOKEN }}
+        run: |
+          set +e
+          : > firebase-functions.log
+          AUTH_ARGS=()
+          if [ "${FIREBASE_AUTH_MODE}" = "token" ]; then
+            AUTH_ARGS+=(--token "${FIREBASE_TOKEN}")
+          fi
+          firebase deploy \
+            --project maslive \
+            --only functions \
+            --non-interactive \
+            --debug \
+            "${AUTH_ARGS[@]}" \
+            > firebase-functions.log 2>&1
+          status=$?
+          tail -n 220 firebase-functions.log
+          exit "$status"
+
+      - name: Deploy Firebase Hosting
+        id: deploy_hosting
+        continue-on-error: true
+        if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
+        env:
+          FIREBASE_TOKEN: ${{ secrets.FIREBASE_TOKEN }}
+        run: |
+          set +e
+          : > firebase-hosting.log
+          AUTH_ARGS=()
+          if [ "${FIREBASE_AUTH_MODE}" = "token" ]; then
+            AUTH_ARGS+=(--token "${FIREBASE_TOKEN}")
+          fi
+          firebase deploy \
+            --project maslive \
+            --only hosting \
+            --non-interactive \
+            --debug \
+            "${AUTH_ARGS[@]}" \
+            > firebase-hosting.log 2>&1
+          status=$?
+          tail -n 160 firebase-hosting.log
+          exit "$status"
+
+      - name: Upload Firebase deployment reports
+        if: always() && (github.event_name == 'push' || github.event_name == 'workflow_dispatch')
+        uses: actions/upload-artifact@v4
+        with:
+          name: firebase-deployment-reports
+          path: |
+            firebase-auth.log
+            firebase-rules.log
+            firebase-functions.log
+            firebase-hosting.log
+            firebase-debug.log
+          if-no-files-found: warn
+          retention-days: 7
+
+      - name: Enforce complete Firebase deployment
+        if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
+        run: |
+          set -euo pipefail
+          failed=0
+          if [ "${{ steps.deploy_rules.outcome }}" != "success" ]; then
+            echo "::error::Le déploiement des règles/index Firestore ou Storage a échoué."
+            failed=1
+          fi
+          if [ "${{ steps.deploy_functions.outcome }}" != "success" ]; then
+            echo "::error::Le déploiement des Cloud Functions a échoué."
+            failed=1
+          fi
+          if [ "${{ steps.deploy_hosting.outcome }}" != "success" ]; then
+            echo "::error::Le déploiement Hosting a échoué."
+            failed=1
+          fi
+          exit "$failed"
 
       - name: Verify production manifest
         if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
@@ -145,7 +249,7 @@ jobs:
           set -euo pipefail
           expected="${GITHUB_SHA}"
           for attempt in 1 2 3 4 5 6; do
-            manifest="$(curl --fail --silent --show-error --max-time 20 "https://maslive.web.app/deployment-manifest.json?run=${GITHUB_RUN_ID}" || true)"
+            manifest="$(curl --fail --silent --show-error --max-time 20 "https://maslive.web.app/deployment-manifest.json?run=${GITHUB_RUN_ID}&attempt=${attempt}" || true)"
             if printf '%s' "${manifest}" | grep -Fq "${expected}"; then
               echo "Production vérifiée sur le commit ${expected}."
               exit 0
@@ -162,4 +266,4 @@ jobs:
           echo "- Commit : \`${GITHUB_SHA}\`" >> "${GITHUB_STEP_SUMMARY}"
           echo "- Hosting : https://maslive.web.app" >> "${GITHUB_STEP_SUMMARY}"
           echo "- Firebase project : maslive" >> "${GITHUB_STEP_SUMMARY}"
-          echo "- Ressources : hosting, functions, règles/index Firestore et règles Storage" >> "${GITHUB_STEP_SUMMARY}"
+          echo "- Ressources : Hosting, Functions, règles/index Firestore et règles Storage" >> "${GITHUB_STEP_SUMMARY}"
