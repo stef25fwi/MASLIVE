@@ -1,33 +1,49 @@
-// Page profil Tracker Groupe - Rattachement à un admin
-
 import 'package:flutter/material.dart';
+
 import '../../models/group_tracker.dart';
-import '../../services/group/group_link_service.dart';
+import '../../security/profile_capability_policy.dart';
 import '../../services/group/group_link_qr.dart';
+import '../../services/group/group_link_service.dart';
 import '../../services/group/group_tracking_service.dart';
 import '../../ui/snack/top_snack_bar.dart';
+import '../../ui/widgets/maslive_button.dart';
+import '../../widgets/capability_guard.dart';
+import 'group_export_page.dart';
 import 'group_qr_scanner_page.dart';
 import 'group_track_history_page.dart';
-import 'group_export_page.dart';
-import '../../ui/widgets/maslive_button.dart';
 
-class TrackerGroupProfilePage extends StatefulWidget {
+class TrackerGroupProfilePage extends StatelessWidget {
   const TrackerGroupProfilePage({super.key});
 
   @override
-  State<TrackerGroupProfilePage> createState() =>
-      _TrackerGroupProfilePageState();
+  Widget build(BuildContext context) {
+    return CapabilityGuard(
+      capability: Capability.trackOwnLocation,
+      fullPage: true,
+      message: 'Un profil Tracker Groupe rattaché est requis.',
+      child: const _TrackerGroupProfileContent(),
+    );
+  }
 }
 
-class _TrackerGroupProfilePageState extends State<TrackerGroupProfilePage> {
-  final _linkService = GroupLinkService.instance;
-  final _trackingService = GroupTrackingService.instance;
-  final _codeController = TextEditingController();
-  final _nameController = TextEditingController();
+class _TrackerGroupProfileContent extends StatefulWidget {
+  const _TrackerGroupProfileContent();
+
+  @override
+  State<_TrackerGroupProfileContent> createState() =>
+      _TrackerGroupProfileContentState();
+}
+
+class _TrackerGroupProfileContentState
+    extends State<_TrackerGroupProfileContent> {
+  final GroupLinkService _linkService = GroupLinkService.instance;
+  final GroupTrackingService _trackingService = GroupTrackingService.instance;
+  final TextEditingController _codeController = TextEditingController();
+  final TextEditingController _nameController = TextEditingController();
 
   GroupTracker? _tracker;
-  bool _isLoading = false;
-  bool _isTracking = false;
+  bool _loading = false;
+  bool _tracking = false;
 
   @override
   void initState() {
@@ -35,298 +51,236 @@ class _TrackerGroupProfilePageState extends State<TrackerGroupProfilePage> {
     _loadTrackerProfile();
   }
 
+  @override
+  void dispose() {
+    _codeController.dispose();
+    _nameController.dispose();
+    super.dispose();
+  }
+
   Future<void> _loadTrackerProfile() async {
-    setState(() => _isLoading = true);
+    setState(() => _loading = true);
     try {
       final uid = _linkService.currentUid;
-      if (uid != null) {
-        final tracker = await _linkService.getTrackerProfile(uid);
-        if (!mounted) return;
-        setState(() {
-          _tracker = tracker;
-          final groupId = tracker?.adminGroupId;
-          _isTracking =
-              groupId != null &&
-              _trackingService.isTrackingFor(
-                adminGroupId: groupId,
-                role: 'tracker',
-              );
-        });
-      }
+      final tracker = uid == null ? null : await _linkService.getTrackerProfile(uid);
+      if (!mounted) return;
+      setState(() {
+        _tracker = tracker;
+        final groupId = tracker?.adminGroupId;
+        _tracking = groupId != null &&
+            _trackingService.isTrackingFor(
+              adminGroupId: groupId,
+              role: 'tracker',
+            );
+      });
     } finally {
-      if (mounted) setState(() => _isLoading = false);
+      if (mounted) setState(() => _loading = false);
     }
   }
 
   Future<void> _scanQr() async {
     final raw = await Navigator.of(context).push<String>(
-      MaterialPageRoute(builder: (_) => const GroupQrScannerPage()),
+      MaterialPageRoute<String>(builder: (_) => const GroupQrScannerPage()),
     );
     if (!mounted || raw == null) return;
-
     final payload = parseGroupQrPayload(raw);
     if (payload == null) {
       TopSnackBar.show(
         context,
-        const SnackBar(
-          content: Text('QR non reconnu (code groupe introuvable)'),
-        ),
+        const SnackBar(content: Text('QR groupe invalide')),
       );
       return;
     }
-
-    setState(() => _codeController.text = payload.code);
-
-    // Confirmation affichant le nom du groupe (si présent dans le QR).
-    final groupLabel =
-        (payload.groupName != null && payload.groupName!.trim().isNotEmpty)
-        ? '« ${payload.groupName!.trim()} »'
-        : 'ce groupe (code ${payload.code})';
-    final confirm = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Rejoindre le groupe'),
-        content: Text('Veux-tu rejoindre $groupLabel ?'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(ctx).pop(false),
-            child: const Text('Annuler'),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.of(ctx).pop(true),
-            child: const Text('Rejoindre'),
-          ),
-        ],
-      ),
-    );
-    if (!mounted || confirm != true) return;
-
-    // Si le nom est déjà renseigné, on rattache directement après confirmation.
-    if (_nameController.text.trim().isNotEmpty) {
-      await _linkToAdmin();
-    } else {
-      TopSnackBar.show(
-        context,
-        const SnackBar(
-          content: Text('Code validé. Saisis ton nom puis rattache-toi.'),
-        ),
-      );
-    }
+    _codeController.text = payload.code;
+    if (_nameController.text.trim().isNotEmpty) await _linkToAdmin();
   }
 
   Future<void> _linkToAdmin() async {
-    if (_codeController.text.length != 6 || _nameController.text.isEmpty) {
+    final code = _codeController.text.trim();
+    final name = _nameController.text.trim();
+    if (!RegExp(r'^\d{6}$').hasMatch(code) || name.isEmpty) {
       TopSnackBar.show(
         context,
         const SnackBar(content: Text('Code 6 chiffres et nom requis')),
       );
       return;
     }
-
-    setState(() => _isLoading = true);
+    setState(() => _loading = true);
     try {
       final tracker = await _linkService.linkTrackerToAdmin(
-        adminGroupId: _codeController.text,
-        displayName: _nameController.text,
+        adminGroupId: code,
+        displayName: name,
       );
+      if (!mounted) return;
       setState(() => _tracker = tracker);
-
+      TopSnackBar.show(
+        context,
+        const SnackBar(
+          content: Text('Rattachement réussi'),
+          backgroundColor: Colors.green,
+        ),
+      );
+    } catch (error) {
       if (mounted) {
-        TopSnackBar.show(
-          context,
-          const SnackBar(
-            content: Text('Rattachement réussi !'),
-            backgroundColor: Colors.green,
-          ),
-        );
-      }
-    } catch (e) {
-      if (mounted) {
-        TopSnackBar.show(context, SnackBar(content: Text('Erreur: $e')));
+        TopSnackBar.show(context, SnackBar(content: Text('Erreur : $error')));
       }
     } finally {
-      setState(() => _isLoading = false);
+      if (mounted) setState(() => _loading = false);
     }
   }
 
   Future<void> _toggleTracking() async {
-    if (_tracker?.adminGroupId == null) return;
-
-    setState(() => _isLoading = true);
+    final groupId = _tracker?.adminGroupId;
+    if (groupId == null) return;
+    setState(() => _loading = true);
     try {
-      if (_isTracking) {
+      if (_tracking) {
         await _trackingService.stopTracking();
-        setState(() => _isTracking = false);
       } else {
         await _trackingService.startTracking(
-          adminGroupId: _tracker!.adminGroupId!,
+          adminGroupId: groupId,
           role: 'tracker',
         );
-        setState(() => _isTracking = true);
       }
-    } catch (e) {
+      if (mounted) setState(() => _tracking = !_tracking);
+    } catch (error) {
       if (mounted) {
-        TopSnackBar.show(context, SnackBar(content: Text('Erreur: $e')));
+        TopSnackBar.show(context, SnackBar(content: Text('Erreur : $error')));
       }
     } finally {
-      setState(() => _isLoading = false);
+      if (mounted) setState(() => _loading = false);
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    if (_isLoading) {
+    if (_loading) {
       return const Scaffold(body: Center(child: CircularProgressIndicator()));
     }
-
     return Scaffold(
       appBar: AppBar(title: const Text('Tracker Groupe')),
-      body: _tracker?.isLinked == true
-          ? _buildLinkedView()
-          : _buildUnlinkedView(),
+      body: _tracker?.isLinked == true ? _buildLinkedView() : _buildUnlinkedView(),
     );
   }
 
   Widget _buildUnlinkedView() {
-    return Padding(
-      padding: const EdgeInsets.all(24),
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          const Icon(Icons.link_off, size: 100, color: Colors.grey),
-          const SizedBox(height: 24),
-          const Text(
-            'Rattachement à un groupe',
-            style: TextStyle(fontSize: 24, fontWeight: FontWeight.w700),
+    return Center(
+      child: SingleChildScrollView(
+        padding: const EdgeInsets.all(24),
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 520),
+          child: Column(
+            children: <Widget>[
+              const Icon(Icons.link_off, size: 88, color: Colors.grey),
+              const SizedBox(height: 20),
+              const Text(
+                'Rattachement à un groupe',
+                style: TextStyle(fontSize: 24, fontWeight: FontWeight.w800),
+              ),
+              const SizedBox(height: 24),
+              TextField(
+                controller: _nameController,
+                decoration: const InputDecoration(
+                  labelText: 'Votre nom',
+                  prefixIcon: Icon(Icons.person),
+                  border: OutlineInputBorder(),
+                ),
+              ),
+              const SizedBox(height: 14),
+              TextField(
+                controller: _codeController,
+                keyboardType: TextInputType.number,
+                maxLength: 6,
+                decoration: const InputDecoration(
+                  labelText: 'Code Admin Groupe',
+                  prefixIcon: Icon(Icons.numbers),
+                  border: OutlineInputBorder(),
+                ),
+              ),
+              OutlinedButton.icon(
+                onPressed: _scanQr,
+                icon: const Icon(Icons.qr_code_scanner),
+                label: const Text('Scanner le QR du groupe'),
+              ),
+              const SizedBox(height: 12),
+              MasliveButton(
+                label: 'Se rattacher avec le code',
+                icon: Icons.link,
+                onPressed: _linkToAdmin,
+              ),
+            ],
           ),
-          const SizedBox(height: 32),
-          TextField(
-            controller: _nameController,
-            decoration: const InputDecoration(
-              labelText: 'Votre nom',
-              prefixIcon: Icon(Icons.person),
-              border: OutlineInputBorder(),
-            ),
-          ),
-          const SizedBox(height: 16),
-          TextField(
-            controller: _codeController,
-            decoration: const InputDecoration(
-              labelText: 'Code Admin (6 chiffres)',
-              prefixIcon: Icon(Icons.numbers),
-              border: OutlineInputBorder(),
-            ),
-            keyboardType: TextInputType.number,
-            maxLength: 6,
-          ),
-          const SizedBox(height: 16),
-          OutlinedButton.icon(
-            onPressed: _isLoading ? null : _scanQr,
-            icon: const Icon(Icons.qr_code_scanner),
-            label: const Text('Scanner le QR du groupe'),
-            style: OutlinedButton.styleFrom(
-              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
-            ),
-          ),
-          const SizedBox(height: 8),
-          const Text(
-            'ou',
-            textAlign: TextAlign.center,
-            style: TextStyle(color: Colors.grey),
-          ),
-          const SizedBox(height: 8),
-          MasliveButton(
-            label: 'Se rattacher avec le code',
-            icon: Icons.link,
-            onPressed: _isLoading ? null : _linkToAdmin,
-          ),
-        ],
+        ),
       ),
     );
   }
 
   Widget _buildLinkedView() {
+    final tracker = _tracker!;
     return ListView(
       padding: const EdgeInsets.all(16),
-      children: [
+      children: <Widget>[
         Card(
-          child: Padding(
-            padding: const EdgeInsets.all(16),
-            child: Column(
-              children: [
-                const Icon(Icons.check_circle, size: 64, color: Colors.green),
-                const SizedBox(height: 16),
-                Text(
-                  _tracker!.displayName,
-                  style: const TextStyle(
-                    fontSize: 20,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-                const SizedBox(height: 8),
-                Text('Groupe: ${_tracker!.adminGroupId}'),
-              ],
+          child: ListTile(
+            leading: const CircleAvatar(
+              child: Icon(Icons.check_circle_outline),
             ),
+            title: Text(
+              tracker.displayName,
+              style: const TextStyle(fontWeight: FontWeight.w800),
+            ),
+            subtitle: Text('Groupe : ${tracker.adminGroupId}'),
           ),
         ),
-        const SizedBox(height: 16),
+        const SizedBox(height: 12),
         Card(
-          color: _isTracking ? Colors.green[50] : null,
+          color: _tracking ? Colors.green.shade50 : null,
           child: Padding(
             padding: const EdgeInsets.all(16),
             child: Column(
-              children: [
+              children: <Widget>[
                 Icon(
-                  _isTracking ? Icons.gps_fixed : Icons.gps_off,
+                  _tracking ? Icons.gps_fixed : Icons.gps_off,
                   size: 48,
-                  color: _isTracking ? Colors.green : Colors.grey,
+                  color: _tracking ? Colors.green : Colors.grey,
+                ),
+                const SizedBox(height: 10),
+                Text(
+                  _tracking ? 'Tracking actif' : 'Tracking inactif',
+                  style: const TextStyle(fontWeight: FontWeight.w800),
                 ),
                 const SizedBox(height: 12),
-                Text(
-                  _isTracking ? 'Tracking actif' : 'Tracking inactif',
-                  style: const TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-                const SizedBox(height: 16),
-                ElevatedButton.icon(
+                FilledButton.icon(
                   onPressed: _toggleTracking,
-                  icon: Icon(_isTracking ? Icons.stop : Icons.play_arrow),
-                  label: Text(_isTracking ? 'Arrêter' : 'Démarrer'),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: _isTracking ? Colors.red : Colors.green,
-                    foregroundColor: Colors.white,
-                  ),
+                  icon: Icon(_tracking ? Icons.stop : Icons.play_arrow),
+                  label: Text(_tracking ? 'Arrêter' : 'Démarrer'),
                 ),
               ],
             ),
           ),
         ),
-        const SizedBox(height: 16),
+        const SizedBox(height: 12),
         ListTile(
           leading: const Icon(Icons.history),
           title: const Text('Mon historique'),
           trailing: const Icon(Icons.chevron_right),
-          onTap: () => Navigator.push(
-            context,
-            MaterialPageRoute(
+          onTap: () => Navigator.of(context).push(
+            MaterialPageRoute<void>(
               builder: (_) => GroupTrackHistoryPage(
-                adminGroupId: _tracker!.adminGroupId!,
+                adminGroupId: tracker.adminGroupId!,
                 uid: _linkService.currentUid,
               ),
             ),
           ),
         ),
         ListTile(
-          leading: const Icon(Icons.file_download),
+          leading: const Icon(Icons.file_download_outlined),
           title: const Text('Mes exports'),
           trailing: const Icon(Icons.chevron_right),
-          onTap: () => Navigator.push(
-            context,
-            MaterialPageRoute(
+          onTap: () => Navigator.of(context).push(
+            MaterialPageRoute<void>(
               builder: (_) => GroupExportPage(
-                adminGroupId: _tracker!.adminGroupId!,
+                adminGroupId: tracker.adminGroupId!,
                 uid: _linkService.currentUid,
               ),
             ),
