@@ -37,14 +37,25 @@ class CartCheckoutService {
     String promoCode, {
     required int subtotalCents,
   }) async {
+    final normalized = promoCode.trim().toUpperCase();
+
+    // Le serveur vérifie lui-même que le panier est composé uniquement de
+    // photos/packs, que le photographe et la galerie correspondent au code,
+    // puis mémorise la validation pendant dix minutes pour le checkout.
+    try {
+      final photographerResult = await validatePhotographerPromoCode(normalized);
+      if (photographerResult['valid'] == true) return photographerResult;
+    } on FirebaseFunctionsException {
+      // Ce n'est pas un panier média compatible : on essaie ensuite les codes
+      // généraux MASLIVE/StoreX, validés par leur propre fonction sécurisée.
+    }
+
     final callable = FirebaseFunctions.instanceFor(region: 'us-east1')
         .httpsCallable('validatePromoCode');
-
     final response = await callable.call<Map<String, dynamic>>(<String, dynamic>{
-      'promoCode': promoCode.trim().toUpperCase(),
+      'promoCode': normalized,
       'subtotalCents': subtotalCents,
     });
-
     return Map<String, dynamic>.from(response.data);
   }
 
