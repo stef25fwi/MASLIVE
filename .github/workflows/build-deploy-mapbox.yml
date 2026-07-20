@@ -33,6 +33,18 @@ jobs:
         working-directory: app
         run: flutter pub get
 
+      - name: Write deployment manifest
+        if: github.event_name != 'pull_request'
+        run: |
+          cat > app/web/deployment-manifest.json <<EOF
+          {
+            "commit": "${GITHUB_SHA}",
+            "runId": "${GITHUB_RUN_ID}",
+            "repository": "${GITHUB_REPOSITORY}",
+            "deployedAt": "$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+          }
+          EOF
+
       - name: Build Flutter Web with Mapbox
         working-directory: app
         env:
@@ -104,6 +116,22 @@ jobs:
           fi
 
           firebase deploy "${DEPLOY_ARGS[@]}"
+
+      - name: Verify production manifest
+        if: github.event_name != 'pull_request'
+        run: |
+          set -euo pipefail
+          expected="${GITHUB_SHA}"
+          for attempt in 1 2 3 4 5 6; do
+            manifest="$(curl --fail --silent --show-error --max-time 20 "https://maslive.web.app/deployment-manifest.json?run=${GITHUB_RUN_ID}" || true)"
+            if printf '%s' "${manifest}" | grep -Fq "${expected}"; then
+              echo "Production vérifiée sur le commit ${expected}."
+              exit 0
+            fi
+            sleep 10
+          done
+          echo "::error::Le manifeste de production ne correspond pas au commit ${expected}."
+          exit 1
 
       - name: Production deployment summary
         if: github.event_name != 'pull_request'
