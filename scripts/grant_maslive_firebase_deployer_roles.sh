@@ -23,11 +23,13 @@ echo "Compte de déploiement: ${DEPLOYER_SERVICE_ACCOUNT}"
 
 gcloud config set project "${PROJECT_ID}" >/dev/null
 
-# Permissions exactes manquantes observées dans les journaux Firebase CLI.
+# Permissions minimales observées dans les journaux Firebase CLI.
 for role in \
   roles/firebasestorage.viewer \
   roles/firebaserules.admin \
-  roles/datastore.indexAdmin
+  roles/datastore.indexAdmin \
+  roles/secretmanager.viewer \
+  roles/firebaseextensions.viewer
 do
   echo "Attribution de ${role} à ${MEMBER}..."
   gcloud projects add-iam-policy-binding "${PROJECT_ID}" \
@@ -48,5 +50,5 @@ gcloud iam service-accounts add-iam-policy-binding \
   --quiet >/dev/null
 
 echo
-printf 'Correctif IAM appliqué. La propagation peut prendre quelques minutes.\n'
+printf 'Correctif IAM complet appliqué. La propagation peut prendre quelques minutes.\n'
 printf 'Relance ensuite le workflow GitHub: Build & Deploy Flutter Web with Mapbox.\n'
