@@ -15,6 +15,21 @@ void main() {
     });
   }
 
+  Finder customPainterFinder(String runtimeTypeName) {
+    return find.byWidgetPredicate((w) {
+      return w is CustomPaint &&
+          w.painter?.runtimeType.toString() == runtimeTypeName;
+    });
+  }
+
+  Finder textWithFontFinder(String text, String fontFamily) {
+    return find.byWidgetPredicate((w) {
+      return w is Text &&
+          w.data == text &&
+          w.style?.fontFamily == fontFamily;
+    });
+  }
+
   Widget testHost(Widget card) {
     return MaterialApp(
       home: Scaffold(
@@ -27,6 +42,19 @@ void main() {
       ),
     );
   }
+
+  const completeCard = PolaroidPoiCard(
+    title: 'Bokit',
+    description: 'Spécialité locale',
+    hours: '08:00 - 18:00',
+    phone: '+590690000000',
+    lat: 16.241,
+    lng: -61.534,
+    imageUrl: null,
+    meta: {
+      'polaroid': {'angleDeg': -1.1, 'grain': 0.6},
+    },
+  );
 
   testWidgets('PolaroidPoiCard affiche le frame polaroid webp', (
     tester,
@@ -78,6 +106,51 @@ void main() {
       return img is NetworkImage && img.url == url;
     });
     expect(networkImages, findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('le scotch décoratif reste présent au-dessus du polaroid', (
+    tester,
+  ) async {
+    await tester.pumpWidget(testHost(completeCard));
+
+    final tapeFinder = customPainterFinder('_TapePainter');
+    expect(tapeFinder, findsOneWidget);
+
+    final tape = tester.widget<CustomPaint>(tapeFinder);
+    expect(tape.size, const Size(112, 34));
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('les informations conservent la typographie manuscrite MASLIVE', (
+    tester,
+  ) async {
+    await tester.pumpWidget(testHost(completeCard));
+
+    expect(textWithFontFinder('BOKIT', 'MASLIVEBrushV2'), findsOneWidget);
+    expect(
+      textWithFontFinder('Spécialité locale', 'MASLIVEBrushV2'),
+      findsOneWidget,
+    );
+    expect(
+      textWithFontFinder('08:00 - 18:00', 'MASLIVEBrushV2'),
+      findsOneWidget,
+    );
+    expect(
+      textWithFontFinder('+590690000000', 'MASLIVEBrushV2'),
+      findsOneWidget,
+    );
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('les actions gardent leurs deux fonds en coup de pinceau rose', (
+    tester,
+  ) async {
+    await tester.pumpWidget(testHost(completeCard));
+
+    expect(customPainterFinder('_BrushStrokePainter'), findsNWidgets(2));
+    expect(find.text('APPELER'), findsOneWidget);
+    expect(find.text('ITINÉRAIRE'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
 }
