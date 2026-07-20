@@ -1,0 +1,57 @@
+name: Fix PR59 targeted analyzer issues
+
+on:
+  push:
+    branches:
+      - fix/profile-capability-consistency
+
+permissions:
+  contents: write
+
+jobs:
+  fix:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: fix/profile-capability-consistency
+          fetch-depth: 0
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.44.4'
+          cache: true
+      - name: Apply fixes only to reported files
+        working-directory: app
+        run: |
+          flutter pub get
+          for file in \
+            lib/features/media_marketplace/data/repositories/photographer_complete_flow_repository.dart \
+            lib/features/media_marketplace/presentation/controllers/photographer_subscription_controller.dart \
+            lib/features/media_marketplace/presentation/pages/photographer_gallery_manager_page.dart \
+            lib/features/media_marketplace/presentation/widgets/photographer_finance_panel.dart \
+            lib/pages/account_page.dart \
+            lib/pages/seller/seller_order_detail_page.dart \
+            lib/pages/user_facing_shell_page.dart \
+            lib/ui/widgets/polaroid_poi_sheet.dart; do
+            dart fix --apply "$file" || true
+          done
+      - name: Commit only targeted files
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add \
+            app/lib/features/media_marketplace/data/repositories/photographer_complete_flow_repository.dart \
+            app/lib/features/media_marketplace/presentation/controllers/photographer_subscription_controller.dart \
+            app/lib/features/media_marketplace/presentation/pages/photographer_gallery_manager_page.dart \
+            app/lib/features/media_marketplace/presentation/widgets/photographer_finance_panel.dart \
+            app/lib/pages/account_page.dart \
+            app/lib/pages/seller/seller_order_detail_page.dart \
+            app/lib/pages/user_facing_shell_page.dart \
+            app/lib/ui/widgets/polaroid_poi_sheet.dart
+          if git diff --cached --quiet; then
+            echo "No targeted fixes"
+          else
+            git commit -m "fix(pr59): corrige les diagnostics analyzer ciblés"
+            git push origin HEAD:fix/profile-capability-consistency
+          fi
