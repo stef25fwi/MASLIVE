@@ -15,7 +15,7 @@ void main() {
   test('le profil photographe est créable et modifiable', () {
     expect(center, contains('Créer mon profil photographe'));
     expect(center, contains('Modifier mon profil photographe'));
-    expect(center, contains("collection('photographer_profiles')"));
+    expect(center, contains("collection('photographers')"));
     expect(dashboard, contains('Créer mon profil'));
   });
 
