@@ -401,6 +401,7 @@ module.exports = function createPhotographerAiCredits({
     {
       document: "media_photos/{photoId}",
       region,
+      cpu: 0.5,
       timeoutSeconds: 180,
       memory: "1GiB",
       maxInstances: 10,

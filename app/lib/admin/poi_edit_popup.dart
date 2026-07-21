@@ -474,7 +474,7 @@ class _PoiEditPopupState extends State<PoiEditPopup> {
       if (!mounted) return;
       TopSnackBar.showMessage(
         context,
-        '❌ Erreur sélection image: $e',
+        '❌ Erreur sélection image: ${_extractErrorMessage(e)}',
         isError: true,
       );
     }
@@ -597,10 +597,32 @@ class _PoiEditPopupState extends State<PoiEditPopup> {
     }
   }
 
+  /// Lit les octets d'un [XFile] fraîchement sélectionné, avec quelques
+  /// tentatives en cas d'échec transitoire.
+  ///
+  /// Sur certains navigateurs (notamment Safari web), le blob du fichier
+  /// tout juste choisi n'est pas toujours immédiatement lisible juste après
+  /// la fermeture du sélecteur — la première lecture échoue alors avec une
+  /// erreur bas niveau (souvent liée au blob), qui réussit après une courte
+  /// pause. On ne le traite comme un échec définitif qu'après plusieurs essais.
+  Future<Uint8List> _readBytesWithRetry(XFile file, {int attempts = 3}) async {
+    for (var attempt = 1; attempt <= attempts; attempt++) {
+      try {
+        return await file.readAsBytes();
+      } catch (e) {
+        if (attempt >= attempts) rethrow;
+        await Future<void>.delayed(Duration(milliseconds: 200 * attempt));
+      }
+    }
+    // Inatteignable (la boucle retourne ou relance toujours), mais requis
+    // pour satisfaire l'analyseur de flux.
+    return file.readAsBytes();
+  }
+
   Future<void> _setSelectedFile(XFile file) async {
     if (!mounted) return;
 
-    final readFuture = file.readAsBytes();
+    final readFuture = _readBytesWithRetry(file);
     setState(() {
       _selectedFile = file;
       _selectedPreviewBytes = null;
@@ -636,7 +658,7 @@ class _PoiEditPopupState extends State<PoiEditPopup> {
       });
       TopSnackBar.showMessage(
         context,
-        '⚠️ Lecture image impossible: $e',
+        '⚠️ Lecture image impossible: ${_extractErrorMessage(e)}',
         isError: true,
       );
     }
@@ -746,6 +768,12 @@ class _PoiEditPopupState extends State<PoiEditPopup> {
     }
     if (msg.contains('Storage quota')) {
       return 'Quota de stockage dépassé';
+    }
+    if (msg.toLowerCase().contains('blob')) {
+      // Web: le fichier sélectionné référence une donnée navigateur (blob:)
+      // qui n'a pas pu être relue (photo HEIC/format non supporté, blob
+      // expiré). Réessayer avec une nouvelle sélection résout ce cas.
+      return 'Photo illisible dans le navigateur. Réessayez de la sélectionner (ou utilisez un format JPEG/PNG).';
     }
     if (msg.contains('Network')) {
       return 'Erreur réseau';
@@ -986,6 +1014,7 @@ class _PoiEditPopupState extends State<PoiEditPopup> {
                     label: picto.label,
                     icon: picto.icon,
                     color: picto.color,
+                    painterBuilder: picto.painterBuilder,
                   ),
             ],
           ),
@@ -999,6 +1028,7 @@ class _PoiEditPopupState extends State<PoiEditPopup> {
     required String label,
     required IconData icon,
     required Color color,
+    MasLivePoiPictoPainterBuilder? painterBuilder,
   }) {
     final selected = (_pictoId ?? '') == (id ?? '');
     return InkWell(
@@ -1026,7 +1056,12 @@ class _PoiEditPopupState extends State<PoiEditPopup> {
                 color: color.withValues(alpha: 0.16),
                 shape: BoxShape.circle,
               ),
-              child: Icon(icon, size: 24, color: color),
+              child: painterBuilder != null
+                  ? CustomPaint(
+                      size: const Size(24, 24),
+                      painter: painterBuilder(color),
+                    )
+                  : Icon(icon, size: 24, color: color),
             ),
             const SizedBox(height: 6),
             Text(
@@ -1059,7 +1094,12 @@ class _PoiEditPopupState extends State<PoiEditPopup> {
           ),
         ],
       ),
-      child: Icon(picto.icon, size: 20, color: picto.color),
+      child: picto.painterBuilder != null
+          ? CustomPaint(
+              size: const Size(20, 20),
+              painter: picto.painterBuilder!(picto.color),
+            )
+          : Icon(picto.icon, size: 20, color: picto.color),
     );
   }
 
