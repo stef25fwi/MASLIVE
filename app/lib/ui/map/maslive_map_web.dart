@@ -14,6 +14,7 @@ import 'package:flutter/material.dart';
 
 import 'maslive_map_controller.dart';
 import 'maslive_poi_style.dart';
+import 'poi_picto_images.dart';
 import '../../services/mapbox_token_service.dart';
 import '../../utils/mapbox_style_url.dart';
 
@@ -73,6 +74,7 @@ class _MasLiveMapWebState extends State<MasLiveMapWeb> {
   static const String _poiSourceId = 'src_pois';
   static const String _poiLayerId = 'ly_pois_circle';
   static const String _poiIconLayerId = 'ly_pois_icon_point';
+  static const String _poiPictoLayerId = 'ly_pois_picto';
   static const String _poiPreviewVertexLayerId = 'ly_pois_preview_vertices';
   static const String _poiZoneBadgeLayerId = 'ly_pois_zone_badge';
   static const String _poiZoneLabelLayerId = 'ly_pois_zone_label';
@@ -93,6 +95,10 @@ class _MasLiveMapWebState extends State<MasLiveMapWeb> {
   static const String _parkingBadgeMd = 'maslive_parking_badge_md';
   static const String _parkingBadgeLg = 'maslive_parking_badge_lg';
   static const String _poiIconPointId = 'maslive_poi_icon_point';
+
+  /// Images de pictos POI fournies par la couche applicative (rasterisées en
+  /// Dart avec la vraie police Material), à enregistrer via `addImage`.
+  List<PoiPictoImage> _poiPictoImages = const [];
 
   static const List<String> _parkingCarBitmap = <String>[
     '................',
@@ -878,6 +884,13 @@ class _MasLiveMapWebState extends State<MasLiveMapWeb> {
       // ignore
     }
 
+    // Images de pictos POI (rasterisées par la couche applicative).
+    try {
+      unawaited(_ensurePoiPictoImages(map));
+    } catch (_) {
+      // ignore
+    }
+
     // Ensure layers (Polygon zones + Point POIs)
     try {
       await _removeLayerIfExists(map, _poiLineLayerLegacyId);
@@ -1349,6 +1362,39 @@ class _MasLiveMapWebState extends State<MasLiveMapWeb> {
             },
           }),
         ]);
+      }
+
+      // Couche pictos POI : les POI dont les properties portent `pictoIconId`
+      // affichent le marqueur picto correspondant (au-dessus du cercle).
+      // Additif : un échec ici ne doit jamais casser le rendu POI de base.
+      try {
+        final existingPicto = map.callMethod('getLayer', [_poiPictoLayerId]);
+        if (existingPicto == null) {
+          map.callMethod('addLayer', [
+            js.JsObject.jsify({
+              'id': _poiPictoLayerId,
+              'type': 'symbol',
+              'source': _poiSourceId,
+              'filter': [
+                'all',
+                [
+                  '==',
+                  ['geometry-type'],
+                  'Point',
+                ],
+                ['has', kPoiPictoIconIdProperty],
+              ],
+              'layout': {
+                'icon-image': ['get', kPoiPictoIconIdProperty],
+                'icon-size': 0.9,
+                'icon-allow-overlap': true,
+                'icon-ignore-placement': true,
+              },
+            }),
+          ]);
+        }
+      } catch (e) {
+        if (kDebugMode) debugPrint('[POI_PICTO] addLayer erreur: $e');
       }
 
       // Points de prévisualisation (vertices) pour zone parking.
@@ -1875,6 +1921,46 @@ class _MasLiveMapWebState extends State<MasLiveMapWeb> {
     }
   }
 
+  /// Enregistre les images de pictos POI (fournies par la couche applicative)
+  /// via `addImage`. Chaque image PNG est décodée par un `ImageElement` puis
+  /// ajoutée à la carte. Idempotent : une image déjà enregistrée est ignorée.
+  Future<void> _ensurePoiPictoImages(js.JsObject map) async {
+    final images = _poiPictoImages;
+    if (images.isEmpty) return;
+
+    bool has(String id) {
+      try {
+        return map.callMethod('hasImage', [id]) == true;
+      } catch (_) {
+        return false;
+      }
+    }
+
+    for (final picto in images) {
+      if (picto.png.isEmpty) continue;
+      if (has(picto.id)) continue;
+      try {
+        final b64 = base64Encode(picto.png);
+        final img = html.ImageElement(src: 'data:image/png;base64,$b64');
+        await Future.any<void>([
+          img.onLoad.first.then((_) {}),
+          img.onError.first.then((_) {}),
+          Future<void>.delayed(const Duration(seconds: 3)),
+        ]);
+        final loaded = (img.complete == true) && img.naturalWidth > 0;
+        if (loaded) {
+          map.callMethod('addImage', [
+            picto.id,
+            img,
+            js.JsObject.jsify({'pixelRatio': 2}),
+          ]);
+        }
+      } catch (e) {
+        if (kDebugMode) debugPrint('[POI_PICTO] ${picto.id} erreur: $e');
+      }
+    }
+  }
+
   html.CanvasElement _buildParkingBadgeCanvas({
     required int width,
     required int height,
@@ -2385,6 +2471,18 @@ class _MasLiveMapWebState extends State<MasLiveMapWeb> {
       (controller as dynamic).setPoiStyleImpl = (MasLivePoiStyle style) async {
         _poiStyle = style;
         await _applyPoiStyleIfReady();
+      };
+    } catch (_) {
+      // ignore
+    }
+
+    // Images de pictos POI (Mapbox Pro)
+    try {
+      (controller as dynamic).registerPoiPictoImagesImpl =
+          (List<PoiPictoImage> images) async {
+        _poiPictoImages = images;
+        final map = _getMapForThisContainer();
+        if (map != null) await _ensurePoiPictoImages(map);
       };
     } catch (_) {
       // ignore

@@ -5,6 +5,7 @@ import 'dart:convert';
 
 import 'maslive_map_controller.dart';
 import 'maslive_poi_style.dart';
+import 'poi_picto_images.dart';
 import 'maslive_map_native.dart';
 import 'maslive_map_web_stub.dart'
     if (dart.library.html) 'maslive_map_web.dart';
@@ -44,6 +45,32 @@ class MasLiveMapControllerPoi extends MasLiveMapController {
   /// @nodoc - usage interne seulement
   set setPoiStyleImpl(Future<void> Function(MasLivePoiStyle style)? impl) {
     _setPoiStyleImpl = impl;
+  }
+
+  /// Impl interne branchée par `MasLiveMapNative`/`MasLiveMapWeb` pour
+  /// enregistrer les images de pictos POI sur la carte.
+  Future<void> Function(List<PoiPictoImage> images)? _registerPoiPictoImagesImpl;
+
+  List<PoiPictoImage> _poiPictoImages = const [];
+
+  /// Dernières images de pictos fournies (ré-enregistrées après un changement
+  /// de style qui efface les images runtime).
+  List<PoiPictoImage> get poiPictoImages => _poiPictoImages;
+
+  /// @nodoc - usage interne seulement
+  set registerPoiPictoImagesImpl(
+    Future<void> Function(List<PoiPictoImage> images)? impl,
+  ) {
+    _registerPoiPictoImagesImpl = impl;
+  }
+
+  /// Enregistre les images de pictos POI (marqueurs) sur la carte.
+  ///
+  /// À appeler une fois la carte prête. Sans effet si aucune impl n'est
+  /// branchée (le POI retombe alors sur son rendu par cercle).
+  Future<void> registerPoiPictoImages(List<PoiPictoImage> images) async {
+    _poiPictoImages = images;
+    await _registerPoiPictoImagesImpl?.call(images);
   }
 
   /// Met à jour le style des POIs (taille/couleurs).

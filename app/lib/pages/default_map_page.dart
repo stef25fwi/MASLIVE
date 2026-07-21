@@ -31,6 +31,10 @@ import '../route_style_pro/services/route_style_pro_projection.dart';
 import '../route_style_pro/models/route_style_config.dart' as rsp;
 import '../ui/map/maslive_map.dart';
 import '../ui/map/maslive_map_controller.dart' show MapMarker, MapPoint;
+import '../ui/map/maslive_poi_style.dart'
+    show kMasLivePoiPictoKey, masLivePoiPictoById;
+import '../ui/map/poi_picto_images.dart'
+    show PoiPictoImageFactory, poiPictoImageId, kPoiPictoIconIdProperty;
 import 'splash_wrapper_page.dart' show mapReadyNotifier;
 import '../l10n/app_localizations.dart' as l10n;
 import '../services/market_map_service.dart';
@@ -558,6 +562,7 @@ class _DefaultMapPageState extends State<DefaultMapPage>
       }
 
       // POI standard → Point.
+      final pictoIconId = _poiPictoIconId(poi.metadata);
       features.add(<String, dynamic>{
         'type': 'Feature',
         'id': poi.id,
@@ -567,6 +572,7 @@ class _DefaultMapPageState extends State<DefaultMapPage>
           'type': poi.type ?? poi.layerId,
           'title': poi.name,
           'name': poi.name,
+          if (pictoIconId != null) kPoiPictoIconIdProperty: pictoIconId,
         },
         'geometry': <String, dynamic>{
           'type': 'Point',
@@ -576,6 +582,27 @@ class _DefaultMapPageState extends State<DefaultMapPage>
     }
 
     return <String, dynamic>{'type': 'FeatureCollection', 'features': features};
+  }
+
+  /// Identifiant d'image picto pour un POI (ou `null` si aucun picto choisi).
+  String? _poiPictoIconId(Map<String, dynamic>? metadata) {
+    final raw = metadata?[kMasLivePoiPictoKey];
+    if (raw is! String) return null;
+    final picto = masLivePoiPictoById(raw);
+    if (picto == null) return null;
+    return poiPictoImageId(picto.id);
+  }
+
+  /// Rasterise (une fois) les images de pictos et les enregistre sur la carte.
+  Future<void> _registerPoiPictoImages() async {
+    try {
+      final images =
+          await PoiPictoImageFactory.build(devicePixelRatio: 2.0);
+      if (!mounted) return;
+      await _mapController.registerPoiPictoImages(images);
+    } catch (_) {
+      // Non bloquant : sans images picto, les POI gardent leur cercle.
+    }
   }
 
   String _marketPoiOpeningHoursText(Object? raw) {
@@ -657,9 +684,7 @@ class _DefaultMapPageState extends State<DefaultMapPage>
       await showPolaroidPoiSheet(
         context: context,
         title: title,
-        description: description.isEmpty
-            ? 'Aucune description disponible'
-            : description,
+        description: description,
         imageUrl: imageUrl.isEmpty ? null : imageUrl,
         meta: poi.metadata,
         hours: _marketPoiOpeningHoursText(poi.openingHours),
@@ -2352,6 +2377,7 @@ class _DefaultMapPageState extends State<DefaultMapPage>
                                   _notifyMapReady();
                                   _startDeferredHomeInit();
                                   _startPostSplashUiWarmups();
+                                  unawaited(_registerPoiPictoImages());
                                   unawaited(_syncMarkersToMap());
                                   unawaited(_syncMarketPoisToMap());
                                   unawaited(_applyCachedMarketRouteToMap());
