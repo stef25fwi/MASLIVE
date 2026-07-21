@@ -1,0 +1,151 @@
+name: Firebase Deploy Now
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+  pull-requests: write
+
+concurrency:
+  group: maslive-firebase-deploy-now
+  cancel-in-progress: false
+
+jobs:
+  deploy-now:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: "3.44.4"
+          cache: true
+
+      - name: Install Flutter dependencies
+        working-directory: app
+        run: flutter pub get
+
+      - name: Write deployment manifest
+        run: |
+          cat > app/web/deployment-manifest.json <<EOF
+          {
+            "commit": "${GITHUB_SHA}",
+            "runId": "${GITHUB_RUN_ID}",
+            "repository": "${GITHUB_REPOSITORY}",
+            "deployedAt": "$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+          }
+          EOF
+
+      - name: Build Flutter Web
+        working-directory: app
+        env:
+          MAPBOX_TOKEN: ${{ secrets.MAPBOX_PUBLIC_TOKEN || secrets.MAPBOX_ACCESS_TOKEN || secrets.MAPBOX_TOKEN || vars.MAPBOX_PUBLIC_TOKEN || vars.MAPBOX_ACCESS_TOKEN || vars.MAPBOX_TOKEN }}
+          STRIPE_PUBLISHABLE_KEY: ${{ secrets.STRIPE_PUBLISHABLE_KEY || vars.STRIPE_PUBLISHABLE_KEY }}
+          STRIPE_PREMIUM_MONTHLY_PRICE_ID: ${{ secrets.STRIPE_PREMIUM_MONTHLY_PRICE_ID || vars.STRIPE_PREMIUM_MONTHLY_PRICE_ID }}
+          STRIPE_PREMIUM_YEARLY_PRICE_ID: ${{ secrets.STRIPE_PREMIUM_YEARLY_PRICE_ID || vars.STRIPE_PREMIUM_YEARLY_PRICE_ID }}
+        run: |
+          flutter build web --release \
+            --dart-define=MAPBOX_ACCESS_TOKEN="${MAPBOX_TOKEN}" \
+            --dart-define=STRIPE_PUBLISHABLE_KEY="${STRIPE_PUBLISHABLE_KEY}" \
+            --dart-define=STRIPE_PREMIUM_MONTHLY_PRICE_ID="${STRIPE_PREMIUM_MONTHLY_PRICE_ID}" \
+            --dart-define=STRIPE_PREMIUM_YEARLY_PRICE_ID="${STRIPE_PREMIUM_YEARLY_PRICE_ID}"
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: functions/package-lock.json
+
+      - name: Install Firebase dependencies
+        run: |
+          npm ci --prefix functions
+          npm install --global firebase-tools@latest
+
+      - name: Configure Firebase authentication
+        env:
+          FIREBASE_SERVICE_ACCOUNT_JSON: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_MASLIVE || secrets.FIREBASE_SERVICE_ACCOUNT || secrets.GOOGLE_CREDENTIALS }}
+        run: |
+          set -euo pipefail
+          test -n "${FIREBASE_SERVICE_ACCOUNT_JSON}"
+          CREDENTIALS_FILE="${RUNNER_TEMP}/maslive-firebase-service-account.json"
+          printf '%s' "${FIREBASE_SERVICE_ACCOUNT_JSON}" > "${CREDENTIALS_FILE}"
+          chmod 600 "${CREDENTIALS_FILE}"
+          node - "${CREDENTIALS_FILE}" <<'NODE'
+          const fs = require('node:fs');
+          const credentials = JSON.parse(fs.readFileSync(process.argv[2], 'utf8'));
+          if (credentials.project_id !== 'maslive') process.exit(1);
+          if (!credentials.client_email || !credentials.private_key) process.exit(1);
+          console.log(`Compte Firebase: ${credentials.client_email}`);
+          NODE
+          echo "GOOGLE_APPLICATION_CREDENTIALS=${CREDENTIALS_FILE}" >> "${GITHUB_ENV}"
+
+      - name: Deploy Firebase with retries
+        id: firebase_deploy
+        run: |
+          set -euo pipefail
+          : > firebase-deploy-now.log
+          for attempt in 1 2 3; do
+            echo "Tentative Firebase ${attempt}/3" | tee -a firebase-deploy-now.log
+            if firebase deploy --project maslive \
+              --only firestore:rules,firestore:indexes,storage,functions,hosting \
+              --non-interactive --debug >> firebase-deploy-now.log 2>&1; then
+              tail -n 240 firebase-deploy-now.log
+              exit 0
+            fi
+            tail -n 120 firebase-deploy-now.log
+            if [ "${attempt}" -lt 3 ]; then sleep $((attempt * 30)); fi
+          done
+          exit 1
+
+      - name: Upload deployment log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: firebase-deploy-now-log
+          path: firebase-deploy-now.log
+          if-no-files-found: error
+          retention-days: 7
+
+      - name: Verify production manifest
+        run: |
+          set -euo pipefail
+          for attempt in 1 2 3 4 5 6 7 8; do
+            manifest="$(curl --fail --silent --show-error --max-time 20 "https://maslive.web.app/deployment-manifest.json?run=${GITHUB_RUN_ID}&attempt=${attempt}" || true)"
+            if printf '%s' "${manifest}" | grep -Fq "${GITHUB_SHA}"; then
+              echo "Production vérifiée sur ${GITHUB_SHA}"
+              exit 0
+            fi
+            sleep 10
+          done
+          exit 1
+
+      - name: Publish deployment result in PR 51
+        if: always()
+        env:
+          GH_TOKEN: ${{ github.token }}
+          DEPLOY_OUTCOME: ${{ steps.firebase_deploy.outcome }}
+        run: |
+          set -euo pipefail
+          {
+            echo "## Déploiement Firebase immédiat"
+            echo
+            echo "- Commit : \`${GITHUB_SHA}\`"
+            echo "- Run : [${GITHUB_RUN_ID}](https://github.com/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID})"
+            echo "- Déploiement complet : **${DEPLOY_OUTCOME}**"
+            if [ -s firebase-deploy-now.log ]; then
+              echo
+              echo '```text'
+              tail -n 80 firebase-deploy-now.log | tail -c 16000
+              echo
+              echo '```'
+            fi
+          } > deployment-result.md
+          jq -n --rawfile body deployment-result.md '{body: $body}' > deployment-result.json
+          gh api --method POST "repos/${GITHUB_REPOSITORY}/issues/51/comments" --input deployment-result.json
