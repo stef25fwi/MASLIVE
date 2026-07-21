@@ -41,7 +41,10 @@ import 'route_style_pro/ui/route_style_pro_args.dart';
 // ── Eager: pages critiques au démarrage ──
 import 'pages/default_map_page.dart';
 import 'pages/legal_page.dart';
+import 'pages/my_data_page.dart';
 import 'pages/splash_wrapper_page.dart';
+import 'services/consent_service.dart';
+import 'widgets/consent_banner.dart';
 import 'utils/storage_url_cache.dart';
 import 'widgets/debug/debug_admin_overlay.dart';
 // ── Deferred: toutes les autres pages (chargées à la demande) ──
@@ -421,6 +424,10 @@ class _BootstrapRootState extends State<_BootstrapRoot> {
     } catch (error) {
       debugPrint('⚠️ Bootstrap: CartService.start skipped: $error');
     }
+
+    // RGPD : charge le consentement mémorisé et désactive la mesure d'audience
+    // tant que l'utilisateur n'a pas explicitement consenti.
+    unawaited(ConsentService.instance.load());
   }
 
   void _startDeferredFirebaseDependentServices() {
@@ -636,7 +643,13 @@ class MasLiveApp extends StatelessWidget {
                 opacity: 0.08,
                 child: LocalizedApp(
                   showLanguageSidebar: true,
-                  child: DebugAdminOverlay(child: child ?? const SizedBox()),
+                  child: DebugAdminOverlay(
+                    child: ConsentGate(
+                      onLearnMore: () =>
+                          _rootNavigatorKey.currentState?.pushNamed('/legal'),
+                      child: child ?? const SizedBox(),
+                    ),
+                  ),
                 ),
               ),
             );
@@ -1295,6 +1308,11 @@ Route<dynamic>? _onGenerateRoute(RouteSettings settings) {
       break;
     case '/cgu':
       page = const LegalPage(initialTab: 1);
+      break;
+
+    // ── RGPD : mes données personnelles ──
+    case '/my-data':
+      page = const MyDataPage();
       break;
   }
 
