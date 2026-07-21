@@ -86,6 +86,7 @@ class _PoiEditPopupState extends State<PoiEditPopup> {
   double _grain = 0.35;
 
   String? _appearanceId;
+  String? _pictoId;
 
   bool _popupEnabled = true;
   bool _isVisible = true;
@@ -217,6 +218,11 @@ class _PoiEditPopupState extends State<PoiEditPopup> {
       } else {
         _appearanceId = presets.first.id;
       }
+    }
+
+    final rawPicto = meta[kMasLivePoiPictoKey];
+    if (rawPicto is String && masLivePoiPictoById(rawPicto) != null) {
+      _pictoId = rawPicto.trim();
     }
 
     // Back-compat imageUrl: certains POIs stockent l'image dans metadata.image.url
@@ -810,6 +816,13 @@ class _PoiEditPopupState extends State<PoiEditPopup> {
       );
     }
 
+    final nextPictoId = (_pictoId ?? '').trim();
+    if (nextPictoId.isNotEmpty && masLivePoiPictoById(nextPictoId) != null) {
+      meta[kMasLivePoiPictoKey] = nextPictoId;
+    } else {
+      meta.remove(kMasLivePoiPictoKey);
+    }
+
     meta['popupEnabled'] = _popupEnabled;
 
     meta['polaroid'] = <String, dynamic>{
@@ -910,6 +923,127 @@ class _PoiEditPopupState extends State<PoiEditPopup> {
     }
   }
 
+  Widget _buildPictoGallery() {
+    final theme = Theme.of(context);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            const Icon(
+              Icons.emoji_symbols_rounded,
+              size: 18,
+              color: MasliveTokens.text,
+            ),
+            const SizedBox(width: 8),
+            Text(
+              'Pictogramme',
+              style: theme.textTheme.titleSmall?.copyWith(
+                fontWeight: FontWeight.w800,
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 4),
+        Text(
+          'Choisissez un picto pour ce POI, ou gardez le picto par défaut.',
+          style: theme.textTheme.bodySmall?.copyWith(
+            color: MasliveTokens.textSoft,
+          ),
+        ),
+        const SizedBox(height: 10),
+        Wrap(
+          spacing: 10,
+          runSpacing: 10,
+          children: [
+            _buildPictoTile(
+              id: null,
+              label: 'Par défaut',
+              icon: Icons.place_rounded,
+              color: MasliveTokens.primary,
+            ),
+            for (final picto in kMasLivePoiPictos)
+              _buildPictoTile(
+                id: picto.id,
+                label: picto.label,
+                icon: picto.icon,
+                color: picto.color,
+              ),
+          ],
+        ),
+      ],
+    );
+  }
+
+  Widget _buildPictoTile({
+    required String? id,
+    required String label,
+    required IconData icon,
+    required Color color,
+  }) {
+    final selected = (_pictoId ?? '') == (id ?? '');
+    return InkWell(
+      onTap: _isSaving ? null : () => setState(() => _pictoId = id),
+      borderRadius: BorderRadius.circular(MasliveTokens.rM),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 140),
+        width: 84,
+        padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 6),
+        decoration: BoxDecoration(
+          color: selected ? color.withValues(alpha: 0.14) : Colors.white,
+          borderRadius: BorderRadius.circular(MasliveTokens.rM),
+          border: Border.all(
+            color: selected ? color : MasliveTokens.borderSoft,
+            width: selected ? 2 : 1,
+          ),
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: 40,
+              height: 40,
+              decoration: BoxDecoration(
+                color: color.withValues(alpha: 0.16),
+                shape: BoxShape.circle,
+              ),
+              child: Icon(icon, size: 24, color: color),
+            ),
+            const SizedBox(height: 6),
+            Text(
+              label,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                fontSize: 11,
+                fontWeight: selected ? FontWeight.w800 : FontWeight.w600,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildPictoBadge(MasLivePoiPicto picto) {
+    return Container(
+      padding: const EdgeInsets.all(6),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        shape: BoxShape.circle,
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.20),
+            blurRadius: 6,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Icon(picto.icon, size: 20, color: picto.color),
+    );
+  }
+
   Widget _buildPolaroidPreview({required Widget image}) {
     final theme = Theme.of(context);
     final angleRad = _angleDeg * (math.pi / 180.0);
@@ -947,9 +1081,19 @@ class _PoiEditPopupState extends State<PoiEditPopup> {
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                ClipRRect(
-                  borderRadius: BorderRadius.circular(14),
-                  child: AspectRatio(aspectRatio: 1, child: image),
+                Stack(
+                  children: [
+                    ClipRRect(
+                      borderRadius: BorderRadius.circular(14),
+                      child: AspectRatio(aspectRatio: 1, child: image),
+                    ),
+                    if (masLivePoiPictoById(_pictoId) != null)
+                      Positioned(
+                        top: 8,
+                        left: 8,
+                        child: _buildPictoBadge(masLivePoiPictoById(_pictoId)!),
+                      ),
+                  ],
                 ),
                 const SizedBox(height: 12),
                 Text(
@@ -1178,6 +1322,8 @@ class _PoiEditPopupState extends State<PoiEditPopup> {
                       ),
                     ),
                   ],
+                  const SizedBox(height: 16),
+                  _buildPictoGallery(),
                   const SizedBox(height: 12),
                   TextField(
                     controller: _descCtrl,

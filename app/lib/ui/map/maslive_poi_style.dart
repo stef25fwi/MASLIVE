@@ -142,6 +142,102 @@ Widget buildMasLivePoiAppearanceMenuItem(
   );
 }
 
+/// Clé `metadata` utilisée pour persister le pictogramme choisi par
+/// l'utilisateur dans la page d'édition d'un POI.
+///
+/// Exemple: `{ "picto": "food" }`
+const String kMasLivePoiPictoKey = 'picto';
+
+/// Un pictogramme sélectionnable dans la galerie de la page d'édition POI.
+///
+/// Basé sur les icônes Material (aucun asset requis), ce qui garantit un
+/// rendu net et cohérent quelle que soit la plateforme.
+@immutable
+class MasLivePoiPicto {
+  final String id;
+  final String label;
+  final IconData icon;
+  final Color color;
+
+  const MasLivePoiPicto({
+    required this.id,
+    required this.label,
+    required this.icon,
+    this.color = MasliveTokens.primary,
+  });
+}
+
+/// Catalogue des pictogrammes proposés dans la galerie.
+///
+/// Important: les `id` sont persistés dans Firestore via
+/// `MarketMapPOI.metadata['picto']`. Ne pas renommer un `id` existant.
+const List<MasLivePoiPicto> kMasLivePoiPictos = [
+  MasLivePoiPicto(
+    id: 'food',
+    label: 'Food',
+    icon: Icons.fastfood_rounded,
+    color: Color(0xFFEF6C00),
+  ),
+  MasLivePoiPicto(
+    id: 'wc',
+    label: 'WC',
+    icon: Icons.wc_rounded,
+    color: Color(0xFF1565C0),
+  ),
+  MasLivePoiPicto(
+    id: 'glace',
+    label: 'Glace',
+    icon: Icons.icecream_rounded,
+    color: Color(0xFFEC407A),
+  ),
+  MasLivePoiPicto(
+    id: 'restaurant',
+    label: 'Restaurant',
+    icon: Icons.restaurant_rounded,
+    color: Color(0xFF6D4C41),
+  ),
+  MasLivePoiPicto(
+    id: 'police',
+    label: 'Police',
+    icon: Icons.local_police_rounded,
+    color: Color(0xFF283593),
+  ),
+  MasLivePoiPicto(
+    id: 'sante',
+    label: 'Santé',
+    icon: Icons.local_hospital_rounded,
+    color: Color(0xFFD32F2F),
+  ),
+  MasLivePoiPicto(
+    id: 'info_tourisme',
+    label: 'Office tourisme',
+    icon: Icons.info_rounded,
+    color: Color(0xFF00838F),
+  ),
+  MasLivePoiPicto(
+    id: 'lieu_touristique',
+    label: 'À visiter',
+    icon: Icons.attractions_rounded,
+    color: Color(0xFF2E7D32),
+  ),
+  MasLivePoiPicto(
+    id: 'musee',
+    label: 'Musée',
+    icon: Icons.museum_rounded,
+    color: Color(0xFF5D4037),
+  ),
+];
+
+/// Retourne le picto correspondant à [id], ou `null` si inconnu/vide.
+MasLivePoiPicto? masLivePoiPictoById(String? id) {
+  final value = (id ?? '').trim();
+  if (value.isEmpty) return null;
+  for (final picto in kMasLivePoiPictos) {
+    if (picto.id == value) return picto;
+  }
+  return null;
+}
+
 String masLiveColorToCssHex(Color color) {
   int to8(double v) => (v * 255.0).round().clamp(0, 255);
 
