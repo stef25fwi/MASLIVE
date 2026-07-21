@@ -597,10 +597,32 @@ class _PoiEditPopupState extends State<PoiEditPopup> {
     }
   }
 
+  /// Lit les octets d'un [XFile] fraîchement sélectionné, avec quelques
+  /// tentatives en cas d'échec transitoire.
+  ///
+  /// Sur certains navigateurs (notamment Safari web), le blob du fichier
+  /// tout juste choisi n'est pas toujours immédiatement lisible juste après
+  /// la fermeture du sélecteur — la première lecture échoue alors avec une
+  /// erreur bas niveau (souvent liée au blob), qui réussit après une courte
+  /// pause. On ne le traite comme un échec définitif qu'après plusieurs essais.
+  Future<Uint8List> _readBytesWithRetry(XFile file, {int attempts = 3}) async {
+    for (var attempt = 1; attempt <= attempts; attempt++) {
+      try {
+        return await file.readAsBytes();
+      } catch (e) {
+        if (attempt >= attempts) rethrow;
+        await Future<void>.delayed(Duration(milliseconds: 200 * attempt));
+      }
+    }
+    // Inatteignable (la boucle retourne ou relance toujours), mais requis
+    // pour satisfaire l'analyseur de flux.
+    return file.readAsBytes();
+  }
+
   Future<void> _setSelectedFile(XFile file) async {
     if (!mounted) return;
 
-    final readFuture = file.readAsBytes();
+    final readFuture = _readBytesWithRetry(file);
     setState(() {
       _selectedFile = file;
       _selectedPreviewBytes = null;
