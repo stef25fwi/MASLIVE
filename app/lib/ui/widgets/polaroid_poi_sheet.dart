@@ -35,8 +35,8 @@ Future<void> showPolaroidPoiSheet({
     barrierColor: Colors.black.withValues(alpha: .58),
     // Affichage quasi-instantané : fondu très court, sans scale/rebond, pour
     // que la fiche apparaisse immédiatement au tap (pas d'effet d'entrée long).
+    // (showGeneralDialog utilise transitionDuration pour l'entrée ET la sortie.)
     transitionDuration: const Duration(milliseconds: 90),
-    reverseTransitionDuration: const Duration(milliseconds: 90),
     pageBuilder: (context, animation, secondaryAnimation) => SafeArea(
       child: Center(
         child: Padding(
