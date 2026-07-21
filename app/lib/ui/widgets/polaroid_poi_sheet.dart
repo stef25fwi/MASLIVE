@@ -33,7 +33,10 @@ Future<void> showPolaroidPoiSheet({
     barrierDismissible: true,
     barrierLabel: 'Fermer la fiche POI',
     barrierColor: Colors.black.withValues(alpha: .58),
-    transitionDuration: const Duration(milliseconds: 240),
+    // Affichage quasi-instantané : fondu très court, sans scale/rebond, pour
+    // que la fiche apparaisse immédiatement au tap (pas d'effet d'entrée long).
+    transitionDuration: const Duration(milliseconds: 90),
+    reverseTransitionDuration: const Duration(milliseconds: 90),
     pageBuilder: (context, animation, secondaryAnimation) => SafeArea(
       child: Center(
         child: Padding(
@@ -61,14 +64,9 @@ Future<void> showPolaroidPoiSheet({
       ),
     ),
     transitionBuilder: (context, animation, secondaryAnimation, child) {
-      final curved = CurvedAnimation(parent: animation, curve: Curves.easeOutBack);
-      return FadeTransition(
-        opacity: animation,
-        child: ScaleTransition(
-          scale: Tween<double>(begin: .92, end: 1).animate(curved),
-          child: child,
-        ),
-      );
+      // Simple fondu (pas de scale/rebond) : la fiche est perçue comme
+      // s'affichant instantanément.
+      return FadeTransition(opacity: animation, child: child);
     },
   );
 }
@@ -342,7 +340,26 @@ class _PhotoAreaState extends State<_PhotoArea> {
         ? const _PhotoFallback()
         : url.startsWith('assets/') || url.startsWith('/assets/')
             ? Image.asset(url.startsWith('/') ? url.substring(1) : url, fit: BoxFit.cover, errorBuilder: (_, _, _) => const _PhotoFallback())
-            : Image.network(url, fit: BoxFit.cover, loadingBuilder: (_, child, progress) => progress == null ? child : const Center(child: CircularProgressIndicator(strokeWidth: 2)), errorBuilder: (_, _, _) => const _PhotoFallback());
+            : Image.network(
+                url,
+                fit: BoxFit.cover,
+                gaplessPlayback: true,
+                // Pas de spinner : on affiche le placeholder logo tant que la
+                // photo n'est pas prête, puis on la révèle en fondu doux —
+                // la fiche est donc complète et sans effet de chargement.
+                loadingBuilder: (_, child, progress) =>
+                    progress == null ? child : const _PhotoFallback(),
+                frameBuilder: (_, child, frame, wasSync) {
+                  if (wasSync) return child;
+                  return AnimatedOpacity(
+                    opacity: frame == null ? 0.0 : 1.0,
+                    duration: const Duration(milliseconds: 160),
+                    curve: Curves.easeOut,
+                    child: child,
+                  );
+                },
+                errorBuilder: (_, _, _) => const _PhotoFallback(),
+              );
     return Stack(
       fit: StackFit.expand,
       children: [
