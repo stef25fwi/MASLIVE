@@ -237,14 +237,16 @@ jobs:
                 echo
                 echo "### ${item} — fin du journal"
                 echo '```text'
-                tail -n 45 "${item}" | redact
+                tail -n 45 "${item}" | tail -c 12000 | redact
+                echo
                 echo '```'
               fi
             done
           } > deployment-comment.md
+          jq -n --rawfile body deployment-comment.md '{body: $body}' > deployment-comment.json
           gh api --method POST \
             "repos/${GITHUB_REPOSITORY}/issues/51/comments" \
-            -f body="$(cat deployment-comment.md)"
+            --input deployment-comment.json
 
       - name: Enforce complete Firebase deployment
         if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
