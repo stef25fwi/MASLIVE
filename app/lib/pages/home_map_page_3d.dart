@@ -19,6 +19,10 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:get/get.dart';
 
+import '../ui/map/maslive_poi_style.dart'
+    show kMasLivePoiPictoKey, masLivePoiPictoById;
+import '../ui/map/poi_picto_images.dart'
+    show PoiPictoImageFactory, poiPictoImageId, kPoiPictoIconIdProperty;
 import '../ui/theme/maslive_theme.dart';
 import '../ui/widgets/active_circuit_header_banner.dart';
 import '../ui/widgets/maslive_card.dart';
@@ -232,6 +236,8 @@ class _HomeMapPage3DState extends State<HomeMapPage3D>
   static const String _mmPoiSourceId = 'mm_pois_src';
   static const String _mmPoiLayerPrefix = 'mm_pois_layer__'; // + type
   static const String _mmPoiLiveBadgeLayerId = 'mm_pois_live_badge';
+  static const String _mmPoiPictoLayerId = 'mm_pois_picto';
+  bool _mmPictoImagesReady = false;
   GeoJsonSource? _mmPoiSource;
   final Set<String> _mmPoiLayerIds = <String>{};
 
@@ -2282,11 +2288,94 @@ class _HomeMapPage3DState extends State<HomeMapPage3D>
           }
         }
 
+        // Couche pictos : marqueur picto pour les POI portant `pictoIconId`.
+        await _ensureMarketPoiPictoLayer(map, forceRebuild: forceRebuild);
+
         return; // OK
       } catch (_) {
         await Future.delayed(const Duration(milliseconds: 120));
       }
     }
+  }
+
+  /// Enregistre les images de pictos (rasterisées en Dart) et ajoute la couche
+  /// symbole associée. Additif : les POI sans picto gardent leur cercle.
+  Future<void> _ensureMarketPoiPictoLayer(
+    MapboxMap map, {
+    bool forceRebuild = false,
+  }) async {
+    final style = map.style;
+    try {
+      if (!_mmPictoImagesReady || forceRebuild) {
+        final images = await PoiPictoImageFactory.build(devicePixelRatio: 2.0);
+        for (final picto in images) {
+          if (picto.rgba.isEmpty) continue;
+          try {
+            await style.addStyleImage(
+              picto.id,
+              2.0,
+              MbxImage(
+                width: picto.width,
+                height: picto.height,
+                data: picto.rgba,
+              ),
+              false,
+              const [],
+              const [],
+              null,
+            );
+          } catch (_) {
+            // ignore (image déjà présente / style)
+          }
+        }
+        _mmPictoImagesReady = true;
+      }
+
+      if (!_mmPoiLayerIds.contains(_mmPoiPictoLayerId) || forceRebuild) {
+        try {
+          await style.addLayer(
+            SymbolLayer(id: _mmPoiPictoLayerId, sourceId: _mmPoiSourceId),
+          );
+        } catch (_) {
+          if (await style.styleLayerExists(_mmPoiPictoLayerId) != true) return;
+        }
+        await style.setStyleLayerProperty(_mmPoiPictoLayerId, 'icon-image', [
+          'get',
+          kPoiPictoIconIdProperty,
+        ]);
+        await style.setStyleLayerProperty(
+          _mmPoiPictoLayerId,
+          'icon-size',
+          0.9,
+        );
+        await style.setStyleLayerProperty(
+          _mmPoiPictoLayerId,
+          'icon-allow-overlap',
+          true,
+        );
+        await style.setStyleLayerProperty(
+          _mmPoiPictoLayerId,
+          'icon-ignore-placement',
+          true,
+        );
+        await style.setStyleLayerProperty(_mmPoiPictoLayerId, 'filter', [
+          'has',
+          kPoiPictoIconIdProperty,
+        ]);
+        _mmPoiLayerIds.add(_mmPoiPictoLayerId);
+      }
+    } catch (_) {
+      // Non bloquant : sans picto, les POI gardent leur cercle.
+    }
+  }
+
+  /// Identifiant d'image picto pour un POI (ou `null` si aucun picto choisi).
+  String? _mmPoiPictoIconId(Map<String, dynamic> meta) {
+    final raw = meta[kMasLivePoiPictoKey];
+    if (raw is! String) return null;
+    final picto = masLivePoiPictoById(raw);
+    if (picto == null) return null;
+    return poiPictoImageId(picto.id);
   }
 
   Future<void> _updateMarketPoiGeoJson() async {
@@ -2364,6 +2453,8 @@ class _HomeMapPage3DState extends State<HomeMapPage3D>
         rootLiveTableSummary: null,
       );
 
+      final pictoIconId = _mmPoiPictoIconId(meta);
+
       feats.add({
         'type': 'Feature',
         'id': d.id?.toString() ?? '',
@@ -2376,6 +2467,7 @@ class _HomeMapPage3DState extends State<HomeMapPage3D>
           'type': type,
           'name': name,
           'desc': desc,
+          if (pictoIconId != null) kPoiPictoIconIdProperty: pictoIconId,
           'imageUrl': imageUrl,
           'lng': coord.$1,
           'lat': coord.$2,

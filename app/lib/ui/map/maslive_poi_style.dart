@@ -393,6 +393,53 @@ const List<MasLivePoiPicto> kMasLivePoiPictos = [
   ),
 ];
 
+/// Regroupement des pictos par famille, pour l'affichage en galerie.
+@immutable
+class MasLivePoiPictoGroup {
+  final String label;
+  final List<String> pictoIds;
+
+  const MasLivePoiPictoGroup({required this.label, required this.pictoIds});
+}
+
+/// Ordre d'affichage des familles dans la galerie de la page d'édition POI.
+const List<MasLivePoiPictoGroup> kMasLivePoiPictoGroups = [
+  MasLivePoiPictoGroup(
+    label: 'Restauration',
+    pictoIds: ['food', 'restaurant', 'glace', 'bar', 'cafe', 'boisson'],
+  ),
+  MasLivePoiPictoGroup(
+    label: 'Services',
+    pictoIds: [
+      'wc',
+      'sante',
+      'pharmacie',
+      'secours',
+      'police',
+      'parking',
+      'atm',
+      'essence',
+      'info_tourisme',
+    ],
+  ),
+  MasLivePoiPictoGroup(
+    label: 'Culture & tourisme',
+    pictoIds: ['musee', 'monument', 'lieu_touristique', 'eglise', 'plage', 'parc'],
+  ),
+  MasLivePoiPictoGroup(
+    label: 'Commerce',
+    pictoIds: ['boutique', 'shopping', 'marche', 'hotel'],
+  ),
+  MasLivePoiPictoGroup(
+    label: 'Événement',
+    pictoIds: ['festival', 'musique', 'spectacle', 'fete', 'nightlife', 'stade', 'sport'],
+  ),
+  MasLivePoiPictoGroup(
+    label: 'Transport',
+    pictoIds: ['taxi', 'bus', 'bateau', 'rencontre'],
+  ),
+];
+
 /// Retourne le picto correspondant à [id], ou `null` si inconnu/vide.
 MasLivePoiPicto? masLivePoiPictoById(String? id) {
   final value = (id ?? '').trim();

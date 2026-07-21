@@ -8,6 +8,7 @@ import 'package:mapbox_maps_flutter/mapbox_maps_flutter.dart';
 
 import 'maslive_map_controller.dart';
 import 'maslive_poi_style.dart';
+import 'poi_picto_images.dart';
 import '../../services/mapbox_token_service.dart';
 import '../../route_style_pro/services/map_buildings_style_service_native.dart';
 import 'package:masslive/ui_kit/tokens/maslive_tokens.dart';
@@ -56,6 +57,7 @@ class _MasLiveMapNativeState extends State<MasLiveMapNative> {
   static const String _poiSourceId = 'src_pois';
   static const String _poiLayerId = 'ly_pois_circle';
   static const String _poiIconLayerId = 'ly_pois_icon_point';
+  static const String _poiPictoLayerId = 'ly_pois_picto';
   static const String _poiPreviewVertexLayerId = 'ly_pois_preview_vertices';
   static const String _poiZoneBadgeLayerId = 'ly_pois_zone_badge';
   static const String _poiZoneLabelLayerId = 'ly_pois_zone_label';
@@ -75,6 +77,10 @@ class _MasLiveMapNativeState extends State<MasLiveMapNative> {
   static const String _parkingBadgeMd = 'maslive_parking_badge_md';
   static const String _parkingBadgeLg = 'maslive_parking_badge_lg';
   static const String _poiIconPointId = 'maslive_poi_icon_point';
+
+  /// Images de pictos POI (rasterisées en Dart) fournies par la couche
+  /// applicative, à enregistrer via `addStyleImage`.
+  List<PoiPictoImage> _poiPictoImages = const [];
 
   static const List<String> _parkingCarBitmap = <String>[
     '................',
@@ -691,6 +697,17 @@ class _MasLiveMapNativeState extends State<MasLiveMapNative> {
     } catch (_) {
       // ignore
     }
+
+    // Images de pictos POI (Mapbox Pro)
+    try {
+      (controller as dynamic).registerPoiPictoImagesImpl =
+          (List<PoiPictoImage> images) async {
+        _poiPictoImages = images;
+        await _ensurePoiPictoImagesNative();
+      };
+    } catch (_) {
+      // ignore
+    }
   }
 
   Future<void> _applyCachedBuildings3dAfterStyleLoad() async {
@@ -1035,6 +1052,7 @@ class _MasLiveMapNativeState extends State<MasLiveMapNative> {
     if (!_styleLoaded) return;
 
     await _ensurePoiPatternImages();
+    await _ensurePoiPictoImagesNative();
 
     // ── Chemin rapide ────────────────────────────────────────────────────
     // Si les layers sont déjà construits pour ce style, on met simplement à
@@ -1070,6 +1088,11 @@ class _MasLiveMapNativeState extends State<MasLiveMapNative> {
     }
     try {
       await map.style.removeStyleLayer(_poiIconLayerId);
+    } catch (_) {
+      // ignore
+    }
+    try {
+      await map.style.removeStyleLayer(_poiPictoLayerId);
     } catch (_) {
       // ignore
     }
@@ -1550,6 +1573,41 @@ class _MasLiveMapNativeState extends State<MasLiveMapNative> {
       // ignore
     }
 
+    // Couche pictos POI : marqueur picto pour les POI portant `pictoIconId`
+    // (au-dessus du cercle). Additif : sans picto, le POI garde son cercle.
+    try {
+      await map.style.addLayer(
+        SymbolLayer(id: _poiPictoLayerId, sourceId: _poiSourceId),
+      );
+      await map.style.setStyleLayerProperty(_poiPictoLayerId, 'filter', [
+        'all',
+        [
+          '==',
+          ['geometry-type'],
+          'Point',
+        ],
+        ['has', kPoiPictoIconIdProperty],
+      ]);
+      await map.style.setStyleLayerProperty(
+        _poiPictoLayerId,
+        'icon-image',
+        ['get', kPoiPictoIconIdProperty],
+      );
+      await map.style.setStyleLayerProperty(_poiPictoLayerId, 'icon-size', 0.9);
+      await map.style.setStyleLayerProperty(
+        _poiPictoLayerId,
+        'icon-allow-overlap',
+        true,
+      );
+      await map.style.setStyleLayerProperty(
+        _poiPictoLayerId,
+        'icon-ignore-placement',
+        true,
+      );
+    } catch (_) {
+      // ignore
+    }
+
     // Layer séparé: vertices de prévisualisation (zone parking)
     // Important: ne pas l'inclure dans le hit-test POI.
     try {
@@ -1787,6 +1845,7 @@ class _MasLiveMapNativeState extends State<MasLiveMapNative> {
       _poiLineLayerDottedId,
       _poiLayerId,
       _poiIconLayerId,
+      _poiPictoLayerId,
       _poiZoneBadgeLayerId,
       _poiZoneLabelLayerId,
       _poiPreviewVertexLayerId,
@@ -2212,6 +2271,35 @@ class _MasLiveMapNativeState extends State<MasLiveMapNative> {
       debugPrint(
         '⚠️ Impossible de charger l\'image POI icon-point.webp pour Mapbox natif: $e',
       );
+    }
+  }
+
+  /// Enregistre les images de pictos POI (rasterisées en Dart) via
+  /// `addStyleImage`. Idempotent (les erreurs "déjà présent" sont ignorées) et
+  /// non bloqué par [_patternImagesReady] : les images sont ré-enregistrées
+  /// après un changement de style qui vide les images runtime.
+  Future<void> _ensurePoiPictoImagesNative() async {
+    final map = _mapboxMap;
+    if (map == null || !_styleLoaded) return;
+    for (final picto in _poiPictoImages) {
+      if (picto.rgba.isEmpty) continue;
+      try {
+        await map.style.addStyleImage(
+          picto.id,
+          2.0,
+          MbxImage(
+            width: picto.width,
+            height: picto.height,
+            data: picto.rgba,
+          ),
+          false,
+          const [],
+          const [],
+          null,
+        );
+      } catch (_) {
+        // ignore (déjà présent / style)
+      }
     }
   }
 

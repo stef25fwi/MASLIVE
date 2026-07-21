@@ -962,15 +962,34 @@ class _PoiEditPopupState extends State<PoiEditPopup> {
               icon: Icons.place_rounded,
               color: MasliveTokens.primary,
             ),
-            for (final picto in kMasLivePoiPictos)
-              _buildPictoTile(
-                id: picto.id,
-                label: picto.label,
-                icon: picto.icon,
-                color: picto.color,
-              ),
           ],
         ),
+        for (final group in kMasLivePoiPictoGroups) ...[
+          const SizedBox(height: 16),
+          Text(
+            group.label.toUpperCase(),
+            style: theme.textTheme.labelSmall?.copyWith(
+              fontWeight: FontWeight.w800,
+              letterSpacing: 0.6,
+              color: MasliveTokens.textMuted,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Wrap(
+            spacing: 10,
+            runSpacing: 10,
+            children: [
+              for (final id in group.pictoIds)
+                if (masLivePoiPictoById(id) case final picto?)
+                  _buildPictoTile(
+                    id: picto.id,
+                    label: picto.label,
+                    icon: picto.icon,
+                    color: picto.color,
+                  ),
+            ],
+          ),
+        ],
       ],
     );
   }
