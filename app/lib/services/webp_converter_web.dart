@@ -17,7 +17,23 @@ Future<Uint8List> convertBytesToWebp(
 
   try {
     final img = html.ImageElement(src: url);
-    await img.onLoad.first;
+    // Certains formats (HEIC/HEIF des photos iPhone, images corrompues) ne
+    // peuvent pas être décodés par le <img> du navigateur : celui-ci émet
+    // alors 'error' au lieu de 'load'. Sans écouter 'error' ni borner
+    // l'attente, cette future ne se termine jamais et bloque tout l'upload.
+    // On échoue vite (timeout inclus) pour laisser l'appelant retomber sur
+    // les octets d'origine.
+    bool loaded = false;
+    await Future.any<void>([
+      img.onLoad.first.then((_) => loaded = true),
+      img.onError.first.then((_) {}),
+      Future<void>.delayed(const Duration(seconds: 5)),
+    ]);
+    if (!loaded) {
+      throw StateError(
+        'Impossible de charger l\'image pour conversion WebP (format non supporté par le navigateur)',
+      );
+    }
 
     final width = img.naturalWidth;
     final height = img.naturalHeight;

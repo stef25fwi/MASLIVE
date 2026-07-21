@@ -474,7 +474,7 @@ class _PoiEditPopupState extends State<PoiEditPopup> {
       if (!mounted) return;
       TopSnackBar.showMessage(
         context,
-        '❌ Erreur sélection image: $e',
+        '❌ Erreur sélection image: ${_extractErrorMessage(e)}',
         isError: true,
       );
     }
@@ -636,7 +636,7 @@ class _PoiEditPopupState extends State<PoiEditPopup> {
       });
       TopSnackBar.showMessage(
         context,
-        '⚠️ Lecture image impossible: $e',
+        '⚠️ Lecture image impossible: ${_extractErrorMessage(e)}',
         isError: true,
       );
     }
@@ -746,6 +746,12 @@ class _PoiEditPopupState extends State<PoiEditPopup> {
     }
     if (msg.contains('Storage quota')) {
       return 'Quota de stockage dépassé';
+    }
+    if (msg.toLowerCase().contains('blob')) {
+      // Web: le fichier sélectionné référence une donnée navigateur (blob:)
+      // qui n'a pas pu être relue (photo HEIC/format non supporté, blob
+      // expiré). Réessayer avec une nouvelle sélection résout ce cas.
+      return 'Photo illisible dans le navigateur. Réessayez de la sélectionner (ou utilisez un format JPEG/PNG).';
     }
     if (msg.contains('Network')) {
       return 'Erreur réseau';
