@@ -721,6 +721,26 @@ class _LoginPageState extends State<LoginPage> {
                         ],
                       ),
                     ),
+                    const SizedBox(height: 14),
+                    Center(
+                      child: TextButton.icon(
+                        onPressed: () =>
+                            Navigator.of(context).pushNamed('/legal'),
+                        icon: const Icon(Icons.info_outline, size: 16),
+                        style: TextButton.styleFrom(
+                          foregroundColor: MasliveTokens.primary,
+                        ),
+                        label: const Text(
+                          'Qui sommes-nous ? · Mentions légales & CGU',
+                          textAlign: TextAlign.center,
+                          style: TextStyle(
+                            fontSize: 12.5,
+                            fontWeight: FontWeight.w700,
+                            decoration: TextDecoration.underline,
+                          ),
+                        ),
+                      ),
+                    ),
                     const SizedBox(height: 6),
                   ],
                 ),
