@@ -3457,9 +3457,7 @@ class _HomeMapPage3DState extends State<HomeMapPage3D>
       await showPolaroidPoiSheet(
         context: context,
         title: title,
-        description: description.isEmpty
-            ? 'Aucune description disponible'
-            : description,
+        description: description,
         imageUrl: (imageUrl ?? '').trim().isEmpty ? null : imageUrl,
         meta: meta,
         hours: openingHours,

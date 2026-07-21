@@ -657,9 +657,7 @@ class _DefaultMapPageState extends State<DefaultMapPage>
       await showPolaroidPoiSheet(
         context: context,
         title: title,
-        description: description.isEmpty
-            ? 'Aucune description disponible'
-            : description,
+        description: description,
         imageUrl: imageUrl.isEmpty ? null : imageUrl,
         meta: poi.metadata,
         hours: _marketPoiOpeningHoursText(poi.openingHours),
