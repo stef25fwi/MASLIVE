@@ -113,25 +113,38 @@ class PoiPictoImageFactory {
           ..isAntiAlias = true,
       );
 
-      // Glyphe Material centré.
-      final glyphSize = s * 0.54;
-      final painter = TextPainter(
-        text: TextSpan(
-          text: String.fromCharCode(picto.icon.codePoint),
-          style: TextStyle(
-            fontSize: glyphSize,
-            fontFamily: picto.icon.fontFamily,
-            package: picto.icon.fontPackage,
-            color: picto.color,
-            height: 1.0,
+      // Glyphe centré : peintre vectoriel personnalisé si présent (aucune
+      // icône Material ne correspond visuellement), sinon glyphe Material.
+      final glyphBuilder = picto.painterBuilder;
+      if (glyphBuilder != null) {
+        final glyphSize = s * 0.62;
+        canvas.save();
+        canvas.translate(
+          center.dx - glyphSize / 2,
+          center.dy - glyphSize / 2,
+        );
+        glyphBuilder(picto.color).paint(canvas, Size(glyphSize, glyphSize));
+        canvas.restore();
+      } else {
+        final glyphSize = s * 0.54;
+        final painter = TextPainter(
+          text: TextSpan(
+            text: String.fromCharCode(picto.icon.codePoint),
+            style: TextStyle(
+              fontSize: glyphSize,
+              fontFamily: picto.icon.fontFamily,
+              package: picto.icon.fontPackage,
+              color: picto.color,
+              height: 1.0,
+            ),
           ),
-        ),
-        textDirection: TextDirection.ltr,
-      )..layout();
-      painter.paint(
-        canvas,
-        Offset(center.dx - painter.width / 2, center.dy - painter.height / 2),
-      );
+          textDirection: TextDirection.ltr,
+        )..layout();
+        painter.paint(
+          canvas,
+          Offset(center.dx - painter.width / 2, center.dy - painter.height / 2),
+        );
+      }
 
       final image = await recorder.endRecording().toImage(size, size);
       try {

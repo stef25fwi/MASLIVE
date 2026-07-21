@@ -1014,6 +1014,7 @@ class _PoiEditPopupState extends State<PoiEditPopup> {
                     label: picto.label,
                     icon: picto.icon,
                     color: picto.color,
+                    painterBuilder: picto.painterBuilder,
                   ),
             ],
           ),
@@ -1027,6 +1028,7 @@ class _PoiEditPopupState extends State<PoiEditPopup> {
     required String label,
     required IconData icon,
     required Color color,
+    MasLivePoiPictoPainterBuilder? painterBuilder,
   }) {
     final selected = (_pictoId ?? '') == (id ?? '');
     return InkWell(
@@ -1054,7 +1056,12 @@ class _PoiEditPopupState extends State<PoiEditPopup> {
                 color: color.withValues(alpha: 0.16),
                 shape: BoxShape.circle,
               ),
-              child: Icon(icon, size: 24, color: color),
+              child: painterBuilder != null
+                  ? CustomPaint(
+                      size: const Size(24, 24),
+                      painter: painterBuilder(color),
+                    )
+                  : Icon(icon, size: 24, color: color),
             ),
             const SizedBox(height: 6),
             Text(
@@ -1087,7 +1094,12 @@ class _PoiEditPopupState extends State<PoiEditPopup> {
           ),
         ],
       ),
-      child: Icon(picto.icon, size: 20, color: picto.color),
+      child: picto.painterBuilder != null
+          ? CustomPaint(
+              size: const Size(20, 20),
+              painter: picto.painterBuilder!(picto.color),
+            )
+          : Icon(picto.icon, size: 20, color: picto.color),
     );
   }
 

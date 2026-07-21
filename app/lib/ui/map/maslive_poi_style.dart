@@ -153,18 +153,96 @@ const String kMasLivePoiPictoKey = 'picto';
 /// Basé sur les icônes Material (aucun asset requis), ce qui garantit un
 /// rendu net et cohérent quelle que soit la plateforme.
 @immutable
+/// Construit un peintre vectoriel personnalisé pour un picto (utilisé quand
+/// aucune icône Material ne correspond visuellement à ce qui est demandé —
+/// ex: silhouette d'agent de police).
+typedef MasLivePoiPictoPainterBuilder = CustomPainter Function(Color color);
+
 class MasLivePoiPicto {
   final String id;
   final String label;
   final IconData icon;
   final Color color;
 
+  /// Peintre vectoriel optionnel, utilisé à la place de [icon] quand présent.
+  final MasLivePoiPictoPainterBuilder? painterBuilder;
+
   const MasLivePoiPicto({
     required this.id,
     required this.label,
     required this.icon,
     this.color = MasliveTokens.primary,
+    this.painterBuilder,
   });
+}
+
+/// Silhouette d'agent de police (casquette + insigne + buste), dessinée en
+/// vectoriel (aucune icône Material ne représente précisément ce visuel).
+/// Viewbox 24x24, style silhouette pleine (cohérent avec un picto rond).
+class _PoliceOfficerBustPainter extends CustomPainter {
+  const _PoliceOfficerBustPainter({required this.color});
+  final Color color;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final scale = size.shortestSide / 24.0;
+    canvas.save();
+    canvas.scale(scale, scale);
+
+    final silhouette = Path()
+      // Sommet de la casquette.
+      ..addOval(
+        Rect.fromCenter(center: const Offset(12, 3.6), width: 8.6, height: 3.6),
+      )
+      // Visière / bandeau de la casquette.
+      ..addRRect(
+        RRect.fromRectAndRadius(
+          const Rect.fromLTWH(6.4, 4.6, 11.2, 2.0),
+          const Radius.circular(1.0),
+        ),
+      )
+      // Tête.
+      ..addOval(
+        Rect.fromCenter(center: const Offset(12, 8.4), width: 7.0, height: 6.6),
+      )
+      // Buste / épaules (manteau).
+      ..addPath(
+        Path()
+          ..moveTo(9.6, 11.2)
+          ..lineTo(14.4, 11.2)
+          ..lineTo(19.4, 15.4)
+          ..lineTo(19.4, 21.4)
+          ..lineTo(4.6, 21.4)
+          ..lineTo(4.6, 15.4)
+          ..close(),
+        Offset.zero,
+      );
+
+    final holes = Path()
+      // Insigne sur la casquette.
+      ..addOval(
+        Rect.fromCenter(center: const Offset(12, 5.5), width: 1.3, height: 1.3),
+      )
+      // Col ouvert / cravate.
+      ..addPath(
+        Path()
+          ..moveTo(10.6, 11.2)
+          ..lineTo(12, 14.4)
+          ..lineTo(13.4, 11.2)
+          ..close(),
+        Offset.zero,
+      );
+
+    final combined = Path.combine(PathOperation.difference, silhouette, holes);
+    canvas.drawPath(combined, Paint()
+      ..color = color
+      ..isAntiAlias = true);
+    canvas.restore();
+  }
+
+  @override
+  bool shouldRepaint(covariant _PoliceOfficerBustPainter oldDelegate) =>
+      oldDelegate.color != color;
 }
 
 /// Catalogue des pictogrammes proposés dans la galerie.
@@ -202,6 +280,13 @@ const List<MasLivePoiPicto> kMasLivePoiPictos = [
     label: 'Police',
     icon: Icons.local_police_outlined,
     color: Color(0xFF283593),
+  ),
+  MasLivePoiPicto(
+    id: 'police_agent',
+    label: 'Agent de police',
+    icon: Icons.local_police_outlined,
+    color: Color(0xFF1A237E),
+    painterBuilder: (color) => _PoliceOfficerBustPainter(color: color),
   ),
   MasLivePoiPicto(
     id: 'sante',
@@ -416,6 +501,7 @@ const List<MasLivePoiPictoGroup> kMasLivePoiPictoGroups = [
       'pharmacie',
       'secours',
       'police',
+      'police_agent',
       'parking',
       'atm',
       'essence',
