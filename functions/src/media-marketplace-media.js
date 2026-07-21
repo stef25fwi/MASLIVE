@@ -408,7 +408,7 @@ module.exports = function createMediaMarketplaceMedia({
   }
 
   const getMediaDownloadUrl = onCall(
-    { region: "us-east1", timeoutSeconds: 30, memory: "256MiB", maxInstances: 20 },
+    { region: "us-east1", cpu: 0.5, timeoutSeconds: 30, memory: "256MiB", maxInstances: 20 },
     async (request) => {
       const buyerUid = request.auth?.uid
       if (!buyerUid) throw new HttpsError("unauthenticated", "Authentication required")
@@ -460,7 +460,7 @@ module.exports = function createMediaMarketplaceMedia({
   )
 
   const syncMediaPhotoOnCreate = onDocumentCreated(
-    { document: "media_photos/{photoId}", region: "us-east1", timeoutSeconds: 300, memory: "1GiB", maxInstances: 10 },
+    { document: "media_photos/{photoId}", region: "us-east1", cpu: 0.5, timeoutSeconds: 300, memory: "1GiB", maxInstances: 10 },
     async (event) => {
       const snapshot = event.data
       if (!snapshot) return
