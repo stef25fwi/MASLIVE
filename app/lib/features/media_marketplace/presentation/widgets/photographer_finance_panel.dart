@@ -106,7 +106,7 @@ class _PhotographerFinancePanelState extends State<PhotographerFinancePanel> {
       .where((row) => statuses.contains(row['status']?.toString() ?? ''))
       .fold<double>(
         0,
-        (sum, row) => sum +
+        (total, row) => total +
             ((row['net'] as num?)?.toDouble() ??
                 (row['photographerAmount'] as num?)?.toDouble() ??
                 0),
@@ -208,14 +208,14 @@ class _PhotographerFinancePanelState extends State<PhotographerFinancePanel> {
     }
     final orders = _filteredOrders;
     final payouts = _filteredPayouts;
-    final gross = orders.fold<double>(0, (sum, order) => sum + order.total);
+    final gross = orders.fold<double>(0, (total, order) => total + order.total);
     final fees = orders.fold<double>(
       0,
-      (sum, order) => sum + order.platformFee + order.stripeFee,
+      (total, order) => total + order.platformFee + order.stripeFee,
     );
     final net = orders.fold<double>(
       0,
-      (sum, order) => sum + order.photographerNetTotal,
+      (total, order) => total + order.photographerNetTotal,
     );
     final upcoming = _payouts.where((row) {
       final status = row['status']?.toString();

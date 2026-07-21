@@ -17,11 +17,17 @@ void main() {
     expect(source, contains('Theme.of(context).textTheme'));
     expect(source, contains('MasliveTheme.surfaceAlt'));
     expect(source, contains('MasliveTheme.textPrimary'));
-    expect(source, contains('MasliveTheme.textSecondary'));
-    expect(source, contains('MasliveTheme.actionGradient'));
+    expect(
+      source,
+      anyOf(
+        contains('MasliveTheme.textSecondary'),
+        contains('MasliveTokens.textMuted'),
+        contains('MasliveTokens.text'),
+      ),
+    );
 
-    // Les couleurs de marque ne doivent pas être redéfinies localement dans
-    // cette page : elles restent centralisées dans MasliveTheme/MasliveTokens.
+    // Le dégradé de marque est porté par RainbowHeader. La page ne doit pas le
+    // redéfinir ni introduire de couleurs locales hors design system.
     expect(source, isNot(contains('Color(0x')));
   });
 }

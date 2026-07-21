@@ -184,7 +184,7 @@ class _PhotographerGalleryManagerPageState
                     },
                   ),
                   DropdownButtonFormField<MediaVisibility>(
-                    value: visibility,
+                    initialValue: visibility,
                     decoration: const InputDecoration(
                       labelText: 'Visibilité après publication',
                       border: OutlineInputBorder(),

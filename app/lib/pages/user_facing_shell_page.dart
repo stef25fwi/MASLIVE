@@ -75,7 +75,7 @@ class _UserFacingShellPageState extends State<UserFacingShellPage> {
       ..._mediaArgs,
       'galleryId': galleryId,
       'access': access,
-      if (participant != null) 'participant': participant,
+      'participant': ?participant,
     };
   }
 

@@ -2,16 +2,36 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 
+import '../../security/profile_capability_policy.dart';
+import '../../widgets/capability_guard.dart';
+
 class SellerInboxPage extends StatelessWidget {
   const SellerInboxPage({super.key});
 
   @override
   Widget build(BuildContext context) {
+    return CapabilityGuard.any(
+      anyOf: const <Capability>[
+        Capability.manageOwnGallery,
+        Capability.manageArtGallery,
+        Capability.manageGroupShop,
+        Capability.manageAllOrders,
+      ],
+      fullPage: true,
+      message: 'Cette inbox est réservée aux vendeurs et gestionnaires autorisés.',
+      child: const _SellerInboxContent(),
+    );
+  }
+}
+
+class _SellerInboxContent extends StatelessWidget {
+  const _SellerInboxContent();
+
+  @override
+  Widget build(BuildContext context) {
     final uid = FirebaseAuth.instance.currentUser?.uid;
     if (uid == null) {
-      return const Scaffold(
-        body: Center(child: Text('Connexion requise')),
-      );
+      return const Scaffold(body: Center(child: Text('Connexion requise')));
     }
 
     final inboxQuery = FirebaseFirestore.instance
@@ -22,51 +42,46 @@ class SellerInboxPage extends StatelessWidget {
         .limit(200);
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Inbox vendeur'),
-      ),
+      appBar: AppBar(title: const Text('Inbox vendeur')),
       body: StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
         stream: inboxQuery.snapshots(),
-        builder: (context, snap) {
-          if (!snap.hasData) {
+        builder: (context, snapshot) {
+          if (!snapshot.hasData) {
             return const Center(child: CircularProgressIndicator());
           }
-
-          final docs = snap.data!.docs;
+          final docs = snapshot.data!.docs;
           if (docs.isEmpty) {
-            return const Center(child: Text('Aucun message'));
+            return const Center(child: Text('Aucun message vendeur'));
           }
 
           return ListView.separated(
             padding: const EdgeInsets.all(16),
             itemCount: docs.length,
             separatorBuilder: (_, _) => const SizedBox(height: 10),
-            itemBuilder: (context, i) {
-              final d = docs[i];
-              final data = d.data();
-
+            itemBuilder: (context, index) {
+              final document = docs[index];
+              final data = document.data();
               final title = (data['title'] ?? '').toString();
               final body = (data['body'] ?? '').toString();
               final orderId = (data['orderId'] ?? '').toString();
               final read = data['read'] == true;
-
-              final ts = data['createdAt'];
-              final createdAt = ts is Timestamp ? ts.toDate() : null;
+              final timestamp = data['createdAt'];
+              final createdAt = timestamp is Timestamp ? timestamp.toDate() : null;
 
               return InkWell(
                 borderRadius: BorderRadius.circular(14),
                 onTap: () async {
-                  // Mark read (best-effort)
                   try {
-                    await d.reference.set(
-                      {'read': true},
+                    await document.reference.set(
+                      <String, dynamic>{'read': true},
                       SetOptions(merge: true),
                     );
                   } catch (_) {}
-
-                  if (orderId.isEmpty) return;
-                  if (!context.mounted) return;
-                  Navigator.of(context).pushNamed('/seller-order', arguments: orderId);
+                  if (orderId.isEmpty || !context.mounted) return;
+                  Navigator.of(context).pushNamed(
+                    '/seller-order',
+                    arguments: orderId,
+                  );
                 },
                 child: Container(
                   padding: const EdgeInsets.all(14),
@@ -77,7 +92,7 @@ class SellerInboxPage extends StatelessWidget {
                   ),
                   child: Row(
                     crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
+                    children: <Widget>[
                       Container(
                         width: 40,
                         height: 40,
@@ -85,29 +100,37 @@ class SellerInboxPage extends StatelessWidget {
                           borderRadius: BorderRadius.circular(12),
                           color: read ? Colors.black12 : Colors.orange,
                         ),
-                        child: const Icon(Icons.shopping_bag, color: Colors.white, size: 20),
+                        child: const Icon(
+                          Icons.shopping_bag,
+                          color: Colors.white,
+                          size: 20,
+                        ),
                       ),
                       const SizedBox(width: 12),
                       Expanded(
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
+                          children: <Widget>[
                             Row(
-                              children: [
+                              children: <Widget>[
                                 Expanded(
                                   child: Text(
                                     title.isEmpty ? 'Message' : title,
                                     maxLines: 1,
                                     overflow: TextOverflow.ellipsis,
                                     style: TextStyle(
-                                      fontWeight: read ? FontWeight.w700 : FontWeight.w900,
+                                      fontWeight:
+                                          read ? FontWeight.w700 : FontWeight.w900,
                                     ),
                                   ),
                                 ),
                                 if (createdAt != null)
                                   Text(
                                     _formatDate(createdAt),
-                                    style: const TextStyle(color: Colors.black45, fontSize: 12),
+                                    style: const TextStyle(
+                                      color: Colors.black45,
+                                      fontSize: 12,
+                                    ),
                                   ),
                               ],
                             ),
@@ -118,11 +141,14 @@ class SellerInboxPage extends StatelessWidget {
                               overflow: TextOverflow.ellipsis,
                               style: const TextStyle(color: Colors.black54),
                             ),
-                            if (orderId.isNotEmpty) ...[
+                            if (orderId.isNotEmpty) ...<Widget>[
                               const SizedBox(height: 8),
                               Text(
                                 'Commande: ${orderId.substring(0, orderId.length.clamp(0, 10)).toUpperCase()}',
-                                style: const TextStyle(color: Colors.black38, fontSize: 12),
+                                style: const TextStyle(
+                                  color: Colors.black38,
+                                  fontSize: 12,
+                                ),
                               ),
                             ],
                           ],

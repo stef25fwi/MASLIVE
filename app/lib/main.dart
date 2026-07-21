@@ -97,6 +97,8 @@ import 'ui/widgets/honeycomb_background.dart';
 import 'utils/debug_log_buffer.dart';
 import 'utils/startup_trace.dart';
 import 'widgets/admin_route_guard.dart';
+import 'widgets/capability_guard.dart';
+import 'security/profile_capability_policy.dart';
 import 'widgets/localized_app.dart';
 
 final GlobalKey<NavigatorState> _rootNavigatorKey = GlobalKey<NavigatorState>();
@@ -744,12 +746,21 @@ Route<dynamic>? _onGenerateRoute(RouteSettings settings) {
       );
       break;
     case '/account':
-    case '/account-admin':
-      page = _DeferredLoader(
+    page = _DeferredLoader(
+      load: account.loadLibrary,
+      build: () => account.AccountAndAdminPage(),
+    );
+    break;
+  case '/account-admin':
+    page = CapabilityGuard(
+      capability: Capability.accessAdminPanel,
+      fullPage: true,
+      child: _DeferredLoader(
         load: account.loadLibrary,
         build: () => account.AccountAndAdminPage(),
-      );
-      break;
+      ),
+    );
+    break;
     case '/login':
       page = _DeferredLoader(
         load: user_shell.loadLibrary,
