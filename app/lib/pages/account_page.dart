@@ -159,6 +159,29 @@ class _AccountUiPageState extends State<AccountUiPage> {
                     ),
                     SliverToBoxAdapter(
                       child: Padding(
+                        padding: const EdgeInsets.fromLTRB(10, 0, 10, 8),
+                        child: MasliveCard(
+                          child: ListTile(
+                            contentPadding: const EdgeInsets.symmetric(
+                              horizontal: 8,
+                            ),
+                            leading: const Icon(
+                              Icons.privacy_tip_outlined,
+                              color: MasliveTokens.primary,
+                            ),
+                            title: const Text('Mes données personnelles'),
+                            subtitle: const Text(
+                              'Exporter mes données ou supprimer mon compte (RGPD)',
+                            ),
+                            trailing: const Icon(Icons.chevron_right_rounded),
+                            onTap: () =>
+                                Navigator.of(context).pushNamed('/my-data'),
+                          ),
+                        ),
+                      ),
+                    ),
+                    SliverToBoxAdapter(
+                      child: Padding(
                         padding: const EdgeInsets.fromLTRB(10, 0, 10, 18),
                         child: SizedBox(
                           width: double.infinity,
