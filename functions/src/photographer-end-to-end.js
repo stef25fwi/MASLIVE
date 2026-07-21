@@ -725,7 +725,7 @@ module.exports = function createPhotographerEndToEnd({
   }
 
   const getMediaDownloadUrl = onCall(
-    { region, timeoutSeconds: 120, memory: "1GiB" },
+    { region, cpu: 0.5, timeoutSeconds: 120, memory: "1GiB" },
     async (request) => {
       const buyerUid = request.auth?.uid
       if (!buyerUid) throw new HttpsError("unauthenticated", "Authentication required")
@@ -774,7 +774,7 @@ module.exports = function createPhotographerEndToEnd({
   }
 
   const applyGalleryWatermark = onDocumentUpdated(
-    { document: "media_photos/{photoId}", region, timeoutSeconds: 180, memory: "1GiB", maxInstances: 10 },
+    { document: "media_photos/{photoId}", region, cpu: 0.5, timeoutSeconds: 180, memory: "1GiB", maxInstances: 10 },
     async (event) => {
       const before = event.data?.before?.data() || {}
       const after = event.data?.after?.data() || {}

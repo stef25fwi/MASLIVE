@@ -434,7 +434,7 @@ module.exports = function createPhotographerCompleteFlow({
   )
 
   const deletePhotographerGallery = onCall(
-    { region, timeoutSeconds: 120, memory: "1GiB" },
+    { region, cpu: 0.5, timeoutSeconds: 120, memory: "1GiB" },
     async (request) => {
       const context = await ownedProfile(request)
       const galleryId = text(request.data?.galleryId, 160)
@@ -675,7 +675,7 @@ module.exports = function createPhotographerCompleteFlow({
   }
 
   const analyzePhotographerPhoto = onDocumentUpdated(
-    { document: "media_photos/{photoId}", region, timeoutSeconds: 180, memory: "1GiB", maxInstances: 10 },
+    { document: "media_photos/{photoId}", region, cpu: 0.5, timeoutSeconds: 180, memory: "1GiB", maxInstances: 10 },
     async (event) => {
       const before = event.data?.before?.data() || {}
       const after = event.data?.after?.data() || {}

@@ -79,6 +79,7 @@ function createPoiImageWebpHandlers({ admin, db, onObjectFinalized, logger, shar
   const convertPlacePhotoUploadToWebp = onObjectFinalized(
     {
       region: "us-east1",
+      cpu: 0.5,
       timeoutSeconds: 120,
       memory: "1GiB",
     },
