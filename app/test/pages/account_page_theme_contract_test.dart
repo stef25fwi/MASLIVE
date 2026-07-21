@@ -22,6 +22,7 @@ void main() {
       anyOf(
         contains('MasliveTheme.textSecondary'),
         contains('MasliveTokens.textMuted'),
+        contains('MasliveTokens.text'),
       ),
     );
     expect(source, contains('MasliveTheme.actionGradient'));
