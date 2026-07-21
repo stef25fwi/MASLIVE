@@ -249,7 +249,10 @@ class _PoliceOfficerBustPainter extends CustomPainter {
 ///
 /// Important: les `id` sont persistés dans Firestore via
 /// `MarketMapPOI.metadata['picto']`. Ne pas renommer un `id` existant.
-const List<MasLivePoiPicto> kMasLivePoiPictos = [
+// Non-const : le picto "Agent de police" utilise un painterBuilder (closure
+// vers un CustomPainter), qui n'est pas une expression constante de
+// compilation — une liste `const` forcerait chaque élément à en être une.
+final List<MasLivePoiPicto> kMasLivePoiPictos = [
   // --- Sélection recommandée (choix par défaut) ---
   MasLivePoiPicto(
     id: 'food',
