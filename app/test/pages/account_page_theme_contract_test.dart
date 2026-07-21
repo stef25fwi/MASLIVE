@@ -25,10 +25,9 @@ void main() {
         contains('MasliveTokens.text'),
       ),
     );
-    expect(source, contains('MasliveTheme.actionGradient'));
 
-    // Les couleurs de marque ne doivent pas être redéfinies localement dans
-    // cette page : elles restent centralisées dans MasliveTheme/MasliveTokens.
+    // Le dégradé de marque est porté par RainbowHeader. La page ne doit pas le
+    // redéfinir ni introduire de couleurs locales hors design system.
     expect(source, isNot(contains('Color(0x')));
   });
 }
