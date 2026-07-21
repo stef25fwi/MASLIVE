@@ -40,6 +40,7 @@ import 'pages/shop/storex_route_args.dart';
 import 'route_style_pro/ui/route_style_pro_args.dart';
 // ── Eager: pages critiques au démarrage ──
 import 'pages/default_map_page.dart';
+import 'pages/legal_page.dart';
 import 'pages/splash_wrapper_page.dart';
 import 'utils/storage_url_cache.dart';
 import 'widgets/debug/debug_admin_overlay.dart';
@@ -1285,6 +1286,15 @@ Route<dynamic>? _onGenerateRoute(RouteSettings settings) {
           return const _RouteArgsErrorPage(routeName: '/public/marketmap');
         },
       );
+      break;
+
+    // ── Informations légales ──
+    case '/legal':
+    case '/mentions-legales':
+      page = const LegalPage();
+      break;
+    case '/cgu':
+      page = const LegalPage(initialTab: 1);
       break;
   }
 
