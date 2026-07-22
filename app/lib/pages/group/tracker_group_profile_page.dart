@@ -255,6 +255,29 @@ class _TrackerGroupProfileContentState
                   icon: Icon(_tracking ? Icons.stop : Icons.play_arrow),
                   label: Text(_tracking ? 'Arrêter' : 'Démarrer'),
                 ),
+                const SizedBox(height: 8),
+                const Padding(
+                  padding: EdgeInsets.symmetric(horizontal: 8),
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Icon(Icons.public, size: 15, color: Colors.grey),
+                      SizedBox(width: 6),
+                      Expanded(
+                        child: Text(
+                          'En activant le suivi, la position de votre groupe '
+                          'est visible publiquement sur la carte de '
+                          'l\'événement. Vous pouvez l\'arrêter à tout moment.',
+                          style: TextStyle(
+                            fontSize: 12,
+                            height: 1.35,
+                            color: Colors.grey,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
               ],
             ),
           ),
