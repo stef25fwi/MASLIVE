@@ -13,6 +13,7 @@ import '../../widgets/capability_guard.dart';
 import 'group_export_page.dart';
 import 'group_map_live_page.dart';
 import 'group_track_history_page.dart';
+import 'package:masslive/ui_kit/tokens/maslive_tokens.dart';
 
 class AdminGroupDashboardPage extends StatefulWidget {
   const AdminGroupDashboardPage({super.key});
@@ -284,6 +285,28 @@ class _AdminGroupDashboardPageState extends State<AdminGroupDashboardPage> {
             onPressed: _toggleTracking,
             icon: Icon(_tracking ? Icons.stop : Icons.play_arrow),
             label: Text(_tracking ? 'Arrêter le tracking' : 'Démarrer le tracking'),
+          ),
+          const Padding(
+            padding: EdgeInsets.only(top: 8, left: 4, right: 4),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Icon(Icons.public, size: 15, color: MasliveTokens.textMuted),
+                SizedBox(width: 6),
+                Expanded(
+                  child: Text(
+                    'En activant le suivi, la position de votre groupe est '
+                    'visible publiquement sur la carte de l\'événement. '
+                    'Vous pouvez l\'arrêter à tout moment.',
+                    style: TextStyle(
+                      fontSize: 12,
+                      height: 1.35,
+                      color: MasliveTokens.textMuted,
+                    ),
+                  ),
+                ),
+              ],
+            ),
           ),
           const SizedBox(height: 12),
           _ActionTile(
