@@ -268,6 +268,7 @@ jobs:
           exit "$failed"
 
       - name: Verify production manifest
+        id: verify_production
         if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
         run: |
           set -euo pipefail
@@ -282,6 +283,37 @@ jobs:
           done
           echo "::error::Le manifeste de production ne correspond pas au commit ${expected}."
           exit 1
+
+      - name: Report responsive final production status
+        if: always() && github.event_name == 'push' && contains(github.event.head_commit.message, '[responsive-final]')
+        env:
+          GH_TOKEN: ${{ github.token }}
+          BUILD_OUTCOME: ${{ steps.flutter_build.outcome }}
+          AUTH_OUTCOME: ${{ steps.firebase_auth.outcome }}
+          RULES_OUTCOME: ${{ steps.deploy_rules.outcome }}
+          FUNCTIONS_OUTCOME: ${{ steps.deploy_functions.outcome }}
+          HOSTING_OUTCOME: ${{ steps.deploy_hosting.outcome }}
+          VERIFY_OUTCOME: ${{ steps.verify_production.outcome }}
+        run: |
+          set -euo pipefail
+          {
+            echo "## Déploiement production — validation responsive finale"
+            echo
+            echo "- Commit : \`${GITHUB_SHA}\`"
+            echo "- Run : [${GITHUB_RUN_ID}](https://github.com/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID})"
+            echo "- Build Flutter Web : **${BUILD_OUTCOME}**"
+            echo "- Authentification Firebase : **${AUTH_OUTCOME}**"
+            echo "- Règles / index / Storage : **${RULES_OUTCOME}**"
+            echo "- Cloud Functions : **${FUNCTIONS_OUTCOME}**"
+            echo "- Firebase Hosting : **${HOSTING_OUTCOME}**"
+            echo "- Manifeste de production : **${VERIFY_OUTCOME}**"
+            echo
+            echo "Production : https://maslive.web.app"
+          } > responsive-production-comment.md
+          jq -n --rawfile body responsive-production-comment.md '{body: $body}' > responsive-production-comment.json
+          gh api --method POST \
+            "repos/${GITHUB_REPOSITORY}/issues/69/comments" \
+            --input responsive-production-comment.json
 
       - name: Production deployment summary
         if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
