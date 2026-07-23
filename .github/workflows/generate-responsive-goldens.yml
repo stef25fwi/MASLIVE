@@ -1,0 +1,69 @@
+name: Generate Responsive Golden References
+
+on:
+  pull_request:
+    branches: [main]
+    types: [opened, synchronize, reopened]
+
+permissions:
+  contents: write
+  pull-requests: read
+
+concurrency:
+  group: responsive-goldens-${{ github.event.pull_request.number }}
+  cancel-in-progress: false
+
+jobs:
+  generate-validate-commit:
+    if: github.actor != 'github-actions[bot]' && github.head_ref == 'test/responsive-final-matrix'
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+
+    steps:
+      - name: Checkout responsive validation branch
+        uses: actions/checkout@v4
+        with:
+          ref: test/responsive-final-matrix
+          fetch-depth: 0
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: "3.44.4"
+          cache: true
+
+      - name: Install Flutter dependencies
+        working-directory: app
+        run: flutter pub get
+
+      - name: Generate responsive golden images
+        working-directory: app
+        run: flutter test test/ui_kit/responsive/responsive_golden_test.dart --update-goldens
+
+      - name: Verify generated golden images
+        working-directory: app
+        run: flutter test test/ui_kit/responsive/responsive_golden_test.dart
+
+      - name: Validate responsive matrix and accessibility
+        working-directory: app
+        run: |
+          flutter test \
+            test/ui_kit/responsive/responsive_viewport_matrix_test.dart \
+            test/responsive/full_responsive_page_contract_test.dart
+
+      - name: Flutter analyze
+        working-directory: app
+        run: flutter analyze --fatal-infos --fatal-warnings
+
+      - name: Commit validated golden references
+        run: |
+          if git diff --quiet -- app/test/ui_kit/responsive/goldens; then
+            echo "Aucune nouvelle référence golden à publier."
+            exit 0
+          fi
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add app/test/ui_kit/responsive/goldens
+          git commit -m "test(responsive): add multi-screen golden references"
+          git push origin HEAD:test/responsive-final-matrix
