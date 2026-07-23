@@ -32,9 +32,7 @@ class UserFacingNavigationRail extends StatelessWidget {
           child: DecoratedBox(
             decoration: const BoxDecoration(
               color: Colors.white,
-              border: Border(
-                right: BorderSide(color: Color(0x1F0F172A)),
-              ),
+              border: Border(right: BorderSide(color: Color(0x1F0F172A))),
             ),
             child: NavigationRail(
               extended: extended,
@@ -134,10 +132,7 @@ class UserFacingNavigationRail extends StatelessWidget {
 }
 
 class _ProfileRailIcon extends StatelessWidget {
-  const _ProfileRailIcon({
-    required this.active,
-    required this.isConnected,
-  });
+  const _ProfileRailIcon({required this.active, required this.isConnected});
 
   final bool active;
   final bool isConnected;

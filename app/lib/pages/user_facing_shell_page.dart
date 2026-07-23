@@ -234,7 +234,9 @@ class _UserFacingShellPageState extends State<UserFacingShellPage> {
     final photographerId = _mediaArgs['photographerId']?.toString().trim();
     if (photographerId?.isNotEmpty == true) {
       return PhotographerPublicStorefrontPage(
-        key: ValueKey<String>('storefront:$photographerId:${_mediaArgs.toString()}'),
+        key: ValueKey<String>(
+          'storefront:$photographerId:${_mediaArgs.toString()}',
+        ),
         photographerId: photographerId!,
         countryId: _mediaArgs['countryId'] as String?,
         countryName: _mediaArgs['countryName'] as String?,
@@ -349,8 +351,7 @@ class _UserFacingShellPageState extends State<UserFacingShellPage> {
             final width = constraints.maxWidth.isFinite
                 ? constraints.maxWidth
                 : MediaQuery.sizeOf(context).width;
-            final useNavigationRail =
-                width >= MasliveBreakpoints.mediumMin;
+            final useNavigationRail = width >= MasliveBreakpoints.mediumMin;
             final pageStack = _buildPageStack(snapshot.data);
 
             return Scaffold(
