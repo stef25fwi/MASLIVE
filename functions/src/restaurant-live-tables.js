@@ -72,6 +72,28 @@ module.exports = function createRestaurantLiveTablesHandlers(deps) {
     return normalized === "approved" || normalized === "active"
   }
 
+  function isFestivalPassActive(business, eventId) {
+    const passes =
+      (business && typeof business.liveTableFestivalPasses === "object")
+        ? business.liveTableFestivalPasses
+        : {}
+    const pass = eventId ? passes[eventId] : null
+    if (!pass || typeof pass !== "object") return false
+    return normalizeStatus(pass.status) === "active"
+  }
+
+  function resolveFestivalPassStripePriceId() {
+    const raw = process.env.STRIPE_PRICE_LIVE_TABLE_FESTIVAL_PASS
+    const priceId = typeof raw === "string" ? raw.trim() : ""
+    if (!priceId) {
+      throw new HttpsError(
+        "failed-precondition",
+        "Stripe price not configured for the festival pass. Missing env: STRIPE_PRICE_LIVE_TABLE_FESTIVAL_PASS"
+      )
+    }
+    return priceId
+  }
+
   function buildPoiRef({ countryId, eventId, circuitId, poiId }) {
     return db
       .collection("marketMap")
@@ -311,7 +333,8 @@ module.exports = function createRestaurantLiveTablesHandlers(deps) {
       const isBusinessSubscribed =
         (subscriptionStatus === "active" || subscriptionStatus === "trialing") &&
         isLiveTablePlanAllowed(subscriptionPlanCode)
-      const canWriteAsOwner = isOwner && (isUserPremium || isBusinessSubscribed)
+      const hasFestivalPass = isFestivalPassActive(business, ids.eventId)
+      const canWriteAsOwner = isOwner && (isUserPremium || isBusinessSubscribed || hasFestivalPass)
 
       if (!isAdmin && !canWriteAsOwner) {
         throw new HttpsError(
@@ -493,9 +516,112 @@ module.exports = function createRestaurantLiveTablesHandlers(deps) {
     }
   )
 
+  const createRestaurantLiveTableFestivalPassCheckoutSession = onCall(
+    {
+      region: "us-east1",
+      cpu: 0.083,
+      memory: "256MiB",
+      timeoutSeconds: 30,
+      secrets: STRIPE_SECRET_KEY ? [STRIPE_SECRET_KEY] : undefined,
+    },
+    async (request) => {
+      if (!request.auth) {
+        throw new HttpsError("unauthenticated", "Authentication required")
+      }
+
+      if (!getStripe) {
+        throw new HttpsError("failed-precondition", "Stripe is not configured")
+      }
+
+      const uid = request.auth.uid
+      const businessRef = db.collection("businesses").doc(uid)
+      const businessSnap = await businessRef.get()
+      if (!businessSnap.exists) {
+        throw new HttpsError("not-found", "Business profile not found")
+      }
+
+      const business = businessSnap.data() || {}
+      const ownerUid = (business.ownerUid || uid).toString().trim()
+      if (ownerUid !== uid) {
+        throw new HttpsError("permission-denied", "Only the business owner can purchase the festival pass")
+      }
+
+      if (!isApprovedBusinessStatus(business.status)) {
+        throw new HttpsError("failed-precondition", "Business must be approved before purchasing the festival pass")
+      }
+
+      const linkedPoiRef = normalizePoiRef(business.restaurantPoiRef)
+      if (!linkedPoiRef) {
+        throw new HttpsError("failed-precondition", "Link a restaurant POI before purchasing a festival pass")
+      }
+
+      if (isFestivalPassActive(business, linkedPoiRef.eventId)) {
+        throw new HttpsError("failed-precondition", "An active festival pass already exists for this event")
+      }
+
+      const stripePriceId = resolveFestivalPassStripePriceId()
+
+      const successUrl = assertHttpsUrlOrDefault(
+        request.data && request.data.successUrl,
+        "https://maslive.web.app/business-account?liveTableFestivalPass=success"
+      )
+      const cancelUrl = assertHttpsUrlOrDefault(
+        request.data && request.data.cancelUrl,
+        "https://maslive.web.app/business-account?liveTableFestivalPass=cancel"
+      )
+
+      const stripeClient = getStripe()
+      const session = await stripeClient.checkout.sessions.create(
+        {
+          mode: "payment",
+          line_items: [{ price: stripePriceId, quantity: 1 }],
+          success_url: appendQueryParam(successUrl, "session_id", "{CHECKOUT_SESSION_ID}"),
+          cancel_url: cancelUrl,
+          customer_email: request.auth.token.email || business.email || undefined,
+          metadata: {
+            kind: "business_live_table_festival_pass",
+            uid,
+            businessId: uid,
+            countryId: linkedPoiRef.countryId,
+            eventId: linkedPoiRef.eventId,
+            circuitId: linkedPoiRef.circuitId,
+            poiId: linkedPoiRef.poiId,
+          },
+        },
+        { idempotencyKey: `business_live_table_festival_pass_${uid}_${linkedPoiRef.eventId}` }
+      )
+
+      await businessRef.set(
+        {
+          liveTableFestivalPasses: {
+            [linkedPoiRef.eventId]: {
+              status: "checkout_pending",
+              eventId: linkedPoiRef.eventId,
+              countryId: linkedPoiRef.countryId,
+              circuitId: linkedPoiRef.circuitId,
+              poiId: linkedPoiRef.poiId,
+              stripePriceId,
+              pendingCheckoutSessionId: session.id,
+              updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+            },
+          },
+          updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+        },
+        { merge: true }
+      )
+
+      return {
+        checkoutUrl: session.url,
+        stripeSessionId: session.id,
+        eventId: linkedPoiRef.eventId,
+      }
+    }
+  )
+
   return {
     assignBusinessRestaurantPoi,
     setRestaurantLiveTableStatus,
     createRestaurantLiveTableSubscriptionCheckoutSession,
+    createRestaurantLiveTableFestivalPassCheckoutSession,
   }
 }
