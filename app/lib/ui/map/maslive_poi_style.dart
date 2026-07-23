@@ -152,7 +152,6 @@ const String kMasLivePoiPictoKey = 'picto';
 ///
 /// Basé sur les icônes Material (aucun asset requis), ce qui garantit un
 /// rendu net et cohérent quelle que soit la plateforme.
-@immutable
 /// Construit un peintre vectoriel personnalisé pour un picto (utilisé quand
 /// aucune icône Material ne correspond visuellement à ce qui est demandé —
 /// ex: silhouette d'agent de police).
@@ -234,9 +233,12 @@ class _PoliceOfficerBustPainter extends CustomPainter {
       );
 
     final combined = Path.combine(PathOperation.difference, silhouette, holes);
-    canvas.drawPath(combined, Paint()
-      ..color = color
-      ..isAntiAlias = true);
+    canvas.drawPath(
+      combined,
+      Paint()
+        ..color = color
+        ..isAntiAlias = true,
+    );
     canvas.restore();
   }
 
@@ -513,7 +515,14 @@ const List<MasLivePoiPictoGroup> kMasLivePoiPictoGroups = [
   ),
   MasLivePoiPictoGroup(
     label: 'Culture & tourisme',
-    pictoIds: ['musee', 'monument', 'lieu_touristique', 'eglise', 'plage', 'parc'],
+    pictoIds: [
+      'musee',
+      'monument',
+      'lieu_touristique',
+      'eglise',
+      'plage',
+      'parc',
+    ],
   ),
   MasLivePoiPictoGroup(
     label: 'Commerce',
@@ -521,7 +530,15 @@ const List<MasLivePoiPictoGroup> kMasLivePoiPictoGroups = [
   ),
   MasLivePoiPictoGroup(
     label: 'Événement',
-    pictoIds: ['festival', 'musique', 'spectacle', 'fete', 'nightlife', 'stade', 'sport'],
+    pictoIds: [
+      'festival',
+      'musique',
+      'spectacle',
+      'fete',
+      'nightlife',
+      'stade',
+      'sport',
+    ],
   ),
   MasLivePoiPictoGroup(
     label: 'Transport',

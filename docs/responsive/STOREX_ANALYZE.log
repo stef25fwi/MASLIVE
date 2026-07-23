@@ -104,9 +104,7 @@ Got dependencies!
 Try `flutter pub outdated` for more information.
 Analyzing app...                                                
 
-   info • Use the null-aware marker '?' rather than a null check via an 'if'. Try using '?' • lib/pages/default_map_page.dart:575:11 • use_null_aware_elements
-   info • Use the null-aware marker '?' rather than a null check via an 'if'. Try using '?' • lib/pages/home_map_page_3d.dart:2470:11 • use_null_aware_elements
-warning • The annotation 'immutable' can only be used on classes, extension types, or mixins • lib/ui/map/maslive_poi_style.dart:155:2 • invalid_annotation_target
-   info • Parameters ''childAspectRatio' and 'mainAxisExtent'' could be super parameters. Trying converting ''childAspectRatio' and 'mainAxisExtent'' to super parameters • lib/ui_kit/responsive/responsive_grid.dart:8:3 • use_super_parameters
+  error • The map entry key can't be null, so the null-aware operator '?' is unnecessary. Try removing the operator '?' • lib/pages/default_map_page.dart:575:11 • invalid_null_aware_operator
+  error • The map entry key can't be null, so the null-aware operator '?' is unnecessary. Try removing the operator '?' • lib/pages/home_map_page_3d.dart:2475:11 • invalid_null_aware_operator
 
-4 issues found. (ran in 25.5s)
+2 issues found. (ran in 16.7s)

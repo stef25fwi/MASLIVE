@@ -146,7 +146,8 @@ class _HomeMapPage3DState extends State<HomeMapPage3D>
   static const int _gpsDistanceFilter = 8;
   static const Duration _gpsTimeout = Duration(seconds: 8);
   static const double _homeBottomBarHeight = 58;
-  static const String _kCircuitSelectionKey = 'maslive_market_circuit_selection_v1';
+  static const String _kCircuitSelectionKey =
+      'maslive_market_circuit_selection_v1';
   static const double _userMarkerIconSize = 1.5;
   static const Duration _cameraAnimationDuration = Duration(milliseconds: 800);
   // Zoom "vue d'ensemble" à l'ouverture de Home, avant que l'utilisateur ne
@@ -278,7 +279,9 @@ class _HomeMapPage3DState extends State<HomeMapPage3D>
 
   String? get _activeCircuitName {
     final circuitName = _marketPoiSelection.circuit?.name.trim();
-    if (!_marketPoiSelection.enabled || circuitName == null || circuitName.isEmpty) {
+    if (!_marketPoiSelection.enabled ||
+        circuitName == null ||
+        circuitName.isEmpty) {
       return null;
     }
     return circuitName;
@@ -649,9 +652,9 @@ class _HomeMapPage3DState extends State<HomeMapPage3D>
           circuitId: circuit.id,
         )
         .listen((positions) {
-      if (!mounted) return;
-      unawaited(_updateGroupMarkers(positions));
-    });
+          if (!mounted) return;
+          unawaited(_updateGroupMarkers(positions));
+        });
   }
 
   /// Rend les curseurs groupe via le PointAnnotationManager dédié.
@@ -748,7 +751,8 @@ class _HomeMapPage3DState extends State<HomeMapPage3D>
       final event = MarketEvent(
         id: data['eventId'] as String,
         countryId:
-            (data['eventCountryId'] as String?) ?? (data['countryId'] as String),
+            (data['eventCountryId'] as String?) ??
+            (data['countryId'] as String),
         name: (data['eventName'] as String?) ?? '',
         slug: (data['eventSlug'] as String?) ?? (data['eventId'] as String),
       );
@@ -764,16 +768,19 @@ class _HomeMapPage3DState extends State<HomeMapPage3D>
       }
 
       final rawBounds = data['circuitBounds'];
-      final Map<String, dynamic>? bounds =
-          rawBounds is Map ? Map<String, dynamic>.from(rawBounds) : null;
+      final Map<String, dynamic>? bounds = rawBounds is Map
+          ? Map<String, dynamic>.from(rawBounds)
+          : null;
 
       final rawWizard = data['circuitWizardState'];
-      final Map<String, dynamic> wizardState =
-          rawWizard is Map ? Map<String, dynamic>.from(rawWizard) : const {};
+      final Map<String, dynamic> wizardState = rawWizard is Map
+          ? Map<String, dynamic>.from(rawWizard)
+          : const {};
 
       final circuit = MarketCircuit(
         id: data['circuitId'] as String,
-        countryId: (data['circuitCountryId'] as String?) ??
+        countryId:
+            (data['circuitCountryId'] as String?) ??
             (data['countryId'] as String),
         eventId:
             (data['circuitEventId'] as String?) ?? (data['eventId'] as String),
@@ -784,8 +791,7 @@ class _HomeMapPage3DState extends State<HomeMapPage3D>
         perimeterLocked: (data['circuitPerimeterLocked'] as bool?) ?? false,
         zoomLocked: (data['circuitZoomLocked'] as bool?) ?? false,
         center: center,
-        initialZoom:
-            (data['circuitInitialZoom'] as num?)?.toDouble() ?? 14.0,
+        initialZoom: (data['circuitInitialZoom'] as num?)?.toDouble() ?? 14.0,
         bounds: bounds,
         styleId: data['circuitStyleId'] as String?,
         styleUrl: data['circuitStyleUrl'] as String?,
@@ -1731,8 +1737,7 @@ class _HomeMapPage3DState extends State<HomeMapPage3D>
 
       // Rendu legacy (roadLike) si pas de StylePro
       final color =
-          _parseHexColor(legacy['color']?.toString()) ??
-          MasliveTokens.primary;
+          _parseHexColor(legacy['color']?.toString()) ?? MasliveTokens.primary;
       final width = (legacy['width'] as num?)?.toDouble() ?? 6.0;
 
       final roadLike = (legacy['roadLike'] as bool?) ?? true;
@@ -2210,7 +2215,11 @@ class _HomeMapPage3DState extends State<HomeMapPage3D>
           // Layer exists — set properties.  Errors here propagate to outer retry.
           await style.setStyleLayerProperty(layerId, 'circle-radius', [
             'case',
-            ['==', ['get', 'isFocused'], true],
+            [
+              '==',
+              ['get', 'isFocused'],
+              true,
+            ],
             _focusedPoiCircleRadius,
             _defaultPoiCircleRadius,
           ]);
@@ -2343,11 +2352,7 @@ class _HomeMapPage3DState extends State<HomeMapPage3D>
           'get',
           kPoiPictoIconIdProperty,
         ]);
-        await style.setStyleLayerProperty(
-          _mmPoiPictoLayerId,
-          'icon-size',
-          0.9,
-        );
+        await style.setStyleLayerProperty(_mmPoiPictoLayerId, 'icon-size', 0.9);
         await style.setStyleLayerProperty(
           _mmPoiPictoLayerId,
           'icon-allow-overlap',
@@ -2467,11 +2472,12 @@ class _HomeMapPage3DState extends State<HomeMapPage3D>
           'type': type,
           'name': name,
           'desc': desc,
-          if (pictoIconId != null) kPoiPictoIconIdProperty: pictoIconId,
+          ?kPoiPictoIconIdProperty: pictoIconId,
           'imageUrl': imageUrl,
           'lng': coord.$1,
           'lat': coord.$2,
-          'isFocused': _focusedPoiId != null && _focusedPoiId == d.id?.toString(),
+          'isFocused':
+              _focusedPoiId != null && _focusedPoiId == d.id?.toString(),
 
           // fiche complète
           'address': address,
@@ -2518,11 +2524,7 @@ class _HomeMapPage3DState extends State<HomeMapPage3D>
     // efface les sources runtime; réécrire systématiquement (avec fallback
     // remove+add en cas d'échec) garantit que les POIs réapparaissent.
     try {
-      await map.style.setStyleSourceProperty(
-        _mmPoiSourceId,
-        'data',
-        encoded,
-      );
+      await map.style.setStyleSourceProperty(_mmPoiSourceId, 'data', encoded);
     } catch (_) {
       // Fallback: remove+add
       try {
@@ -2636,17 +2638,25 @@ class _HomeMapPage3DState extends State<HomeMapPage3D>
       return s.isEmpty ? null : s;
     }
 
-    final poiId = asNonEmptyString(props['poiId']) ?? asNonEmptyString(props['id']) ?? rawId;
+    final poiId =
+        asNonEmptyString(props['poiId']) ??
+        asNonEmptyString(props['id']) ??
+        rawId;
     if (poiId == null) return null;
 
     final title = (props['name'] ?? props['title'] ?? '').toString().trim();
-    final desc = (props['desc'] ?? props['description'] ?? '').toString().trim();
-    final category = _normalizeMarketPoiTypeCandidate(
+    final desc = (props['desc'] ?? props['description'] ?? '')
+        .toString()
+        .trim();
+    final category =
+        _normalizeMarketPoiTypeCandidate(
           (props['type'] ?? props['layerType'] ?? props['layerId']).toString(),
         ) ??
         'market';
 
-    String imageUrl = (props['imageUrl'] ?? props['photoUrl'] ?? '').toString().trim();
+    String imageUrl = (props['imageUrl'] ?? props['photoUrl'] ?? '')
+        .toString()
+        .trim();
     final lng = (props['lng'] is num) ? (props['lng'] as num).toDouble() : null;
     final lat = (props['lat'] is num) ? (props['lat'] as num).toDouble() : null;
     final address = (props['address'] ?? '').toString().trim();
@@ -2735,7 +2745,9 @@ class _HomeMapPage3DState extends State<HomeMapPage3D>
 
     final type = _typeFromPoi(poi);
     final d = poi as dynamic;
-    String imageUrl = (d.imageUrl ?? d.photoUrl ?? d.image ?? '').toString().trim();
+    String imageUrl = (d.imageUrl ?? d.photoUrl ?? d.image ?? '')
+        .toString()
+        .trim();
     Map<String, dynamic> meta = <String, dynamic>{};
     try {
       if (d.metadata is Map) {
@@ -2764,7 +2776,9 @@ class _HomeMapPage3DState extends State<HomeMapPage3D>
     final rootPopupEnabled = d.popupEnabled ?? d.hasPopup ?? d.hasCard;
     final title = _labelFromPoi(poi);
     final desc = _descFromPoi(poi);
-    final address = (d.address ?? d.adresse ?? d.locationLabel ?? '').toString().trim();
+    final address = (d.address ?? d.adresse ?? d.locationLabel ?? '')
+        .toString()
+        .trim();
     final openingHoursRaw = d.openingHours ?? d.hours ?? d.horaires;
     final openingHours = (openingHoursRaw is String)
         ? openingHoursRaw.trim()
@@ -2775,7 +2789,9 @@ class _HomeMapPage3DState extends State<HomeMapPage3D>
     final facebook = (d.facebook ?? d.fb ?? '').toString().trim();
     final whatsapp = (d.whatsapp ?? '').toString().trim();
     final email = (d.email ?? '').toString().trim();
-    final mapsUrl = (d.mapsUrl ?? d.googleMapsUrl ?? d.mapUrl ?? '').toString().trim();
+    final mapsUrl = (d.mapsUrl ?? d.googleMapsUrl ?? d.mapUrl ?? '')
+        .toString()
+        .trim();
 
     // La fiche doit toujours pouvoir s'ouvrir au tap (avec logo par défaut si
     // pas de photo/description) : seul isPopupEnabled (flag explicite ou
@@ -2835,10 +2851,9 @@ class _HomeMapPage3DState extends State<HomeMapPage3D>
     }
 
     items.sort((a, b) {
-      final distanceCompare =
-          (a.distanceMeters ?? double.infinity).compareTo(
-            b.distanceMeters ?? double.infinity,
-          );
+      final distanceCompare = (a.distanceMeters ?? double.infinity).compareTo(
+        b.distanceMeters ?? double.infinity,
+      );
       if (distanceCompare != 0) return distanceCompare;
       return a.title.toLowerCase().compareTo(b.title.toLowerCase());
     });
@@ -2851,7 +2866,9 @@ class _HomeMapPage3DState extends State<HomeMapPage3D>
     required List<_PoiTapCandidate> candidates,
     required String initialPoiId,
   }) {
-    final initialIndex = candidates.indexWhere((item) => item.id == initialPoiId);
+    final initialIndex = candidates.indexWhere(
+      (item) => item.id == initialPoiId,
+    );
     final resolvedInitialIndex = initialIndex == -1 ? 0 : initialIndex;
     _recreateNearbyPoiCarouselController(initialPage: resolvedInitialIndex);
     if (!mounted) {
@@ -3978,10 +3995,7 @@ class _HomeMapPage3DState extends State<HomeMapPage3D>
     ];
   }
 
-  Widget _buildBottomBar(
-    BuildContext context, {
-    required User? user,
-  }) {
+  Widget _buildBottomBar(BuildContext context, {required User? user}) {
     final items = _buildBottomBarItems(context, user);
 
     return MasliveStandardBottomBar(
@@ -4151,7 +4165,10 @@ class _HomeMapPage3DState extends State<HomeMapPage3D>
               Positioned(
                 left: 16,
                 right: 16,
-                bottom: bottomInset + bottomBarHeight + (hasNearbyPoiCarousel ? 122 : 12),
+                bottom:
+                    bottomInset +
+                    bottomBarHeight +
+                    (hasNearbyPoiCarousel ? 122 : 12),
                 child: _TrackingPill(
                   isTracking: _isTracking,
                   onToggle: _toggleTracking,
@@ -4224,10 +4241,7 @@ class _HalfRedCompass extends StatelessWidget {
 }
 
 class _MapTopLeftControls extends StatelessWidget {
-  const _MapTopLeftControls({
-    required this.onZoomIn,
-    required this.onZoomOut,
-  });
+  const _MapTopLeftControls({required this.onZoomIn, required this.onZoomOut});
 
   final VoidCallback onZoomIn;
   final VoidCallback onZoomOut;
@@ -4546,7 +4560,9 @@ class _NearbyPoiFilmCarousel extends StatelessWidget {
                                     maxLines: 1,
                                     overflow: TextOverflow.ellipsis,
                                     style: TextStyle(
-                                      color: Colors.white.withValues(alpha: 0.62),
+                                      color: Colors.white.withValues(
+                                        alpha: 0.62,
+                                      ),
                                       fontSize: 11,
                                       fontWeight: FontWeight.w600,
                                     ),
@@ -4632,15 +4648,21 @@ class _NearbyPoiFilmCarousel extends StatelessWidget {
                                                 begin: Alignment.topLeft,
                                                 end: Alignment.bottomRight,
                                                 colors: [
-                                                  Colors.white.withValues(alpha: 0.14),
-                                                  Colors.white.withValues(alpha: 0.08),
+                                                  Colors.white.withValues(
+                                                    alpha: 0.14,
+                                                  ),
+                                                  Colors.white.withValues(
+                                                    alpha: 0.08,
+                                                  ),
                                                 ],
                                               ),
                                         borderRadius: BorderRadius.circular(18),
                                         border: Border.all(
                                           color: isFocused
                                               ? const Color(0xFFFFE2AC)
-                                              : Colors.white.withValues(alpha: 0.10),
+                                              : Colors.white.withValues(
+                                                  alpha: 0.10,
+                                                ),
                                           width: isFocused ? 1.4 : 1,
                                         ),
                                         boxShadow: isFocused
@@ -4659,8 +4681,10 @@ class _NearbyPoiFilmCarousel extends StatelessWidget {
                                           vertical: 10,
                                         ),
                                         child: Column(
-                                          crossAxisAlignment: CrossAxisAlignment.start,
-                                          mainAxisAlignment: MainAxisAlignment.center,
+                                          crossAxisAlignment:
+                                              CrossAxisAlignment.start,
+                                          mainAxisAlignment:
+                                              MainAxisAlignment.center,
                                           children: [
                                             Row(
                                               children: [
@@ -4669,12 +4693,22 @@ class _NearbyPoiFilmCarousel extends StatelessWidget {
                                                   height: 20,
                                                   decoration: BoxDecoration(
                                                     color: isFocused
-                                                        ? const Color(0xFF111111)
-                                                        : accentColor.withValues(alpha: 0.18),
-                                                    borderRadius: BorderRadius.circular(6),
+                                                        ? const Color(
+                                                            0xFF111111,
+                                                          )
+                                                        : accentColor
+                                                              .withValues(
+                                                                alpha: 0.18,
+                                                              ),
+                                                    borderRadius:
+                                                        BorderRadius.circular(
+                                                          6,
+                                                        ),
                                                   ),
                                                   child: Icon(
-                                                    _categoryIcon(item.category),
+                                                    _categoryIcon(
+                                                      item.category,
+                                                    ),
                                                     size: 12,
                                                     color: isFocused
                                                         ? accentColor
@@ -4684,25 +4718,40 @@ class _NearbyPoiFilmCarousel extends StatelessWidget {
                                                 const SizedBox(width: 6),
                                                 Expanded(
                                                   child: Container(
-                                                    padding: const EdgeInsets.symmetric(
-                                                      horizontal: 7,
-                                                      vertical: 3,
-                                                    ),
+                                                    padding:
+                                                        const EdgeInsets.symmetric(
+                                                          horizontal: 7,
+                                                          vertical: 3,
+                                                        ),
                                                     decoration: BoxDecoration(
                                                       color: isFocused
-                                                          ? const Color(0x22111111)
-                                                          : Colors.white.withValues(alpha: 0.08),
-                                                      borderRadius: BorderRadius.circular(999),
+                                                          ? const Color(
+                                                              0x22111111,
+                                                            )
+                                                          : Colors.white
+                                                                .withValues(
+                                                                  alpha: 0.08,
+                                                                ),
+                                                      borderRadius:
+                                                          BorderRadius.circular(
+                                                            999,
+                                                          ),
                                                     ),
                                                     child: Text(
-                                                      _categoryLabel(item.category),
+                                                      _categoryLabel(
+                                                        item.category,
+                                                      ),
                                                       maxLines: 1,
-                                                      overflow: TextOverflow.ellipsis,
+                                                      overflow:
+                                                          TextOverflow.ellipsis,
                                                       style: TextStyle(
                                                         color: isFocused
-                                                            ? const Color(0xCC111111)
+                                                            ? const Color(
+                                                                0xCC111111,
+                                                              )
                                                             : accentColor,
-                                                        fontWeight: FontWeight.w800,
+                                                        fontWeight:
+                                                            FontWeight.w800,
                                                         fontSize: 10,
                                                         letterSpacing: 0.2,
                                                       ),
@@ -4714,8 +4763,13 @@ class _NearbyPoiFilmCarousel extends StatelessWidget {
                                                     Icons.open_in_full_rounded,
                                                     size: 14,
                                                     color: isFocused
-                                                        ? const Color(0xAA111111)
-                                                        : Colors.white.withValues(alpha: 0.62),
+                                                        ? const Color(
+                                                            0xAA111111,
+                                                          )
+                                                        : Colors.white
+                                                              .withValues(
+                                                                alpha: 0.62,
+                                                              ),
                                                   ),
                                               ],
                                             ),
@@ -4742,7 +4796,9 @@ class _NearbyPoiFilmCarousel extends StatelessWidget {
                                                 style: TextStyle(
                                                   color: isFocused
                                                       ? const Color(0xB3111111)
-                                                      : Colors.white.withValues(alpha: 0.68),
+                                                      : Colors.white.withValues(
+                                                          alpha: 0.68,
+                                                        ),
                                                   fontWeight: FontWeight.w700,
                                                   fontSize: 10.5,
                                                 ),
