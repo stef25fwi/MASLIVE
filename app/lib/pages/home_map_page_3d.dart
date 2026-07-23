@@ -55,6 +55,7 @@ import 'storex_shop_page.dart';
 import 'splash_wrapper_page.dart' show mapReadyNotifier;
 import 'package:masslive/ui_kit/tokens/maslive_tokens.dart';
 import '../ui/widgets/maslive_empty_state.dart';
+import '../ui_kit/responsive/responsive.dart';
 
 // Menu vertical: modes/actions (filtrage POIs)
 enum _MapAction { visiter, food, assistance, parking, wc }
@@ -3896,10 +3897,24 @@ class _HomeMapPage3DState extends State<HomeMapPage3D>
 
   Widget _buildActionsMenuOverlay(BuildContext context) {
     final items = _buildVerticalNavItems(context);
+    final menuTopOffset = responsiveValue<double>(
+      context,
+      compact: _actionsMenuTopOffset,
+      medium: 24,
+      expanded: 24,
+      wide: 24,
+    );
+    final menuRightOffset = responsiveValue<double>(
+      context,
+      compact: -6,
+      medium: -14,
+      expanded: -20,
+      wide: -24,
+    );
     final Widget menu = Transform.translate(
-      offset: const Offset(-6, 0),
+      offset: Offset(menuRightOffset, 0),
       child: HomeVerticalNavMenu(
-        margin: EdgeInsets.only(top: _actionsMenuTopOffset),
+        margin: EdgeInsets.only(top: menuTopOffset),
         horizontalPadding: 6,
         verticalPadding: 10,
         backgroundAlpha: 0.88,
@@ -4028,6 +4043,20 @@ class _HomeMapPage3DState extends State<HomeMapPage3D>
   Widget _buildContent(BuildContext context) {
     final bottomInset = MediaQuery.of(context).padding.bottom;
     final hasNearbyPoiCarousel = _nearbyPoiCandidates.length > 1;
+    final compassTop = responsiveValue<double>(
+      context,
+      compact: 104,
+      medium: 24,
+      expanded: 24,
+      wide: 24,
+    );
+    final compassRight = responsiveValue<double>(
+      context,
+      compact: 14,
+      medium: 24,
+      expanded: 28,
+      wide: 32,
+    );
 
     const bottomBarHeight = _homeBottomBarHeight;
 
@@ -4128,10 +4157,14 @@ class _HomeMapPage3DState extends State<HomeMapPage3D>
             if (_activeCircuitName != null)
               Positioned(
                 top: MediaQuery.of(context).padding.top + 10,
-                left: 88,
-                right: 88,
+                left: 0,
+                right: 0,
                 child: IgnorePointer(
-                  child: Center(
+                  child: ResponsiveOverlayContainer(
+                    compactHorizontalInset: 88,
+                    mediumMaxWidth: 520,
+                    expandedMaxWidth: 640,
+                    wideMaxWidth: 720,
                     child: ActiveCircuitHeaderBanner(
                       circuitName: _activeCircuitName!,
                     ),
@@ -4140,7 +4173,11 @@ class _HomeMapPage3DState extends State<HomeMapPage3D>
               ),
 
             // Boussole (demi-flèche rouge)
-            const Positioned(top: 104, right: 14, child: _HalfRedCompass()),
+            Positioned(
+              top: compassTop,
+              right: compassRight,
+              child: const _HalfRedCompass(),
+            ),
 
             Positioned(
               left: 14,
@@ -4163,15 +4200,21 @@ class _HomeMapPage3DState extends State<HomeMapPage3D>
             // Tracking pill
             if (_isTracking)
               Positioned(
-                left: 16,
-                right: 16,
+                left: 0,
+                right: 0,
                 bottom:
                     bottomInset +
                     bottomBarHeight +
                     (hasNearbyPoiCarousel ? 122 : 12),
-                child: _TrackingPill(
-                  isTracking: _isTracking,
-                  onToggle: _toggleTracking,
+                child: ResponsiveOverlayContainer(
+                  compactHorizontalInset: 16,
+                  mediumMaxWidth: 560,
+                  expandedMaxWidth: 600,
+                  wideMaxWidth: 640,
+                  child: _TrackingPill(
+                    isTracking: _isTracking,
+                    onToggle: _toggleTracking,
+                  ),
                 ),
               ),
 
