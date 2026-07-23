@@ -5,6 +5,7 @@ import 'dart:typed_data';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/foundation.dart' show kIsWeb, kDebugMode;
 import 'package:flutter/material.dart';
+import 'package:pointer_interceptor/pointer_interceptor.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:image_cropper/image_cropper.dart';
 
@@ -80,6 +81,7 @@ class _PoiEditPopupState extends State<PoiEditPopup> {
 
   bool _isSaving = false;
   bool _isUploading = false;
+  bool _interactionOverlayOpen = false;
   double _uploadProgress = 0.0;
 
   double _angleDeg = -1.7;
@@ -103,6 +105,19 @@ class _PoiEditPopupState extends State<PoiEditPopup> {
   double? _parseDouble(String raw) {
     final norm = raw.trim().replaceAll(',', '.');
     return double.tryParse(norm);
+  }
+
+  Future<T> _withInteractionLock<T>(Future<T> Function() action) async {
+    if (mounted && !_interactionOverlayOpen) {
+      setState(() => _interactionOverlayOpen = true);
+    }
+    try {
+      return await action();
+    } finally {
+      if (mounted) {
+        setState(() => _interactionOverlayOpen = false);
+      }
+    }
   }
 
   bool get _hasAnyImage {
@@ -375,6 +390,7 @@ class _PoiEditPopupState extends State<PoiEditPopup> {
   }
 
   Future<void> _onPoiMapTap(MapPoint p) async {
+    if (_interactionOverlayOpen || _isSaving || _isUploading) return;
     final lat = p.lat;
     final lng = p.lng;
     setState(() {
@@ -490,25 +506,29 @@ class _PoiEditPopupState extends State<PoiEditPopup> {
 
     try {
       // Demander à l'utilisateur s'il veut éditer
-      final shouldEdit = await showDialog<bool>(
-        context: context,
-        builder: (ctx) => AlertDialog(
-          title: const Text('Éditer la photo ?'),
-          content: const Text(
-            'Voulez-vous éditer cette photo avec les outils système '
-            '(filtres, ajustements, recadrage) avant de l\'ajouter ?',
+      final shouldEdit = await _withInteractionLock<bool?>(
+        () => showDialog<bool>(
+          context: context,
+          builder: (ctx) => PointerInterceptor(
+            child: AlertDialog(
+              title: const Text('Éditer la photo ?'),
+              content: const Text(
+                'Voulez-vous éditer cette photo avec les outils système '
+                '(filtres, ajustements, recadrage) avant de l\'ajouter ?',
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(ctx, false),
+                  child: const Text('Non, continuer'),
+                ),
+                FilledButton.icon(
+                  onPressed: () => Navigator.pop(ctx, true),
+                  icon: const Icon(Icons.edit_rounded),
+                  label: const Text('Oui, éditer'),
+                ),
+              ],
+            ),
           ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(ctx, false),
-              child: const Text('Non, continuer'),
-            ),
-            FilledButton.icon(
-              onPressed: () => Navigator.pop(ctx, true),
-              icon: const Icon(Icons.edit_rounded),
-              label: const Text('Oui, éditer'),
-            ),
-          ],
         ),
       );
 
@@ -666,33 +686,37 @@ class _PoiEditPopupState extends State<PoiEditPopup> {
 
   Future<void> _showSourcePicker() async {
     if (!mounted) return;
-    await showModalBottomSheet<void>(
-      context: context,
-      useSafeArea: true,
-      builder: (ctx) {
-        return SafeArea(
-          child: Wrap(
-            children: [
-              ListTile(
-                leading: const Icon(Icons.photo_library_rounded),
-                title: const Text('Galerie'),
-                onTap: () {
-                  Navigator.pop(ctx);
-                  _pickImage(ImageSource.gallery);
-                },
+    await _withInteractionLock<void>(
+      () => showModalBottomSheet<void>(
+        context: context,
+        useSafeArea: true,
+        builder: (ctx) {
+          return PointerInterceptor(
+            child: SafeArea(
+              child: Wrap(
+                children: [
+                  ListTile(
+                    leading: const Icon(Icons.photo_library_rounded),
+                    title: const Text('Galerie'),
+                    onTap: () {
+                      Navigator.pop(ctx);
+                      _pickImage(ImageSource.gallery);
+                    },
+                  ),
+                  ListTile(
+                    leading: const Icon(Icons.camera_alt_rounded),
+                    title: const Text('Appareil photo'),
+                    onTap: () {
+                      Navigator.pop(ctx);
+                      _pickImage(ImageSource.camera);
+                    },
+                  ),
+                ],
               ),
-              ListTile(
-                leading: const Icon(Icons.camera_alt_rounded),
-                title: const Text('Appareil photo'),
-                onTap: () {
-                  Navigator.pop(ctx);
-                  _pickImage(ImageSource.camera);
-                },
-              ),
-            ],
-          ),
-        );
-      },
+            ),
+          );
+        },
+      ),
     );
   }
 
@@ -1291,412 +1315,418 @@ class _PoiEditPopupState extends State<PoiEditPopup> {
       ),
     );
 
-    return Theme(
-      data: popupTheme,
-      child: DecoratedBox(
-        decoration: const BoxDecoration(color: MasliveTokens.bg),
-        child: SingleChildScrollView(
-          padding: EdgeInsets.only(
-            left: 16,
-            right: 16,
-            top: 14,
-            bottom: 16 + viewInsets.bottom,
-          ),
-          child: DecoratedBox(
-            decoration: BoxDecoration(
-              color: Colors.white.withValues(alpha: 0.82),
-              borderRadius: BorderRadius.circular(MasliveTokens.rXL),
-              border: Border.all(color: MasliveTokens.borderSoft),
-              boxShadow: [
-                BoxShadow(
-                  color: MasliveTokens.shadow,
-                  blurRadius: 22,
-                  offset: const Offset(0, 12),
-                ),
-              ],
+    return PointerInterceptor(
+      child: Theme(
+        data: popupTheme,
+        child: DecoratedBox(
+          decoration: const BoxDecoration(color: MasliveTokens.bg),
+          child: SingleChildScrollView(
+            padding: EdgeInsets.only(
+              left: 16,
+              right: 16,
+              top: 14,
+              bottom: 16 + viewInsets.bottom,
             ),
-            child: Padding(
-              padding: const EdgeInsets.all(MasliveTokens.m),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  Row(
-                    children: [
-                      const Expanded(
-                        child: Text(
-                          'Éditer le POI',
-                          style: TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.w900,
+            child: DecoratedBox(
+              decoration: BoxDecoration(
+                color: Colors.white.withValues(alpha: 0.82),
+                borderRadius: BorderRadius.circular(MasliveTokens.rXL),
+                border: Border.all(color: MasliveTokens.borderSoft),
+                boxShadow: [
+                  BoxShadow(
+                    color: MasliveTokens.shadow,
+                    blurRadius: 22,
+                    offset: const Offset(0, 12),
+                  ),
+                ],
+              ),
+              child: Padding(
+                padding: const EdgeInsets.all(MasliveTokens.m),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Row(
+                      children: [
+                        const Expanded(
+                          child: Text(
+                            'Éditer le POI',
+                            style: TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.w900,
+                            ),
                           ),
                         ),
-                      ),
-                      IconButton(
-                        tooltip: 'Fermer',
-                        onPressed: _isSaving
-                            ? null
-                            : () => Navigator.of(context).pop(),
-                        icon: const Icon(Icons.close_rounded),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 8),
-
-                  TextField(
-                    controller: _nameCtrl,
-                    decoration: const InputDecoration(
-                      labelText: 'Nom',
-                      border: OutlineInputBorder(),
+                        IconButton(
+                          tooltip: 'Fermer',
+                          onPressed: _isSaving
+                              ? null
+                              : () => Navigator.of(context).pop(),
+                          icon: const Icon(Icons.close_rounded),
+                        ),
+                      ],
                     ),
-                    textInputAction: TextInputAction.next,
-                  ),
+                    const SizedBox(height: 8),
 
-                  if ((widget.appearancePresets?.isNotEmpty ?? false) &&
-                      _appearanceId != null) ...[
-                    const SizedBox(height: 12),
-                    InputDecorator(
+                    TextField(
+                      controller: _nameCtrl,
                       decoration: const InputDecoration(
-                        labelText: 'Apparence',
+                        labelText: 'Nom',
                         border: OutlineInputBorder(),
                       ),
-                      child: DropdownButtonHideUnderline(
-                        child: DropdownButton<String>(
-                          value: _appearanceId,
-                          isExpanded: true,
-                          items: [
-                            for (final p in widget.appearancePresets!)
-                              DropdownMenuItem(
-                                value: p.id,
-                                child: buildMasLivePoiAppearanceMenuItem(p),
-                              ),
-                          ],
-                          onChanged: (_isSaving || _isUploading)
-                              ? null
-                              : (v) {
-                                  if (v == null) return;
-                                  setState(() => _appearanceId = v);
-                                },
-                        ),
-                      ),
+                      textInputAction: TextInputAction.next,
                     ),
-                  ],
-                  const SizedBox(height: 16),
-                  _buildPictoGallery(),
-                  const SizedBox(height: 12),
-                  TextField(
-                    controller: _descCtrl,
-                    decoration: const InputDecoration(
-                      labelText: 'Description (optionnel)',
-                      border: OutlineInputBorder(),
-                    ),
-                    maxLines: 3,
-                  ),
 
-                  const SizedBox(height: 12),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: TextField(
-                          controller: _latCtrl,
-                          keyboardType: TextInputType.number,
-                          decoration: const InputDecoration(
-                            labelText: 'Lat *',
-                            border: OutlineInputBorder(),
-                          ),
+                    if ((widget.appearancePresets?.isNotEmpty ?? false) &&
+                        _appearanceId != null) ...[
+                      const SizedBox(height: 12),
+                      InputDecorator(
+                        decoration: const InputDecoration(
+                          labelText: 'Apparence',
+                          border: OutlineInputBorder(),
                         ),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: TextField(
-                          controller: _lngCtrl,
-                          keyboardType: TextInputType.number,
-                          decoration: const InputDecoration(
-                            labelText: 'Lng *',
-                            border: OutlineInputBorder(),
+                        child: DropdownButtonHideUnderline(
+                          child: DropdownButton<String>(
+                            value: _appearanceId,
+                            isExpanded: true,
+                            items: [
+                              for (final p in widget.appearancePresets!)
+                                DropdownMenuItem(
+                                  value: p.id,
+                                  child: buildMasLivePoiAppearanceMenuItem(p),
+                                ),
+                            ],
+                            onChanged: (_isSaving || _isUploading)
+                                ? null
+                                : (v) {
+                                    if (v == null) return;
+                                    setState(() => _appearanceId = v);
+                                  },
                           ),
                         ),
                       ),
                     ],
-                  ),
-                  const SizedBox(height: 8),
-                  _buildPoiMapPreviewCard(),
+                    const SizedBox(height: 16),
+                    _buildPictoGallery(),
+                    const SizedBox(height: 12),
+                    TextField(
+                      controller: _descCtrl,
+                      decoration: const InputDecoration(
+                        labelText: 'Description (optionnel)',
+                        border: OutlineInputBorder(),
+                      ),
+                      maxLines: 3,
+                    ),
 
-                  const SizedBox(height: 12),
-                  SwitchListTile.adaptive(
-                    contentPadding: EdgeInsets.zero,
-                    value: _isVisible,
-                    onChanged: _isSaving
-                        ? null
-                        : (v) => setState(() => _isVisible = v),
-                    title: const Text('Visible (liste + couche)'),
-                  ),
+                    const SizedBox(height: 12),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: TextField(
+                            controller: _latCtrl,
+                            keyboardType: TextInputType.number,
+                            decoration: const InputDecoration(
+                              labelText: 'Lat *',
+                              border: OutlineInputBorder(),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: TextField(
+                            controller: _lngCtrl,
+                            keyboardType: TextInputType.number,
+                            decoration: const InputDecoration(
+                              labelText: 'Lng *',
+                              border: OutlineInputBorder(),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                    _buildPoiMapPreviewCard(),
 
-                  const SizedBox(height: 12),
-                  TextField(
-                    controller: _addressCtrl,
-                    decoration: const InputDecoration(
-                      labelText: 'Adresse (optionnel)',
-                      border: OutlineInputBorder(),
+                    const SizedBox(height: 12),
+                    SwitchListTile.adaptive(
+                      contentPadding: EdgeInsets.zero,
+                      value: _isVisible,
+                      onChanged: _isSaving
+                          ? null
+                          : (v) => setState(() => _isVisible = v),
+                      title: const Text('Visible (liste + couche)'),
                     ),
-                    textInputAction: TextInputAction.next,
-                  ),
-                  const SizedBox(height: 12),
-                  TextField(
-                    controller: _openingHoursCtrl,
-                    decoration: const InputDecoration(
-                      labelText: 'Horaires (optionnel)',
-                      border: OutlineInputBorder(),
-                    ),
-                    maxLines: 2,
-                  ),
-                  const SizedBox(height: 12),
-                  TextField(
-                    controller: _phoneCtrl,
-                    decoration: const InputDecoration(
-                      labelText: 'Téléphone (optionnel)',
-                      border: OutlineInputBorder(),
-                    ),
-                    textInputAction: TextInputAction.next,
-                  ),
-                  const SizedBox(height: 12),
-                  TextField(
-                    controller: _websiteCtrl,
-                    decoration: const InputDecoration(
-                      labelText: 'Site web (optionnel)',
-                      border: OutlineInputBorder(),
-                    ),
-                    textInputAction: TextInputAction.next,
-                  ),
-                  const SizedBox(height: 12),
-                  TextField(
-                    controller: _instagramCtrl,
-                    decoration: const InputDecoration(
-                      labelText: 'Instagram (optionnel)',
-                      border: OutlineInputBorder(),
-                    ),
-                    textInputAction: TextInputAction.next,
-                  ),
-                  const SizedBox(height: 12),
-                  TextField(
-                    controller: _facebookCtrl,
-                    decoration: const InputDecoration(
-                      labelText: 'Facebook (optionnel)',
-                      border: OutlineInputBorder(),
-                    ),
-                    textInputAction: TextInputAction.next,
-                  ),
-                  const SizedBox(height: 12),
-                  TextField(
-                    controller: _whatsappCtrl,
-                    decoration: const InputDecoration(
-                      labelText: 'WhatsApp (optionnel)',
-                      border: OutlineInputBorder(),
-                    ),
-                    textInputAction: TextInputAction.next,
-                  ),
-                  const SizedBox(height: 12),
-                  TextField(
-                    controller: _emailCtrl,
-                    decoration: const InputDecoration(
-                      labelText: 'Email (optionnel)',
-                      border: OutlineInputBorder(),
-                    ),
-                    textInputAction: TextInputAction.next,
-                  ),
-                  const SizedBox(height: 12),
-                  TextField(
-                    controller: _mapsUrlCtrl,
-                    decoration: const InputDecoration(
-                      labelText: 'Lien Google Maps (optionnel)',
-                      border: OutlineInputBorder(),
-                    ),
-                  ),
 
-                  const SizedBox(height: 14),
-                  _buildImagePreview(),
-
-                  const SizedBox(height: 12),
-                  FilledButton.tonalIcon(
-                    onPressed: (!canUpload || _isSaving)
-                        ? null
-                        : _showSourcePicker,
-                    style: FilledButton.styleFrom(
-                      backgroundColor: Colors.white,
-                      foregroundColor: MasliveTokens.text,
+                    const SizedBox(height: 12),
+                    TextField(
+                      controller: _addressCtrl,
+                      decoration: const InputDecoration(
+                        labelText: 'Adresse (optionnel)',
+                        border: OutlineInputBorder(),
+                      ),
+                      textInputAction: TextInputAction.next,
                     ),
-                    icon: const Icon(Icons.add_a_photo_rounded),
-                    label: Text(
-                      (_selectedFile != null)
-                          ? 'Changer la photo'
-                          : 'Ajouter une photo',
+                    const SizedBox(height: 12),
+                    TextField(
+                      controller: _openingHoursCtrl,
+                      decoration: const InputDecoration(
+                        labelText: 'Horaires (optionnel)',
+                        border: OutlineInputBorder(),
+                      ),
+                      maxLines: 2,
                     ),
-                  ),
-                  if (!kIsWeb) ...[
-                    const SizedBox(height: 6),
-                    Text(
-                      'Vous pourrez éditer la photo avec les filtres et outils système après sélection.',
-                      textAlign: TextAlign.center,
-                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        fontStyle: FontStyle.italic,
-                        color: Theme.of(
-                          context,
-                        ).colorScheme.onSurface.withValues(alpha: 0.7),
+                    const SizedBox(height: 12),
+                    TextField(
+                      controller: _phoneCtrl,
+                      decoration: const InputDecoration(
+                        labelText: 'Téléphone (optionnel)',
+                        border: OutlineInputBorder(),
+                      ),
+                      textInputAction: TextInputAction.next,
+                    ),
+                    const SizedBox(height: 12),
+                    TextField(
+                      controller: _websiteCtrl,
+                      decoration: const InputDecoration(
+                        labelText: 'Site web (optionnel)',
+                        border: OutlineInputBorder(),
+                      ),
+                      textInputAction: TextInputAction.next,
+                    ),
+                    const SizedBox(height: 12),
+                    TextField(
+                      controller: _instagramCtrl,
+                      decoration: const InputDecoration(
+                        labelText: 'Instagram (optionnel)',
+                        border: OutlineInputBorder(),
+                      ),
+                      textInputAction: TextInputAction.next,
+                    ),
+                    const SizedBox(height: 12),
+                    TextField(
+                      controller: _facebookCtrl,
+                      decoration: const InputDecoration(
+                        labelText: 'Facebook (optionnel)',
+                        border: OutlineInputBorder(),
+                      ),
+                      textInputAction: TextInputAction.next,
+                    ),
+                    const SizedBox(height: 12),
+                    TextField(
+                      controller: _whatsappCtrl,
+                      decoration: const InputDecoration(
+                        labelText: 'WhatsApp (optionnel)',
+                        border: OutlineInputBorder(),
+                      ),
+                      textInputAction: TextInputAction.next,
+                    ),
+                    const SizedBox(height: 12),
+                    TextField(
+                      controller: _emailCtrl,
+                      decoration: const InputDecoration(
+                        labelText: 'Email (optionnel)',
+                        border: OutlineInputBorder(),
+                      ),
+                      textInputAction: TextInputAction.next,
+                    ),
+                    const SizedBox(height: 12),
+                    TextField(
+                      controller: _mapsUrlCtrl,
+                      decoration: const InputDecoration(
+                        labelText: 'Lien Google Maps (optionnel)',
+                        border: OutlineInputBorder(),
                       ),
                     ),
-                  ],
 
-                  if (!canUpload) ...[
-                    const SizedBox(height: 6),
-                    Text(
-                      'Astuce: enregistre d\'abord le brouillon du projet pour activer l\'upload photo.',
-                      textAlign: TextAlign.center,
-                      style: Theme.of(context).textTheme.bodySmall,
-                    ),
-                  ],
+                    const SizedBox(height: 14),
+                    _buildImagePreview(),
 
-                  if (_selectedFile != null) ...[
-                    const SizedBox(height: 8),
-                    FilledButton.icon(
-                      onPressed: (!canUpload || _isSaving || _isUploading)
+                    const SizedBox(height: 12),
+                    FilledButton.tonalIcon(
+                      onPressed: (!canUpload || _isSaving)
                           ? null
-                          : () async {
-                              try {
-                                await _uploadSelectedImageIfNeeded();
-                              } catch (e) {
-                                if (!context.mounted) return;
-                                TopSnackBar.showMessage(
-                                  context,
-                                  '❌ ${_extractErrorMessage(e)}',
-                                  isError: true,
-                                );
-                              }
-                            },
+                          : _showSourcePicker,
                       style: FilledButton.styleFrom(
                         backgroundColor: Colors.white,
                         foregroundColor: MasliveTokens.text,
                       ),
-                      icon: const Icon(Icons.cloud_upload_rounded),
-                      label: const Text('Uploader'),
-                    ),
-                  ],
-
-                  if (_isUploading) ...[
-                    const SizedBox(height: 10),
-                    LinearProgressIndicator(
-                      value: _uploadProgress == 0 ? null : _uploadProgress,
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      'Upload ${(100 * _uploadProgress).toStringAsFixed(0)}%',
-                      textAlign: TextAlign.center,
-                      style: Theme.of(context).textTheme.bodySmall,
-                    ),
-                  ],
-
-                  const SizedBox(height: 8),
-                  SwitchListTile.adaptive(
-                    value: _popupEnabled,
-                    onChanged: (_isSaving || _isUploading)
-                        ? null
-                        : (v) => setState(() => _popupEnabled = v),
-                    title: const Text('Popup'),
-                    subtitle: Text(
-                      _hasAnyImage
-                          ? 'Le POI est cliquable et ouvre la fiche photo.'
-                          : 'Le POI est cliquable et ouvre la fiche avec le logo MASLIVE par défaut.',
-                    ),
-                    contentPadding: EdgeInsets.zero,
-                  ),
-
-                  ValueListenableBuilder<bool>(
-                    valueListenable: PremiumService.instance.isPremium,
-                    builder: (context, isPremium, _) {
-                      return LiveTableProPanel(
-                        layerType: widget.poi.layerType,
-                        isPremium: isPremium,
-                        isBusinessSubscribed: false,
-                        isLoadingRemoteState: false,
-                        enabled: _liveTableEnabled,
-                        status: _liveTableStatus,
-                        availableCtrl: _liveTableAvailableCtrl,
-                        capacityCtrl: _liveTableCapacityCtrl,
-                        messageCtrl: _liveTableMessageCtrl,
-                        onToggleEnabled: (v) {
-                          setState(() => _liveTableEnabled = v);
-                        },
-                        onStatusChanged: (v) {
-                          setState(() => _liveTableStatus = v);
-                        },
-                        onOpenPaywall: () {
-                          Navigator.of(context).pushNamed('/paywall');
-                        },
-                      );
-                    },
-                  ),
-
-                  const SizedBox(height: 12),
-                  Text(
-                    'Effet polaroid',
-                    style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                      fontWeight: FontWeight.w900,
-                    ),
-                  ),
-                  const SizedBox(height: 6),
-                  _buildFineAdjustSlider(
-                    label: 'Angle',
-                    value: _angleDeg,
-                    min: -7,
-                    max: 7,
-                    divisions: 28,
-                    displayValue: '${_angleDeg.toStringAsFixed(1)}°',
-                    onChanged: _isSaving
-                        ? null
-                        : (v) => setState(() => _angleDeg = v),
-                  ),
-                  _buildFineAdjustSlider(
-                    label: 'Grain',
-                    value: _grain,
-                    min: 0,
-                    max: 1,
-                    divisions: 20,
-                    displayValue: _grain.toStringAsFixed(2),
-                    onChanged: _isSaving
-                        ? null
-                        : (v) => setState(() => _grain = v),
-                  ),
-
-                  const SizedBox(height: 8),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: OutlinedButton(
-                          onPressed: (_isSaving || _isUploading) ? null : _save,
-                          child: Text(
-                            _isSaving ? 'Enregistrement…' : 'Enregistrer',
-                          ),
-                        ),
+                      icon: const Icon(Icons.add_a_photo_rounded),
+                      label: Text(
+                        (_selectedFile != null)
+                            ? 'Changer la photo'
+                            : 'Ajouter une photo',
                       ),
-                      const SizedBox(width: 10),
-                      Expanded(
-                        child: FilledButton.icon(
-                          style: FilledButton.styleFrom(
-                            backgroundColor: MasliveTokens.primary,
-                            foregroundColor: Colors.white,
-                          ),
-                          onPressed: (_isSaving || _isUploading) ? null : _save,
-                          icon: const Icon(Icons.check_circle_rounded),
-                          label: Text(
-                            _isSaving
-                                ? 'Enregistrement…'
-                                : 'Enregistrer et quitter',
-                          ),
+                    ),
+                    if (!kIsWeb) ...[
+                      const SizedBox(height: 6),
+                      Text(
+                        'Vous pourrez éditer la photo avec les filtres et outils système après sélection.',
+                        textAlign: TextAlign.center,
+                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                          fontStyle: FontStyle.italic,
+                          color: Theme.of(
+                            context,
+                          ).colorScheme.onSurface.withValues(alpha: 0.7),
                         ),
                       ),
                     ],
-                  ),
-                  const SizedBox(height: 8),
-                ],
+
+                    if (!canUpload) ...[
+                      const SizedBox(height: 6),
+                      Text(
+                        'Astuce: enregistre d\'abord le brouillon du projet pour activer l\'upload photo.',
+                        textAlign: TextAlign.center,
+                        style: Theme.of(context).textTheme.bodySmall,
+                      ),
+                    ],
+
+                    if (_selectedFile != null) ...[
+                      const SizedBox(height: 8),
+                      FilledButton.icon(
+                        onPressed: (!canUpload || _isSaving || _isUploading)
+                            ? null
+                            : () async {
+                                try {
+                                  await _uploadSelectedImageIfNeeded();
+                                } catch (e) {
+                                  if (!context.mounted) return;
+                                  TopSnackBar.showMessage(
+                                    context,
+                                    '❌ ${_extractErrorMessage(e)}',
+                                    isError: true,
+                                  );
+                                }
+                              },
+                        style: FilledButton.styleFrom(
+                          backgroundColor: Colors.white,
+                          foregroundColor: MasliveTokens.text,
+                        ),
+                        icon: const Icon(Icons.cloud_upload_rounded),
+                        label: const Text('Uploader'),
+                      ),
+                    ],
+
+                    if (_isUploading) ...[
+                      const SizedBox(height: 10),
+                      LinearProgressIndicator(
+                        value: _uploadProgress == 0 ? null : _uploadProgress,
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        'Upload ${(100 * _uploadProgress).toStringAsFixed(0)}%',
+                        textAlign: TextAlign.center,
+                        style: Theme.of(context).textTheme.bodySmall,
+                      ),
+                    ],
+
+                    const SizedBox(height: 8),
+                    SwitchListTile.adaptive(
+                      value: _popupEnabled,
+                      onChanged: (_isSaving || _isUploading)
+                          ? null
+                          : (v) => setState(() => _popupEnabled = v),
+                      title: const Text('Popup'),
+                      subtitle: Text(
+                        _hasAnyImage
+                            ? 'Le POI est cliquable et ouvre la fiche photo.'
+                            : 'Le POI est cliquable et ouvre la fiche avec le logo MASLIVE par défaut.',
+                      ),
+                      contentPadding: EdgeInsets.zero,
+                    ),
+
+                    ValueListenableBuilder<bool>(
+                      valueListenable: PremiumService.instance.isPremium,
+                      builder: (context, isPremium, _) {
+                        return LiveTableProPanel(
+                          layerType: widget.poi.layerType,
+                          isPremium: isPremium,
+                          isBusinessSubscribed: false,
+                          isLoadingRemoteState: false,
+                          enabled: _liveTableEnabled,
+                          status: _liveTableStatus,
+                          availableCtrl: _liveTableAvailableCtrl,
+                          capacityCtrl: _liveTableCapacityCtrl,
+                          messageCtrl: _liveTableMessageCtrl,
+                          onToggleEnabled: (v) {
+                            setState(() => _liveTableEnabled = v);
+                          },
+                          onStatusChanged: (v) {
+                            setState(() => _liveTableStatus = v);
+                          },
+                          onOpenPaywall: () {
+                            Navigator.of(context).pushNamed('/paywall');
+                          },
+                        );
+                      },
+                    ),
+
+                    const SizedBox(height: 12),
+                    Text(
+                      'Effet polaroid',
+                      style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                        fontWeight: FontWeight.w900,
+                      ),
+                    ),
+                    const SizedBox(height: 6),
+                    _buildFineAdjustSlider(
+                      label: 'Angle',
+                      value: _angleDeg,
+                      min: -7,
+                      max: 7,
+                      divisions: 28,
+                      displayValue: '${_angleDeg.toStringAsFixed(1)}°',
+                      onChanged: _isSaving
+                          ? null
+                          : (v) => setState(() => _angleDeg = v),
+                    ),
+                    _buildFineAdjustSlider(
+                      label: 'Grain',
+                      value: _grain,
+                      min: 0,
+                      max: 1,
+                      divisions: 20,
+                      displayValue: _grain.toStringAsFixed(2),
+                      onChanged: _isSaving
+                          ? null
+                          : (v) => setState(() => _grain = v),
+                    ),
+
+                    const SizedBox(height: 8),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: OutlinedButton(
+                            onPressed: (_isSaving || _isUploading)
+                                ? null
+                                : _save,
+                            child: Text(
+                              _isSaving ? 'Enregistrement…' : 'Enregistrer',
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: FilledButton.icon(
+                            style: FilledButton.styleFrom(
+                              backgroundColor: MasliveTokens.primary,
+                              foregroundColor: Colors.white,
+                            ),
+                            onPressed: (_isSaving || _isUploading)
+                                ? null
+                                : _save,
+                            icon: const Icon(Icons.check_circle_rounded),
+                            label: Text(
+                              _isSaving
+                                  ? 'Enregistrement…'
+                                  : 'Enregistrer et quitter',
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                  ],
+                ),
               ),
             ),
           ),

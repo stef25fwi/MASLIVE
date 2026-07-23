@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:pointer_interceptor/pointer_interceptor.dart';
 
 import '../../models/market_circuit.dart';
 import '../../models/market_country.dart';
@@ -55,12 +56,14 @@ Future<MarketMapPoiSelection?> showMarketMapPoiSelectorSheet(
     isScrollControlled: true,
     showDragHandle: true,
     backgroundColor: Theme.of(context).colorScheme.surface,
-    builder: (_) => _MarketMapPoiSelectorSheet(
-      service: service ?? MarketMapService(),
-      initial: initial,
-      title: title,
-      showLayers: showLayers,
-      disableKeyboardInput: disableKeyboardInput,
+    builder: (_) => PointerInterceptor(
+      child: _MarketMapPoiSelectorSheet(
+        service: service ?? MarketMapService(),
+        initial: initial,
+        title: title,
+        showLayers: showLayers,
+        disableKeyboardInput: disableKeyboardInput,
+      ),
     ),
   );
 }
@@ -302,11 +305,7 @@ class _MarketMapPoiSelectorSheetState
   }
 
   String _countryIso2(MarketCountry c) {
-    return guessIso2FromMarketMapCountry(
-      id: c.id,
-      slug: c.slug,
-      name: c.name,
-    );
+    return guessIso2FromMarketMapCountry(id: c.id, slug: c.slug, name: c.name);
   }
 
   TextStyle _countryTextStyle(BuildContext context) {
@@ -452,7 +451,8 @@ class _MarketMapPoiSelectorSheetState
 
   String _eventDisplayLabel(MarketEvent e) => _eventLabel(e).toUpperCase();
 
-  String _circuitDisplayLabel(MarketCircuit c) => _circuitLabel(c).toUpperCase();
+  String _circuitDisplayLabel(MarketCircuit c) =>
+      _circuitLabel(c).toUpperCase();
 
   String _eventLabel(MarketEvent e) {
     final name = e.name.trim();
@@ -503,8 +503,7 @@ class _MarketMapPoiSelectorSheetState
         final visibleCountryIds = indexReady
             ? (visibleIndex?.countryIds ?? const <String>{})
             : const <String>{};
-        final visibleEventIds =
-            (!indexReady || _country == null)
+        final visibleEventIds = (!indexReady || _country == null)
             ? const <String>{}
             : visibleIndex?.eventIdsForCountry(_country!.id) ??
                   const <String>{};
@@ -538,9 +537,9 @@ class _MarketMapPoiSelectorSheetState
                           borderRadius: BorderRadius.circular(18),
                           boxShadow: <BoxShadow>[
                             BoxShadow(
-                              color: const Color(0xFF9B6BFF).withValues(
-                                alpha: 0.22,
-                              ),
+                              color: const Color(
+                                0xFF9B6BFF,
+                              ).withValues(alpha: 0.22),
                               blurRadius: 18,
                               offset: const Offset(0, 8),
                             ),
@@ -606,9 +605,12 @@ class _MarketMapPoiSelectorSheetState
                         // Filter to visible countries only when index is ready.
                         // While index loads, show the full list so the user
                         // doesn't wait.
-                        final items = (indexReady && visibleCountryIds.isNotEmpty)
+                        final items =
+                            (indexReady && visibleCountryIds.isNotEmpty)
                             ? all
-                                  .where((c) => visibleCountryIds.contains(c.id))
+                                  .where(
+                                    (c) => visibleCountryIds.contains(c.id),
+                                  )
                                   .toList(growable: true)
                             : all.toList(growable: true);
 
@@ -677,8 +679,9 @@ class _MarketMapPoiSelectorSheetState
                                       setState(() {
                                         _country = selected;
                                         _countryHasSelectedOption = true;
-                                        _countryCtrl.text =
-                                            _countryLabel(selected);
+                                        _countryCtrl.text = _countryLabel(
+                                          selected,
+                                        );
                                         _event = null;
                                         _eventCtrl.clear();
                                         _eventHasSelectedOption = false;
@@ -725,9 +728,7 @@ class _MarketMapPoiSelectorSheetState
                     StreamBuilder<List<MarketEvent>>(
                       stream: _country == null
                           ? const Stream.empty()
-                          : widget.service.watchEvents(
-                              countryId: _country!.id,
-                            ),
+                          : widget.service.watchEvents(countryId: _country!.id),
                       builder: (context, snap) {
                         final eventLoading =
                             _country != null &&
@@ -737,13 +738,12 @@ class _MarketMapPoiSelectorSheetState
 
                         // Filter by visible index only when index is ready and
                         // we have event ids for this country. Otherwise show all.
-                        final items = (indexReady &&
+                        final items =
+                            (indexReady &&
                                 visibleEventIds.isNotEmpty &&
                                 _country != null)
                             ? all
-                                  .where(
-                                    (e) => visibleEventIds.contains(e.id),
-                                  )
+                                  .where((e) => visibleEventIds.contains(e.id))
                                   .toList(growable: false)
                             : all;
 
@@ -781,8 +781,7 @@ class _MarketMapPoiSelectorSheetState
                                   ),
                                 ),
                             ],
-                            onChanged:
-                                (_country == null || items.isEmpty)
+                            onChanged: (_country == null || items.isEmpty)
                                 ? null
                                 : (id) {
                                     if (id == null) return;
@@ -793,8 +792,9 @@ class _MarketMapPoiSelectorSheetState
                                       _event = selected;
                                       _eventHasSelectedOption = true;
                                       _updatingControllers = true;
-                                      _eventCtrl.text =
-                                          _eventDisplayLabel(selected);
+                                      _eventCtrl.text = _eventDisplayLabel(
+                                        selected,
+                                      );
                                       _updatingControllers = false;
                                       _circuit = null;
                                       _circuitCtrl.clear();
@@ -824,7 +824,8 @@ class _MarketMapPoiSelectorSheetState
                             _event != null &&
                             snap.connectionState == ConnectionState.waiting &&
                             !snap.hasData;
-                        final allCircuits = snap.data ?? const <MarketCircuit>[];
+                        final allCircuits =
+                            snap.data ?? const <MarketCircuit>[];
 
                         // Only show published, visible circuits.
                         // Filtered entirely client-side — no index needed.
@@ -897,8 +898,9 @@ class _MarketMapPoiSelectorSheetState
                                       _circuit = selected;
                                       _circuitHasSelectedOption = true;
                                       _updatingControllers = true;
-                                      _circuitCtrl.text =
-                                          _circuitDisplayLabel(selected);
+                                      _circuitCtrl.text = _circuitDisplayLabel(
+                                        selected,
+                                      );
                                       _updatingControllers = false;
                                       _layerIds = <String>{};
                                       _layerSelectionInitialized = false;

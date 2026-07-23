@@ -8,9 +8,7 @@ void main() {
 
   test('shared POI overlays intercept pointers above Mapbox', () {
     final polaroid = source('lib/ui/widgets/polaroid_poi_sheet.dart');
-    final selector = source(
-      'lib/ui/widgets/marketmap_poi_selector_sheet.dart',
-    );
+    final selector = source('lib/ui/widgets/marketmap_poi_selector_sheet.dart');
 
     expect(polaroid, contains('PointerInterceptor(child: SafeArea('));
     expect(selector, contains('PointerInterceptor('));
@@ -24,7 +22,9 @@ void main() {
     expect(editor, contains('_withInteractionLock'));
     expect(
       editor,
-      contains('if (_interactionOverlayOpen || _isSaving || _isUploading) return;'),
+      contains(
+        'if (_interactionOverlayOpen || _isSaving || _isUploading) return;',
+      ),
     );
     expect(editor, contains('PointerInterceptor(child: AlertDialog('));
     expect(editor, contains('PointerInterceptor(child: SafeArea('));
@@ -37,7 +37,9 @@ void main() {
     expect(editor, contains('bool _interactionOverlayOpen = false'));
     expect(
       editor,
-      contains('if (_interactionOverlayOpen || !widget.editingEnabled) return;'),
+      contains(
+        'if (_interactionOverlayOpen || !widget.editingEnabled) return;',
+      ),
     );
     expect(editor, contains('PointerInterceptor(child: AlertDialog('));
     expect(editor, contains('_withInteractionLock'));
