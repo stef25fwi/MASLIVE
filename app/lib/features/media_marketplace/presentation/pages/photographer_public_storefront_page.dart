@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../../shop/pages/media_photo_shop_page.dart';
 import '../../data/models/photographer_profile_model.dart';
 import '../../data/repositories/photographer_repository.dart';
+import '../../../../ui_kit/responsive/responsive.dart';
 
 class PhotographerPublicStorefrontPage extends StatefulWidget {
   const PhotographerPublicStorefrontPage({
@@ -45,7 +46,8 @@ class _PhotographerPublicStorefrontPageState
       future: _profileFuture,
       builder: (context, snapshot) {
         final profile = snapshot.data;
-        final storefront = profile?.publicStorefront ?? const <String, dynamic>{};
+        final storefront =
+            profile?.publicStorefront ?? const <String, dynamic>{};
         final accent = _parseColor(storefront['accentColor']?.toString());
         final headline = storefront['headline']?.toString().trim();
         final description = storefront['description']?.toString().trim();
@@ -65,8 +67,12 @@ class _PhotographerPublicStorefrontPageState
                 child: Material(
                   color: accent ?? Theme.of(context).colorScheme.surface,
                   elevation: 3,
-                  child: Padding(
-                    padding: const EdgeInsets.fromLTRB(16, 12, 16, 14),
+                  child: ResponsivePageContainer(
+                    maxContentWidth: 1280,
+                    compactPadding: const EdgeInsets.fromLTRB(16, 12, 16, 14),
+                    mediumPadding: const EdgeInsets.fromLTRB(24, 14, 24, 16),
+                    expandedPadding: const EdgeInsets.fromLTRB(32, 16, 32, 18),
+                    widePadding: const EdgeInsets.fromLTRB(40, 18, 40, 20),
                     child: Row(
                       children: <Widget>[
                         IconButton(
@@ -94,9 +100,7 @@ class _PhotographerPublicStorefrontPageState
                                   profile?.brandName ?? 'Boutique photos',
                                   maxLines: 1,
                                   overflow: TextOverflow.ellipsis,
-                                  style: Theme.of(context)
-                                      .textTheme
-                                      .titleLarge
+                                  style: Theme.of(context).textTheme.titleLarge
                                       ?.copyWith(fontWeight: FontWeight.w900),
                                 ),
                               if (headline?.isNotEmpty == true)
@@ -133,7 +137,9 @@ class _PhotographerPublicStorefrontPageState
                             icon: const Icon(Icons.storefront_outlined),
                             itemBuilder: (context) => brands
                                 .map(
-                                  (brand) => PopupMenuItem<Map<String, dynamic>>(
+                                  (
+                                    brand,
+                                  ) => PopupMenuItem<Map<String, dynamic>>(
                                     value: brand,
                                     child: ListTile(
                                       contentPadding: EdgeInsets.zero,

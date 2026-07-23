@@ -19,6 +19,7 @@ import '../../../ui/theme/maslive_theme.dart';
 import '../../../ui/widgets/marketmap_poi_selector_sheet.dart';
 import '../../../utils/country_flag.dart';
 import 'package:masslive/ui_kit/tokens/maslive_tokens.dart';
+import '../../../ui_kit/responsive/responsive.dart';
 
 class MediaPhotoShopPage extends StatefulWidget {
   const MediaPhotoShopPage({
@@ -53,9 +54,7 @@ class MediaPhotoShopPage extends StatefulWidget {
 }
 
 class _MediaPhotoShopPageState extends State<MediaPhotoShopPage> {
-  final Set<String> _likedPhotoIds = <String>{
-    'photo_2',
-  };
+  final Set<String> _likedPhotoIds = <String>{'photo_2'};
   final MarketMapService _marketMapService = MarketMapService();
   final TextEditingController _photographerController = TextEditingController();
   String? _countryId;
@@ -148,14 +147,22 @@ class _MediaPhotoShopPageState extends State<MediaPhotoShopPage> {
     final rawArgs = ModalRoute.of(context)?.settings.arguments;
     final args = rawArgs is Map ? rawArgs : const <String, dynamic>{};
 
-    _countryId = widget.countryId?.trim() ?? (args['countryId'] as String?)?.trim();
-    _countryName = widget.countryName?.trim() ?? (args['countryName'] as String?)?.trim();
+    _countryId =
+        widget.countryId?.trim() ?? (args['countryId'] as String?)?.trim();
+    _countryName =
+        widget.countryName?.trim() ?? (args['countryName'] as String?)?.trim();
     _eventId = widget.eventId?.trim() ?? (args['eventId'] as String?)?.trim();
-    _eventName = widget.eventName?.trim() ?? (args['eventName'] as String?)?.trim();
-    _circuitId = widget.circuitId?.trim() ?? (args['circuitId'] as String?)?.trim();
-    _circuitName = widget.circuitName?.trim() ?? (args['circuitName'] as String?)?.trim();
-    _photographerId = widget.photographerId?.trim() ?? (args['photographerId'] as String?)?.trim();
-    _ownerUid = widget.ownerUid?.trim() ?? (args['ownerUid'] as String?)?.trim();
+    _eventName =
+        widget.eventName?.trim() ?? (args['eventName'] as String?)?.trim();
+    _circuitId =
+        widget.circuitId?.trim() ?? (args['circuitId'] as String?)?.trim();
+    _circuitName =
+        widget.circuitName?.trim() ?? (args['circuitName'] as String?)?.trim();
+    _photographerId =
+        widget.photographerId?.trim() ??
+        (args['photographerId'] as String?)?.trim();
+    _ownerUid =
+        widget.ownerUid?.trim() ?? (args['ownerUid'] as String?)?.trim();
 
     final initialTab = widget.initialTabIndex ?? args['initialTab'];
     _activeTabIndex = _resolveInitialTabIndex(initialTab);
@@ -167,7 +174,9 @@ class _MediaPhotoShopPageState extends State<MediaPhotoShopPage> {
     String? ownerUid = _ownerUid;
 
     if (photographerQuery.isNotEmpty) {
-      final profile = await PhotographerRepository().findByQuery(photographerQuery);
+      final profile = await PhotographerRepository().findByQuery(
+        photographerQuery,
+      );
       if (!mounted) return;
 
       if (profile != null) {
@@ -176,7 +185,9 @@ class _MediaPhotoShopPageState extends State<MediaPhotoShopPage> {
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text('Aucun photographe trouve. Ouverture du catalogue complet.'),
+            content: Text(
+              'Aucun photographe trouve. Ouverture du catalogue complet.',
+            ),
           ),
         );
       }
@@ -342,7 +353,8 @@ class _MediaPhotoShopPageState extends State<MediaPhotoShopPage> {
               onNavigateHome: _goHome,
               onNavigateSearch: () => _openMarketplace(initialTab: 0),
               onNavigateProfile: _goAccount,
-              onNavigateCategory: (categoryId, title) => _openMarketplace(initialTab: 0),
+              onNavigateCategory: (categoryId, title) =>
+                  _openMarketplace(initialTab: 0),
             ),
       appBar: widget.embedded
           ? null
@@ -378,12 +390,38 @@ class _MediaPhotoShopPageState extends State<MediaPhotoShopPage> {
         headerSliverBuilder: (context, innerBoxIsScrolled) {
           return <Widget>[
             SliverToBoxAdapter(
-              child: Padding(
-                padding: EdgeInsets.fromLTRB(10, widget.embedded ? 18 : 14, 10, 12),
+              child: ResponsivePageContainer(
+                maxContentWidth: 1280,
+                compactPadding: EdgeInsets.fromLTRB(
+                  10,
+                  widget.embedded ? 18 : 14,
+                  10,
+                  12,
+                ),
+                mediumPadding: EdgeInsets.fromLTRB(
+                  20,
+                  widget.embedded ? 20 : 18,
+                  20,
+                  14,
+                ),
+                expandedPadding: EdgeInsets.fromLTRB(
+                  28,
+                  widget.embedded ? 22 : 20,
+                  28,
+                  16,
+                ),
+                widePadding: EdgeInsets.fromLTRB(
+                  36,
+                  widget.embedded ? 24 : 22,
+                  36,
+                  18,
+                ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    _HeroCarnavalCard(onTap: () => _openMarketplace(initialTab: 0)),
+                    _HeroCarnavalCard(
+                      onTap: () => _openMarketplace(initialTab: 0),
+                    ),
                     const SizedBox(height: 18),
                     _MediaCatalogFilter(
                       marketMapService: _marketMapService,
@@ -430,7 +468,10 @@ class _MediaPhotoShopPageState extends State<MediaPhotoShopPage> {
                             onTap: () => setState(() => _activeTabIndex = 0),
                             borderRadius: BorderRadius.circular(10),
                             child: const Padding(
-                              padding: EdgeInsets.symmetric(horizontal: 6, vertical: 4),
+                              padding: EdgeInsets.symmetric(
+                                horizontal: 6,
+                                vertical: 4,
+                              ),
                               child: Text(
                                 'Catalogue complet',
                                 style: TextStyle(
@@ -446,7 +487,8 @@ class _MediaPhotoShopPageState extends State<MediaPhotoShopPage> {
                     const SizedBox(height: 12),
                     _MediaSectionTabs(
                       activeIndex: _activeTabIndex,
-                      onChanged: (index) => setState(() => _activeTabIndex = index),
+                      onChanged: (index) =>
+                          setState(() => _activeTabIndex = index),
                     ),
                     if (_activeTabIndex == 0) ...[
                       const SizedBox(height: 14),
@@ -471,8 +513,12 @@ class _MediaPhotoShopPageState extends State<MediaPhotoShopPage> {
             ),
           ];
         },
-        body: Padding(
-          padding: const EdgeInsets.fromLTRB(10, 0, 10, 0),
+        body: ResponsivePageContainer(
+          maxContentWidth: 1280,
+          compactPadding: const EdgeInsets.fromLTRB(10, 0, 10, 0),
+          mediumPadding: const EdgeInsets.fromLTRB(20, 0, 20, 0),
+          expandedPadding: const EdgeInsets.fromLTRB(28, 0, 28, 0),
+          widePadding: const EdgeInsets.fromLTRB(36, 0, 36, 0),
           child: _buildActiveMarketplaceContent(),
         ),
       ),
@@ -531,9 +577,7 @@ class _MediaPhotoShopPageState extends State<MediaPhotoShopPage> {
 class _HeroCarnavalCard extends StatelessWidget {
   final VoidCallback? onTap;
 
-  const _HeroCarnavalCard({
-    this.onTap,
-  });
+  const _HeroCarnavalCard({this.onTap});
 
   @override
   Widget build(BuildContext context) {
@@ -544,11 +588,7 @@ class _HeroCarnavalCard extends StatelessWidget {
         gradient: const LinearGradient(
           begin: Alignment.centerLeft,
           end: Alignment.centerRight,
-          colors: [
-            Color(0xFFFFB26A),
-            Color(0xFFFF7BC5),
-            Color(0xFF7CE0FF),
-          ],
+          colors: [Color(0xFFFFB26A), Color(0xFFFF7BC5), Color(0xFF7CE0FF)],
         ),
       ),
       child: Material(
@@ -557,70 +597,74 @@ class _HeroCarnavalCard extends StatelessWidget {
           onTap: onTap,
           borderRadius: BorderRadius.circular(28),
           child: Container(
-            height: 268,
+            height: responsiveValue<double>(
+              context,
+              compact: 268,
+              medium: 320,
+              expanded: 360,
+              wide: 390,
+            ),
             width: double.infinity,
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(28),
-          ),
-          clipBehavior: Clip.antiAlias,
-          child: Stack(
-            fit: StackFit.expand,
-            children: [
-              Image.asset(
-                'assets/shop/hero2.webp',
-                fit: BoxFit.cover,
-                alignment: Alignment.center,
-              ),
+            decoration: BoxDecoration(borderRadius: BorderRadius.circular(28)),
+            clipBehavior: Clip.antiAlias,
+            child: Stack(
+              fit: StackFit.expand,
+              children: [
+                Image.asset(
+                  'assets/shop/hero2.webp',
+                  fit: BoxFit.cover,
+                  alignment: Alignment.center,
+                ),
 
-              Container(
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    begin: Alignment.centerLeft,
-                    end: Alignment.centerRight,
-                    colors: [
-                      Colors.black.withValues(alpha: 0.50),
-                      Colors.black.withValues(alpha: 0.14),
-                      Colors.black.withValues(alpha: 0.10),
-                    ],
-                    stops: const [0.0, 0.38, 1.0],
+                Container(
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      begin: Alignment.centerLeft,
+                      end: Alignment.centerRight,
+                      colors: [
+                        Colors.black.withValues(alpha: 0.50),
+                        Colors.black.withValues(alpha: 0.14),
+                        Colors.black.withValues(alpha: 0.10),
+                      ],
+                      stops: const [0.0, 0.38, 1.0],
+                    ),
                   ),
                 ),
-              ),
 
-              const Positioned(
-                left: 18,
-                bottom: 22,
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'CARNAVAL 2024',
-                      style: TextStyle(
-                        fontSize: 27,
-                        fontWeight: FontWeight.w900,
-                        color: Colors.white,
-                        letterSpacing: -0.6,
-                        height: 1,
+                const Positioned(
+                  left: 18,
+                  bottom: 22,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'CARNAVAL 2024',
+                        style: TextStyle(
+                          fontSize: 27,
+                          fontWeight: FontWeight.w900,
+                          color: Colors.white,
+                          letterSpacing: -0.6,
+                          height: 1,
+                        ),
                       ),
-                    ),
-                    SizedBox(height: 12),
-                    Text(
-                      'DÉCOUVRIR  >',
-                      style: TextStyle(
-                        fontSize: 14.5,
-                        fontWeight: FontWeight.w800,
-                        color: Colors.white,
-                        letterSpacing: 0.2,
-                        height: 1,
+                      SizedBox(height: 12),
+                      Text(
+                        'DÉCOUVRIR  >',
+                        style: TextStyle(
+                          fontSize: 14.5,
+                          fontWeight: FontWeight.w800,
+                          color: Colors.white,
+                          letterSpacing: 0.2,
+                          height: 1,
+                        ),
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
         ),
-      ),
       ),
     );
   }
@@ -660,9 +704,11 @@ class _MediaCatalogFilter extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final summary = <String>[
-      if (countryLabel.trim().isNotEmpty && countryLabel != 'SELECTIONNER UN PAYS')
+      if (countryLabel.trim().isNotEmpty &&
+          countryLabel != 'SELECTIONNER UN PAYS')
         countryLabel,
-      if (eventLabel.trim().isNotEmpty && eventLabel != 'SELECTIONNER UN EVENEMENT')
+      if (eventLabel.trim().isNotEmpty &&
+          eventLabel != 'SELECTIONNER UN EVENEMENT')
         eventLabel,
       if (circuitLabel.trim().isNotEmpty &&
           circuitLabel != 'SELECTIONNER UN CIRCUIT')
@@ -751,11 +797,12 @@ class _MediaCatalogFilter extends StatelessWidget {
                   });
                 }
 
-                final visibleEventIds = hasVisibleIndex &&
+                final visibleEventIds =
+                    hasVisibleIndex &&
                         selectedCountryId != null &&
                         visibleCountryIds.contains(selectedCountryId)
                     ? visibleIndex?.eventIdsForCountry(selectedCountryId!) ??
-                        const <String>{}
+                          const <String>{}
                     : const <String>{};
 
                 if (hasVisibleIndex &&
@@ -778,12 +825,19 @@ class _MediaCatalogFilter extends StatelessWidget {
                       StreamBuilder<List<MarketCountry>>(
                         stream: marketMapService.watchCountries(),
                         builder: (context, snapshot) {
-                          final countries = (snapshot.data ?? const <MarketCountry>[])
-                              .where((country) => visibleCountryIds.contains(country.id))
-                              .toList(growable: false);
+                          final countries =
+                              (snapshot.data ?? const <MarketCountry>[])
+                                  .where(
+                                    (country) =>
+                                        visibleCountryIds.contains(country.id),
+                                  )
+                                  .toList(growable: false);
                           return _FilterDropdownField<String>(
                             label: 'PAYS',
-                            value: countries.any((country) => country.id == selectedCountryId)
+                            value:
+                                countries.any(
+                                  (country) => country.id == selectedCountryId,
+                                )
                                 ? selectedCountryId
                                 : null,
                             hintText: 'Selectionner un pays',
@@ -811,31 +865,44 @@ class _MediaCatalogFilter extends StatelessWidget {
                       ),
                       const SizedBox(height: 10),
                       StreamBuilder<List<MarketEvent>>(
-                        stream: selectedCountryId == null ||
+                        stream:
+                            selectedCountryId == null ||
                                 selectedCountryId!.isEmpty ||
                                 !visibleCountryIds.contains(selectedCountryId)
                             ? const Stream<List<MarketEvent>>.empty()
-                            : marketMapService.watchEvents(countryId: selectedCountryId!),
+                            : marketMapService.watchEvents(
+                                countryId: selectedCountryId!,
+                              ),
                         builder: (context, snapshot) {
-                          final events = (snapshot.data ?? const <MarketEvent>[])
-                              .where((event) => visibleEventIds.contains(event.id))
-                              .toList(growable: false);
+                          final events =
+                              (snapshot.data ?? const <MarketEvent>[])
+                                  .where(
+                                    (event) =>
+                                        visibleEventIds.contains(event.id),
+                                  )
+                                  .toList(growable: false);
                           return _FilterDropdownField<String>(
                             label: 'EVENEMENT',
-                            value: events.any((event) => event.id == selectedEventId)
+                            value:
+                                events.any(
+                                  (event) => event.id == selectedEventId,
+                                )
                                 ? selectedEventId
                                 : null,
                             hintText: 'Selectionner un evenement',
-                            enabled: hasVisibleIndex &&
+                            enabled:
+                                hasVisibleIndex &&
                                 selectedCountryId != null &&
                                 visibleCountryIds.contains(selectedCountryId),
                             items: events
                                 .map(
                                   (event) => DropdownMenuItem<String>(
                                     value: event.id,
-                                    child: Text(event.name.trim().isEmpty
-                                        ? event.id.toUpperCase()
-                                        : event.name.trim().toUpperCase()),
+                                    child: Text(
+                                      event.name.trim().isEmpty
+                                          ? event.id.toUpperCase()
+                                          : event.name.trim().toUpperCase(),
+                                    ),
                                   ),
                                 )
                                 .toList(growable: false),
@@ -854,11 +921,14 @@ class _MediaCatalogFilter extends StatelessWidget {
                       ),
                       const SizedBox(height: 10),
                       StreamBuilder<List<MarketCircuit>>(
-                        stream: selectedCountryId == null ||
+                        stream:
+                            selectedCountryId == null ||
                                 selectedCountryId!.isEmpty ||
                                 selectedEventId == null ||
                                 selectedEventId!.isEmpty ||
-                                !visibleCountryIds.contains(selectedCountryId) ||
+                                !visibleCountryIds.contains(
+                                  selectedCountryId,
+                                ) ||
                                 !visibleEventIds.contains(selectedEventId)
                             ? const Stream<List<MarketCircuit>>.empty()
                             : marketMapService.watchCircuits(
@@ -866,16 +936,19 @@ class _MediaCatalogFilter extends StatelessWidget {
                                 eventId: selectedEventId!,
                               ),
                         builder: (context, snapshot) {
-                          final circuits = (snapshot.data ?? const <MarketCircuit>[])
-                              .where(
-                              (circuit) =>
-                                circuit.isVisible &&
-                                circuit.status == 'published',
-                              )
-                              .toList(growable: false);
+                          final circuits =
+                              (snapshot.data ?? const <MarketCircuit>[])
+                                  .where(
+                                    (circuit) =>
+                                        circuit.isVisible &&
+                                        circuit.status == 'published',
+                                  )
+                                  .toList(growable: false);
 
                           if (selectedCircuitId != null &&
-                              !circuits.any((circuit) => circuit.id == selectedCircuitId)) {
+                              !circuits.any(
+                                (circuit) => circuit.id == selectedCircuitId,
+                              )) {
                             WidgetsBinding.instance.addPostFrameCallback((_) {
                               onCircuitChanged(null);
                             });
@@ -883,11 +956,15 @@ class _MediaCatalogFilter extends StatelessWidget {
 
                           return _FilterDropdownField<String>(
                             label: 'CIRCUIT',
-                            value: circuits.any((circuit) => circuit.id == selectedCircuitId)
+                            value:
+                                circuits.any(
+                                  (circuit) => circuit.id == selectedCircuitId,
+                                )
                                 ? selectedCircuitId
                                 : null,
                             hintText: 'Selectionner un circuit',
-                            enabled: hasVisibleIndex &&
+                            enabled:
+                                hasVisibleIndex &&
                                 selectedCountryId != null &&
                                 selectedEventId != null &&
                                 visibleCountryIds.contains(selectedCountryId) &&
@@ -896,9 +973,11 @@ class _MediaCatalogFilter extends StatelessWidget {
                                 .map(
                                   (circuit) => DropdownMenuItem<String>(
                                     value: circuit.id,
-                                    child: Text(circuit.name.trim().isEmpty
-                                        ? circuit.id.toUpperCase()
-                                        : circuit.name.trim().toUpperCase()),
+                                    child: Text(
+                                      circuit.name.trim().isEmpty
+                                          ? circuit.id.toUpperCase()
+                                          : circuit.name.trim().toUpperCase(),
+                                    ),
                                   ),
                                 )
                                 .toList(growable: false),
@@ -997,7 +1076,9 @@ class _FilterDropdownField<T> extends StatelessWidget {
       height: 46,
       padding: const EdgeInsets.symmetric(horizontal: 14),
       decoration: BoxDecoration(
-        color: enabled ? MasliveTheme.surfaceAlt : MasliveTheme.surfaceAlt.withValues(alpha: 0.55),
+        color: enabled
+            ? MasliveTheme.surfaceAlt
+            : MasliveTheme.surfaceAlt.withValues(alpha: 0.55),
         borderRadius: BorderRadius.circular(14),
         border: Border.all(color: MasliveTheme.divider),
       ),
@@ -1033,10 +1114,7 @@ class _FilterDropdownField<T> extends StatelessWidget {
 }
 
 class _MediaSectionTabs extends StatelessWidget {
-  const _MediaSectionTabs({
-    required this.activeIndex,
-    required this.onChanged,
-  });
+  const _MediaSectionTabs({required this.activeIndex, required this.onChanged});
 
   final int activeIndex;
   final ValueChanged<int> onChanged;
@@ -1056,15 +1134,22 @@ class _MediaSectionTabs extends StatelessWidget {
         children: List<Widget>.generate(_labels.length, (index) {
           final isActive = index == activeIndex;
           return Padding(
-            padding: EdgeInsets.only(right: index == _labels.length - 1 ? 0 : 8),
+            padding: EdgeInsets.only(
+              right: index == _labels.length - 1 ? 0 : 8,
+            ),
             child: InkWell(
               borderRadius: BorderRadius.circular(999),
               onTap: () => onChanged(index),
               child: AnimatedContainer(
                 duration: const Duration(milliseconds: 180),
-                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 14,
+                  vertical: 10,
+                ),
                 decoration: BoxDecoration(
-                  color: isActive ? MasliveTheme.textPrimary : MasliveTheme.surface,
+                  color: isActive
+                      ? MasliveTheme.textPrimary
+                      : MasliveTheme.surface,
                   borderRadius: BorderRadius.circular(999),
                   border: Border.all(color: MasliveTheme.divider),
                 ),
@@ -1254,18 +1339,12 @@ class _PhotoCard extends StatelessWidget {
         borderRadius: BorderRadius.circular(22),
         child: Container(
           width: double.infinity,
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(22),
-          ),
+          decoration: BoxDecoration(borderRadius: BorderRadius.circular(22)),
           clipBehavior: Clip.antiAlias,
           child: Stack(
             fit: StackFit.expand,
             children: [
-              StorageImage(
-                url: imageUrl,
-                fit: BoxFit.cover,
-                cacheWidth: 400,
-              ),
+              StorageImage(url: imageUrl, fit: BoxFit.cover, cacheWidth: 400),
               if (showHeart)
                 Positioned(
                   top: 10,
@@ -1301,4 +1380,3 @@ class _PhotoCard extends StatelessWidget {
     );
   }
 }
-
