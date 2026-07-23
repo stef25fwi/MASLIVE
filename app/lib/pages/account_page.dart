@@ -13,6 +13,7 @@ import '../widgets/commerce/commerce_section_card.dart';
 import '../widgets/rainbow_header.dart';
 import 'user_facing_bottom_bar.dart';
 import 'package:masslive/ui_kit/tokens/maslive_tokens.dart';
+import '../ui_kit/responsive/responsive.dart';
 
 class AccountUiPage extends StatefulWidget {
   const AccountUiPage({super.key, this.showBottomBar = true});
@@ -51,9 +52,9 @@ class _AccountUiPageState extends State<AccountUiPage> {
     try {
       Navigator.pushNamed(context, tile.route, arguments: tile.arguments);
     } catch (_) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('${tile.title} indisponible')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('${tile.title} indisponible')));
     }
   }
 
@@ -96,12 +97,15 @@ class _AccountUiPageState extends State<AccountUiPage> {
                         mainAxisSize: MainAxisSize.min,
                         children: <Widget>[
                           if (isAdmin)
-                            const AdminDebugLogsButton(scopeLabel: 'Mon Profil'),
+                            const AdminDebugLogsButton(
+                              scopeLabel: 'Mon Profil',
+                            ),
                           if (isAdmin) const SizedBox(width: 4),
                           CartIconBadge(
                             iconColor: MasliveTokens.text,
-                            backgroundColor:
-                                Colors.white.withValues(alpha: 0.16),
+                            backgroundColor: Colors.white.withValues(
+                              alpha: 0.16,
+                            ),
                             borderColor: Colors.white.withValues(alpha: 0.22),
                           ),
                         ],
@@ -117,49 +121,135 @@ class _AccountUiPageState extends State<AccountUiPage> {
                     SliverFillRemaining(
                       hasScrollBody: false,
                       child: _SignedOutBlock(
-                        onLogin: () => Navigator.of(context).pushNamed('/login'),
+                        onLogin: () =>
+                            Navigator.of(context).pushNamed('/login'),
                         onRetry: _refresh,
                       ),
                     )
                   else ...<Widget>[
                     SliverToBoxAdapter(
-                      child: Padding(
-                        padding: const EdgeInsets.only(top: 16),
+                      child: ResponsivePageContainer(
+                        maxContentWidth: 1200,
+                        compactPadding: const EdgeInsets.only(top: 16),
+                        mediumPadding: const EdgeInsets.only(top: 20),
+                        expandedPadding: const EdgeInsets.only(top: 24),
+                        widePadding: const EdgeInsets.only(top: 28),
                         child: _AvatarBlock(profile: profile),
                       ),
                     ),
                     SliverToBoxAdapter(
-                      child: Padding(
-                        padding: const EdgeInsets.fromLTRB(10, 14, 10, 0),
+                      child: ResponsivePageContainer(
+                        maxContentWidth: 1200,
+                        compactPadding: const EdgeInsets.fromLTRB(
+                          10,
+                          14,
+                          10,
+                          0,
+                        ),
+                        mediumPadding: const EdgeInsets.fromLTRB(24, 18, 24, 0),
+                        expandedPadding: const EdgeInsets.fromLTRB(
+                          40,
+                          20,
+                          40,
+                          0,
+                        ),
+                        widePadding: const EdgeInsets.fromLTRB(56, 22, 56, 0),
                         child: _CapabilitySummaryCard(profile: profile),
                       ),
                     ),
                     if (profile.canSubmitCommerce)
                       const SliverToBoxAdapter(
-                        child: Padding(
-                          padding: EdgeInsets.symmetric(
+                        child: ResponsivePageContainer(
+                          maxContentWidth: 1200,
+                          compactPadding: EdgeInsets.symmetric(
                             horizontal: 10,
                             vertical: 12,
+                          ),
+                          mediumPadding: EdgeInsets.symmetric(
+                            horizontal: 24,
+                            vertical: 14,
+                          ),
+                          expandedPadding: EdgeInsets.symmetric(
+                            horizontal: 40,
+                            vertical: 16,
+                          ),
+                          widePadding: EdgeInsets.symmetric(
+                            horizontal: 56,
+                            vertical: 18,
                           ),
                           child: CommerceSectionCard(),
                         ),
                       ),
-                    SliverPadding(
-                      padding: const EdgeInsets.fromLTRB(10, 20, 10, 18),
-                      sliver: SliverList.builder(
-                        itemCount: tiles.length,
-                        itemBuilder: (context, index) {
-                          final tile = tiles[index];
-                          return _AccountTile(
-                            tile: tile,
-                            onTap: () => _navigateTo(tile),
-                          );
-                        },
+                    SliverToBoxAdapter(
+                      child: ResponsivePageContainer(
+                        maxContentWidth: 1200,
+                        compactPadding: const EdgeInsets.fromLTRB(
+                          10,
+                          20,
+                          10,
+                          18,
+                        ),
+                        mediumPadding: const EdgeInsets.fromLTRB(
+                          24,
+                          24,
+                          24,
+                          20,
+                        ),
+                        expandedPadding: const EdgeInsets.fromLTRB(
+                          40,
+                          28,
+                          40,
+                          22,
+                        ),
+                        widePadding: const EdgeInsets.fromLTRB(56, 32, 56, 24),
+                        child: GridView.builder(
+                          shrinkWrap: true,
+                          physics: const NeverScrollableScrollPhysics(),
+                          gridDelegate: ResponsiveGridDelegate(
+                            context: context,
+                            compactCount: 1,
+                            mediumCount: 2,
+                            expandedCount: 3,
+                            wideCount: 3,
+                            compactMainAxisSpacing: 0,
+                            compactCrossAxisSpacing: 0,
+                            mediumMainAxisSpacing: 4,
+                            mediumCrossAxisSpacing: 12,
+                            expandedMainAxisSpacing: 6,
+                            expandedCrossAxisSpacing: 14,
+                            wideMainAxisSpacing: 8,
+                            wideCrossAxisSpacing: 16,
+                            mainAxisExtent: responsiveValue<double>(
+                              context,
+                              compact: 94,
+                              medium: 106,
+                              expanded: 106,
+                              wide: 106,
+                            ),
+                          ),
+                          itemCount: tiles.length,
+                          itemBuilder: (context, index) {
+                            final tile = tiles[index];
+                            return _AccountTile(
+                              tile: tile,
+                              onTap: () => _navigateTo(tile),
+                            );
+                          },
+                        ),
                       ),
                     ),
                     SliverToBoxAdapter(
-                      child: Padding(
-                        padding: const EdgeInsets.fromLTRB(10, 0, 10, 8),
+                      child: ResponsivePageContainer(
+                        maxContentWidth: 1200,
+                        compactPadding: const EdgeInsets.fromLTRB(10, 0, 10, 8),
+                        mediumPadding: const EdgeInsets.fromLTRB(24, 0, 24, 10),
+                        expandedPadding: const EdgeInsets.fromLTRB(
+                          40,
+                          0,
+                          40,
+                          12,
+                        ),
+                        widePadding: const EdgeInsets.fromLTRB(56, 0, 56, 14),
                         child: MasliveCard(
                           child: ListTile(
                             contentPadding: const EdgeInsets.symmetric(
@@ -181,8 +271,22 @@ class _AccountUiPageState extends State<AccountUiPage> {
                       ),
                     ),
                     SliverToBoxAdapter(
-                      child: Padding(
-                        padding: const EdgeInsets.fromLTRB(10, 0, 10, 18),
+                      child: ResponsivePageContainer(
+                        maxContentWidth: 1200,
+                        compactPadding: const EdgeInsets.fromLTRB(
+                          10,
+                          0,
+                          10,
+                          18,
+                        ),
+                        mediumPadding: const EdgeInsets.fromLTRB(24, 0, 24, 22),
+                        expandedPadding: const EdgeInsets.fromLTRB(
+                          40,
+                          0,
+                          40,
+                          26,
+                        ),
+                        widePadding: const EdgeInsets.fromLTRB(56, 0, 56, 30),
                         child: SizedBox(
                           width: double.infinity,
                           child: ElevatedButton.icon(
@@ -194,7 +298,9 @@ class _AccountUiPageState extends State<AccountUiPage> {
                                       await AuthService.instance.signOut();
                                     } catch (error) {
                                       if (!context.mounted) return;
-                                      ScaffoldMessenger.of(context).showSnackBar(
+                                      ScaffoldMessenger.of(
+                                        context,
+                                      ).showSnackBar(
                                         SnackBar(
                                           content: Text(
                                             'Déconnexion impossible : $error',
@@ -467,12 +573,18 @@ class _AccountTile extends StatelessWidget {
           ),
           title: Text(
             tile.title,
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
             style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                  fontWeight: FontWeight.w800,
-                  color: MasliveTheme.textPrimary,
-                ),
+              fontWeight: FontWeight.w800,
+              color: MasliveTheme.textPrimary,
+            ),
           ),
-          subtitle: Text(tile.subtitle),
+          subtitle: Text(
+            tile.subtitle,
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+          ),
           trailing: const Icon(Icons.chevron_right_rounded),
           onTap: onTap,
         ),
@@ -505,9 +617,9 @@ class _AvatarBlock extends StatelessWidget {
         Text(
           profile.displayName.isEmpty ? profile.email : profile.displayName,
           textAlign: TextAlign.center,
-          style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                fontWeight: FontWeight.w800,
-              ),
+          style: Theme.of(
+            context,
+          ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w800),
         ),
         const SizedBox(height: 4),
         Text(profile.activeRoleLabels.join(' • '), textAlign: TextAlign.center),
