@@ -2,6 +2,7 @@ import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
 
+// Contract executed after all shared and page-level Mapbox overlays are wrapped.
 void main() {
   String source(String relativePath) => File(relativePath).readAsStringSync();
 
