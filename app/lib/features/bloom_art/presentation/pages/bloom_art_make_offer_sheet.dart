@@ -7,6 +7,7 @@ import '../../../../services/checkout/unified_checkout_service.dart';
 import '../../services/bloom_art_notification_service.dart';
 import '../widgets/bloom_art_cta_button.dart';
 import 'package:masslive/ui_kit/tokens/maslive_tokens.dart';
+import '../../../../ui_kit/responsive/responsive.dart';
 
 Future<void> showBloomArtMakeOfferSheet(
   BuildContext context, {
@@ -17,10 +18,7 @@ Future<void> showBloomArtMakeOfferSheet(
     isScrollControlled: true,
     useSafeArea: true,
     backgroundColor: Colors.transparent,
-    builder: (_) => BloomArtMakeOfferSheet(
-      rootContext: context,
-      item: item,
-    ),
+    builder: (_) => BloomArtMakeOfferSheet(rootContext: context, item: item),
   );
 }
 
@@ -166,72 +164,95 @@ class _BloomArtMakeOfferSheetState extends State<BloomArtMakeOfferSheet> {
     return AnimatedPadding(
       duration: const Duration(milliseconds: 180),
       padding: EdgeInsets.only(bottom: bottomInset),
-      child: Container(
-        decoration: const BoxDecoration(
-          color: MasliveTokens.surface,
-          borderRadius: BorderRadius.vertical(top: Radius.circular(34)),
-        ),
-        padding: const EdgeInsets.fromLTRB(20, 18, 20, 24),
-        child: SingleChildScrollView(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: <Widget>[
-              Center(
-                child: Container(
-                  width: 48,
-                  height: 5,
-                  decoration: BoxDecoration(
-                    color: MasliveTokens.line,
-                    borderRadius: BorderRadius.circular(999),
+      child: ResponsiveOverlayContainer(
+        compactHorizontalInset: 0,
+        mediumMaxWidth: 620,
+        expandedMaxWidth: 680,
+        wideMaxWidth: 720,
+        alignment: Alignment.bottomCenter,
+        child: Container(
+          width: double.infinity,
+          decoration: BoxDecoration(
+            color: MasliveTokens.surface,
+            borderRadius: responsiveValue<BorderRadius>(
+              context,
+              compact: const BorderRadius.vertical(top: Radius.circular(34)),
+              medium: BorderRadius.circular(34),
+              expanded: BorderRadius.circular(34),
+              wide: BorderRadius.circular(34),
+            ),
+          ),
+          padding: responsiveValue<EdgeInsets>(
+            context,
+            compact: const EdgeInsets.fromLTRB(20, 18, 20, 24),
+            medium: const EdgeInsets.fromLTRB(28, 22, 28, 28),
+            expanded: const EdgeInsets.fromLTRB(32, 24, 32, 30),
+            wide: const EdgeInsets.fromLTRB(36, 26, 36, 32),
+          ),
+          child: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: <Widget>[
+                Center(
+                  child: Container(
+                    width: 48,
+                    height: 5,
+                    decoration: BoxDecoration(
+                      color: MasliveTokens.line,
+                      borderRadius: BorderRadius.circular(999),
+                    ),
                   ),
                 ),
-              ),
-              const SizedBox(height: 18),
-              Text(
-                'Proposer un prix pour ${widget.item.title}',
-                style: const TextStyle(
-                  fontSize: 24,
-                  fontWeight: FontWeight.w900,
-                  color: MasliveTokens.text,
+                const SizedBox(height: 18),
+                Text(
+                  'Proposer un prix pour ${widget.item.title}',
+                  style: const TextStyle(
+                    fontSize: 24,
+                    fontWeight: FontWeight.w900,
+                    color: MasliveTokens.text,
+                  ),
                 ),
-              ),
-              const SizedBox(height: 8),
-              const Text(
-                'Le prix de référence reste privé. Saisissez votre meilleure proposition et un message pour le vendeur.',
-                style: TextStyle(
-                  color: MasliveTokens.textMuted,
-                  height: 1.45,
+                const SizedBox(height: 8),
+                const Text(
+                  'Le prix de référence reste privé. Saisissez votre meilleure proposition et un message pour le vendeur.',
+                  style: TextStyle(
+                    color: MasliveTokens.textMuted,
+                    height: 1.45,
+                  ),
                 ),
-              ),
-              const SizedBox(height: 18),
-              TextField(
-                controller: _priceController,
-                keyboardType: const TextInputType.numberWithOptions(
-                  decimal: true,
+                const SizedBox(height: 18),
+                TextField(
+                  controller: _priceController,
+                  keyboardType: const TextInputType.numberWithOptions(
+                    decimal: true,
+                  ),
+                  decoration: const InputDecoration(
+                    labelText: 'Prix proposé (€)',
+                    border: OutlineInputBorder(),
+                  ),
                 ),
-                decoration: const InputDecoration(
-                  labelText: 'Prix proposé (€)',
-                  border: OutlineInputBorder(),
+                const SizedBox(height: 14),
+                TextField(
+                  controller: _messageController,
+                  maxLines: 4,
+                  decoration: const InputDecoration(
+                    labelText: 'Message au vendeur',
+                    hintText:
+                        'Expliquez votre intention, le contexte ou vos attentes.',
+                    border: OutlineInputBorder(),
+                  ),
                 ),
-              ),
-              const SizedBox(height: 14),
-              TextField(
-                controller: _messageController,
-                maxLines: 4,
-                decoration: const InputDecoration(
-                  labelText: 'Message au vendeur',
-                  hintText: 'Expliquez votre intention, le contexte ou vos attentes.',
-                  border: OutlineInputBorder(),
+                const SizedBox(height: 18),
+                BloomArtCtaButton(
+                  label: _submitting
+                      ? 'Envoi en cours...'
+                      : 'Envoyer mon offre',
+                  icon: Icons.local_offer_outlined,
+                  onPressed: _submitting ? null : _submit,
                 ),
-              ),
-              const SizedBox(height: 18),
-              BloomArtCtaButton(
-                label: _submitting ? 'Envoi en cours...' : 'Envoyer mon offre',
-                icon: Icons.local_offer_outlined,
-                onPressed: _submitting ? null : _submit,
-              ),
-            ],
+              ],
+            ),
           ),
         ),
       ),
