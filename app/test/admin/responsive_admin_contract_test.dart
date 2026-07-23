@@ -10,7 +10,10 @@ void main() {
 
     expect(dashboard, contains('ResponsivePageContainer('));
     expect(dashboard, contains('maxContentWidth: 1440'));
-    expect(dashboard, contains('wide: const EdgeInsets.fromLTRB(44, 28, 44, 36)'));
+    expect(
+      dashboard,
+      contains('wide: const EdgeInsets.fromLTRB(44, 28, 44, 36)'),
+    );
   });
 
   test('admin analytics uses adaptive metric columns', () {
@@ -25,9 +28,7 @@ void main() {
 
   test('orders and tracking live remain compact-first', () {
     final orders = source('lib/admin/admin_orders_page.dart');
-    final tracking = source(
-      'lib/admin/tracking_live/tracking_live_page.dart',
-    );
+    final tracking = source('lib/admin/tracking_live/tracking_live_page.dart');
 
     expect(orders, contains('maxContentWidth: 1280'));
     expect(tracking, contains('maxContentWidth: 1440'));

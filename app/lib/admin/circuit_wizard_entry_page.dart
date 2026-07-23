@@ -15,6 +15,7 @@ import '../ui/widgets/country_autocomplete_field.dart';
 import '../ui/snack/top_snack_bar.dart';
 import 'circuit_wizard_pro_page.dart';
 import '../ui/widgets/maslive_button.dart';
+import '../ui_kit/responsive/responsive.dart';
 
 class CircuitWizardEntryPage extends StatefulWidget {
   const CircuitWizardEntryPage({super.key});
@@ -47,7 +48,8 @@ class _CircuitWizardEntryPageState extends State<CircuitWizardEntryPage> {
       final data = doc.data() ?? const <String, dynamic>{};
       final role = (data['role'] as String?)?.trim() ?? '';
       final isAdmin = (data['isAdmin'] as bool?) ?? false;
-      final can = isAdmin ||
+      final can =
+          isAdmin ||
           role == 'admin' ||
           role == 'admin_master' ||
           role == 'superAdmin' ||
@@ -93,7 +95,9 @@ class _CircuitWizardEntryPageState extends State<CircuitWizardEntryPage> {
                 MasliveButton(
                   label: 'Nouveau circuit',
                   icon: Icons.add_circle,
-                  onPressed: _canWriteMapProjects ? _createNewProject : _showWriteDenied,
+                  onPressed: _canWriteMapProjects
+                      ? _createNewProject
+                      : _showWriteDenied,
                 ),
               ],
             ),
@@ -163,13 +167,26 @@ class _CircuitWizardEntryPageState extends State<CircuitWizardEntryPage> {
                   );
                 }
 
-                return ListView.builder(
-                  padding: const EdgeInsets.all(16),
-                  itemCount: projects.length,
-                  itemBuilder: (context, index) {
-                    final project = projects[index];
-                    return _buildProjectCard(project);
-                  },
+                return ResponsivePageContainer(
+                  maxContentWidth: 1200,
+                  compactPadding: EdgeInsets.zero,
+                  mediumPadding: EdgeInsets.zero,
+                  expandedPadding: EdgeInsets.zero,
+                  widePadding: EdgeInsets.zero,
+                  child: ListView.builder(
+                    padding: responsiveValue<EdgeInsets>(
+                      context,
+                      compact: const EdgeInsets.all(16),
+                      medium: const EdgeInsets.fromLTRB(24, 20, 24, 28),
+                      expanded: const EdgeInsets.fromLTRB(36, 24, 36, 32),
+                      wide: const EdgeInsets.fromLTRB(44, 28, 44, 36),
+                    ),
+                    itemCount: projects.length,
+                    itemBuilder: (context, index) {
+                      final project = projects[index];
+                      return _buildProjectCard(project);
+                    },
+                  ),
                 );
               },
             ),
@@ -253,7 +270,9 @@ class _CircuitWizardEntryPageState extends State<CircuitWizardEntryPage> {
                   Text('Continuer'),
                 ],
               ),
-              onTap: () => _canWriteMapProjects ? _openProject(project.id) : _showWriteDenied,
+              onTap: () => _canWriteMapProjects
+                  ? _openProject(project.id)
+                  : _showWriteDenied,
             ),
             if (project.status != 'published')
               PopupMenuItem(
@@ -264,11 +283,14 @@ class _CircuitWizardEntryPageState extends State<CircuitWizardEntryPage> {
                     Text('Supprimer', style: TextStyle(color: Colors.red)),
                   ],
                 ),
-                onTap: () => _canWriteMapProjects ? _deleteProject(project.id) : _showWriteDenied,
+                onTap: () => _canWriteMapProjects
+                    ? _deleteProject(project.id)
+                    : _showWriteDenied,
               ),
           ],
         ),
-        onTap: () => _canWriteMapProjects ? _openProject(project.id) : _showWriteDenied,
+        onTap: () =>
+            _canWriteMapProjects ? _openProject(project.id) : _showWriteDenied,
       ),
     );
   }
@@ -316,7 +338,10 @@ class _CircuitWizardEntryPageState extends State<CircuitWizardEntryPage> {
       // Contexte utilisateur (groupId) requis par les règles map_projects.
       String groupId = 'default';
       try {
-        final userDoc = await _firestore.collection('users').doc(user.uid).get();
+        final userDoc = await _firestore
+            .collection('users')
+            .doc(user.uid)
+            .get();
         final data = userDoc.data() ?? const <String, dynamic>{};
         final g = (data['groupId'] as String?)?.trim() ?? '';
         if (g.isNotEmpty) groupId = g;
@@ -409,10 +434,7 @@ class _CircuitWizardEntryPageState extends State<CircuitWizardEntryPage> {
       );
     } catch (e) {
       if (!mounted) return;
-      TopSnackBar.show(
-        context,
-        SnackBar(content: Text('❌ Erreur: $e')),
-      );
+      TopSnackBar.show(context, SnackBar(content: Text('❌ Erreur: $e')));
     }
   }
 
@@ -455,10 +477,7 @@ class _CircuitWizardEntryPageState extends State<CircuitWizardEntryPage> {
         }
       } catch (e) {
         if (mounted) {
-          TopSnackBar.show(
-            context,
-            SnackBar(content: Text('❌ Erreur: $e')),
-          );
+          TopSnackBar.show(context, SnackBar(content: Text('❌ Erreur: $e')));
         }
       }
     }
@@ -624,11 +643,7 @@ class _NewCircuitInputDialogState extends State<_NewCircuitInputDialog> {
     final uri = Uri.https(
       'api.mapbox.com',
       '/geocoding/v5/mapbox.places/${Uri.encodeComponent(q)}.json',
-      {
-        'access_token': token,
-        'types': 'country',
-        'limit': '1',
-      },
+      {'access_token': token, 'types': 'country', 'limit': '1'},
     );
 
     final resp = await http.get(uri);
@@ -662,7 +677,8 @@ class _NewCircuitInputDialogState extends State<_NewCircuitInputDialog> {
 
     // Si on n'a pas de mapping connu (fallback), on tente un centrage via géocodage.
     final iso2 = _countryCodeFor(country);
-    final hasKnownIso2 = iso2 == 'GP' ||
+    final hasKnownIso2 =
+        iso2 == 'GP' ||
         iso2 == 'MQ' ||
         iso2 == 'GF' ||
         iso2 == 'RE' ||
@@ -711,7 +727,11 @@ class _NewCircuitInputDialogState extends State<_NewCircuitInputDialog> {
     );
     if (picked == null || !mounted) return;
     setState(() {
-      _startDate = DateTime(picked.start.year, picked.start.month, picked.start.day);
+      _startDate = DateTime(
+        picked.start.year,
+        picked.start.month,
+        picked.start.day,
+      );
       _endDate = DateTime(picked.end.year, picked.end.month, picked.end.day);
     });
   }
@@ -758,228 +778,253 @@ class _NewCircuitInputDialogState extends State<_NewCircuitInputDialog> {
   @override
   Widget build(BuildContext context) {
     final screen = MediaQuery.of(context).size;
-    final availableWidth = (screen.width - 32).clamp(0.0, double.infinity);
-    final dialogWidth = availableWidth > 900 ? 900.0 : availableWidth;
+    final compactWidth = (screen.width - 20).clamp(0.0, double.infinity);
+    final requestedWidth = responsiveValue<double>(
+      context,
+      compact: compactWidth,
+      medium: 760,
+      expanded: 900,
+      wide: 980,
+    );
+    final dialogWidth = requestedWidth.clamp(0.0, compactWidth).toDouble();
     final dialogMaxHeight = screen.height * 0.9;
 
     return Dialog(
       backgroundColor: Colors.white,
-      insetPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 24),
+      insetPadding: responsiveValue<EdgeInsets>(
+        context,
+        compact: const EdgeInsets.symmetric(horizontal: 10, vertical: 24),
+        medium: const EdgeInsets.symmetric(horizontal: 24, vertical: 28),
+        expanded: const EdgeInsets.symmetric(horizontal: 36, vertical: 32),
+        wide: const EdgeInsets.symmetric(horizontal: 44, vertical: 36),
+      ),
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(16),
         side: BorderSide(color: Colors.grey.shade300),
       ),
       child: ConstrainedBox(
-        constraints: BoxConstraints(maxWidth: dialogWidth, maxHeight: dialogMaxHeight),
+        constraints: BoxConstraints(
+          maxWidth: dialogWidth,
+          maxHeight: dialogMaxHeight,
+        ),
         child: SizedBox(
           width: dialogWidth,
           child: Padding(
-            padding: const EdgeInsets.all(16),
+            padding: responsiveValue<EdgeInsets>(
+              context,
+              compact: const EdgeInsets.all(16),
+              medium: const EdgeInsets.all(20),
+              expanded: const EdgeInsets.all(24),
+              wide: const EdgeInsets.all(28),
+            ),
             child: StreamBuilder<List<MarketCountry>>(
               stream: _marketMapService.watchCountries(),
               builder: (context, snapshot) {
-              final countries = snapshot.data ?? const <MarketCountry>[];
+                final countries = snapshot.data ?? const <MarketCountry>[];
 
-              final resolvedCountry = _resolveCountry(countries);
-              final resolvedCountryInput = _resolveCountryInput(countries);
-              final cam = _countryPreviewCamera(resolvedCountry);
+                final resolvedCountry = _resolveCountry(countries);
+                final resolvedCountryInput = _resolveCountryInput(countries);
+                final cam = _countryPreviewCamera(resolvedCountry);
 
-              return SingleChildScrollView(
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                  Row(
+                return SingleChildScrollView(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
                     children: [
-                      const Expanded(
-                        child: Text(
-                          'Nouveau circuit',
-                          style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700),
-                        ),
-                      ),
-                      IconButton(
-                        onPressed: () => Navigator.pop(context),
-                        icon: const Icon(Icons.close),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 8),
-                  Theme(
-                    data: Theme.of(context).copyWith(
-                      inputDecorationTheme: Theme.of(context)
-                          .inputDecorationTheme
-                          .copyWith(
-                            filled: true,
-                            fillColor: Colors.grey.shade100,
-                            border: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(12),
+                      Row(
+                        children: [
+                          const Expanded(
+                            child: Text(
+                              'Nouveau circuit',
+                              style: TextStyle(
+                                fontSize: 18,
+                                fontWeight: FontWeight.w700,
+                              ),
                             ),
                           ),
-                    ),
-                    child: MarketCountryAutocompleteField(
-                      items: countries,
-                      controller: _countryController,
-                      labelText: 'Pays',
-                      hintText: 'Rechercher un pays…',
-                      enabled: true,
-                      onSelected: (c) {
-                        setState(() => _selectedCountry = c);
-                        if (c == null) return;
-                        _countryController.text = _countryLabel(c);
-                        unawaited(_focusPreviewMapOnCountry(c));
-                      },
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  ClipRRect(
-                    borderRadius: BorderRadius.circular(12),
-                    child: SizedBox(
-                      height: 140,
-                      width: double.infinity,
-                      child: Container(
-                        decoration: BoxDecoration(
-                          border: Border.all(color: Colors.grey.shade300),
-                        ),
-                        clipBehavior: Clip.hardEdge,
-                        child: MasLiveMap(
-                          controller: _previewMapController,
-                          initialLng: cam.lng,
-                          initialLat: cam.lat,
-                          initialZoom: cam.zoom,
-                          styleUrl: null,
-                          onTap: null,
-                          onMapReady: (c) async {
-                            _previewMapReady = true;
-                            // recentrer après ready pour refléter le pays sélectionné
-                            await c.moveTo(
-                              lng: cam.lng,
-                              lat: cam.lat,
-                              zoom: cam.zoom,
-                              animate: false,
-                            );
-                          },
-                        ),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  const SizedBox(height: 12),
-                  TextField(
-                    controller: _eventController,
-                    onChanged: (_) => setState(() {}),
-                    decoration: InputDecoration(
-                      labelText: 'Événement',
-                      hintText: 'Ex: Carnaval, Festival…',
-                      filled: true,
-                      fillColor: Colors.grey.shade100,
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-                  TextField(
-                    controller: _nameController,
-                    onChanged: (_) => setState(() {}),
-                    decoration: InputDecoration(
-                      labelText: 'Nom du circuit',
-                      hintText: 'Ex: Défilé Centre-ville…',
-                      filled: true,
-                      fillColor: Colors.grey.shade100,
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: ChoiceChip(
-                          label: const Text('Date'),
-                          selected: !_usePeriod,
-                          onSelected: (v) {
-                            if (!v) return;
-                            setState(() {
-                              _usePeriod = false;
-                              _endDate = _startDate;
-                            });
-                          },
-                        ),
-                      ),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: ChoiceChip(
-                          label: const Text('Période'),
-                          selected: _usePeriod,
-                          onSelected: (v) {
-                            if (!v) return;
-                            setState(() {
-                              _usePeriod = true;
-                              if (_endDate.isBefore(_startDate)) {
-                                _endDate = _startDate;
-                              }
-                            });
-                          },
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 8),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 12,
-                            vertical: 14,
+                          IconButton(
+                            onPressed: () => Navigator.pop(context),
+                            icon: const Icon(Icons.close),
                           ),
-                          decoration: BoxDecoration(
-                            color: Colors.grey.shade100,
-                            borderRadius: BorderRadius.circular(12),
-                            border: Border.all(color: Colors.grey.shade300),
-                          ),
-                          child: Text(
-                            _usePeriod
-                                ? 'Période : ${_formatRange(_startDate, _endDate)}'
-                                : 'Date : ${_formatDate(_startDate)}',
-                          ),
-                        ),
+                        ],
                       ),
-                      const SizedBox(width: 8),
-                      ElevatedButton.icon(
-                        onPressed: _usePeriod ? _pickPeriod : _pickDate,
-                        icon: const Icon(Icons.calendar_month),
-                        label: const Text('Choisir'),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 16),
-                  MasliveButton(
-                    label: 'Continuer',
-                    onPressed: !_isValid
-                        ? null
-                        : () {
-                            final country = resolvedCountryInput;
-                            if (country == null) return;
-
-                            Navigator.pop(
-                              context,
-                              _NewCircuitInput(
-                                countryId: country.id,
-                                countryName: country.name,
-                                countryIso2: country.iso2,
-                                eventId: _resolvedEvent().id,
-                                eventName: _resolvedEvent().name,
-                                name: _nameController.text.trim(),
-                                startDate: _startDate,
-                                endDate: _endDate,
+                      const SizedBox(height: 8),
+                      Theme(
+                        data: Theme.of(context).copyWith(
+                          inputDecorationTheme: Theme.of(context)
+                              .inputDecorationTheme
+                              .copyWith(
+                                filled: true,
+                                fillColor: Colors.grey.shade100,
+                                border: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
                               ),
-                            );
+                        ),
+                        child: MarketCountryAutocompleteField(
+                          items: countries,
+                          controller: _countryController,
+                          labelText: 'Pays',
+                          hintText: 'Rechercher un pays…',
+                          enabled: true,
+                          onSelected: (c) {
+                            setState(() => _selectedCountry = c);
+                            if (c == null) return;
+                            _countryController.text = _countryLabel(c);
+                            unawaited(_focusPreviewMapOnCountry(c));
                           },
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      ClipRRect(
+                        borderRadius: BorderRadius.circular(12),
+                        child: SizedBox(
+                          height: 140,
+                          width: double.infinity,
+                          child: Container(
+                            decoration: BoxDecoration(
+                              border: Border.all(color: Colors.grey.shade300),
+                            ),
+                            clipBehavior: Clip.hardEdge,
+                            child: MasLiveMap(
+                              controller: _previewMapController,
+                              initialLng: cam.lng,
+                              initialLat: cam.lat,
+                              initialZoom: cam.zoom,
+                              styleUrl: null,
+                              onTap: null,
+                              onMapReady: (c) async {
+                                _previewMapReady = true;
+                                // recentrer après ready pour refléter le pays sélectionné
+                                await c.moveTo(
+                                  lng: cam.lng,
+                                  lat: cam.lat,
+                                  zoom: cam.zoom,
+                                  animate: false,
+                                );
+                              },
+                            ),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      const SizedBox(height: 12),
+                      TextField(
+                        controller: _eventController,
+                        onChanged: (_) => setState(() {}),
+                        decoration: InputDecoration(
+                          labelText: 'Événement',
+                          hintText: 'Ex: Carnaval, Festival…',
+                          filled: true,
+                          fillColor: Colors.grey.shade100,
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      TextField(
+                        controller: _nameController,
+                        onChanged: (_) => setState(() {}),
+                        decoration: InputDecoration(
+                          labelText: 'Nom du circuit',
+                          hintText: 'Ex: Défilé Centre-ville…',
+                          filled: true,
+                          fillColor: Colors.grey.shade100,
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: ChoiceChip(
+                              label: const Text('Date'),
+                              selected: !_usePeriod,
+                              onSelected: (v) {
+                                if (!v) return;
+                                setState(() {
+                                  _usePeriod = false;
+                                  _endDate = _startDate;
+                                });
+                              },
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: ChoiceChip(
+                              label: const Text('Période'),
+                              selected: _usePeriod,
+                              onSelected: (v) {
+                                if (!v) return;
+                                setState(() {
+                                  _usePeriod = true;
+                                  if (_endDate.isBefore(_startDate)) {
+                                    _endDate = _startDate;
+                                  }
+                                });
+                              },
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 8),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 12,
+                                vertical: 14,
+                              ),
+                              decoration: BoxDecoration(
+                                color: Colors.grey.shade100,
+                                borderRadius: BorderRadius.circular(12),
+                                border: Border.all(color: Colors.grey.shade300),
+                              ),
+                              child: Text(
+                                _usePeriod
+                                    ? 'Période : ${_formatRange(_startDate, _endDate)}'
+                                    : 'Date : ${_formatDate(_startDate)}',
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          ElevatedButton.icon(
+                            onPressed: _usePeriod ? _pickPeriod : _pickDate,
+                            icon: const Icon(Icons.calendar_month),
+                            label: const Text('Choisir'),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 16),
+                      MasliveButton(
+                        label: 'Continuer',
+                        onPressed: !_isValid
+                            ? null
+                            : () {
+                                final country = resolvedCountryInput;
+                                if (country == null) return;
+
+                                Navigator.pop(
+                                  context,
+                                  _NewCircuitInput(
+                                    countryId: country.id,
+                                    countryName: country.name,
+                                    countryIso2: country.iso2,
+                                    eventId: _resolvedEvent().id,
+                                    eventName: _resolvedEvent().name,
+                                    name: _nameController.text.trim(),
+                                    startDate: _startDate,
+                                    endDate: _endDate,
+                                  ),
+                                );
+                              },
+                      ),
+                    ],
                   ),
-                  ],
-                ),
-              );
+                );
               },
             ),
           ),
