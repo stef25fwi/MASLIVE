@@ -24,6 +24,48 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
+
+      - name: Detect deployment scope
+        id: scope
+        if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          deploy_hosting=true
+          deploy_rules=false
+          deploy_functions=false
+
+          if [ "${GITHUB_EVENT_NAME}" = "workflow_dispatch" ]; then
+            deploy_rules=true
+            deploy_functions=true
+            echo "Déploiement manuel complet demandé."
+          else
+            before="${{ github.event.before }}"
+            if [ -z "${before}" ] || [ "${before}" = "0000000000000000000000000000000000000000" ]; then
+              before="${GITHUB_SHA}^"
+            fi
+
+            git diff --name-only "${before}" "${GITHUB_SHA}" > changed-files.txt || \
+              git show --pretty='' --name-only "${GITHUB_SHA}" > changed-files.txt
+
+            echo "Fichiers modifiés :"
+            cat changed-files.txt
+
+            if grep -Eq '^(firestore\.rules|firestore\.indexes\.json|storage\.rules|firebase\.json)$' changed-files.txt; then
+              deploy_rules=true
+            fi
+            if grep -Eq '^functions/' changed-files.txt; then
+              deploy_functions=true
+            fi
+          fi
+
+          echo "hosting=${deploy_hosting}" >> "${GITHUB_OUTPUT}"
+          echo "rules=${deploy_rules}" >> "${GITHUB_OUTPUT}"
+          echo "functions=${deploy_functions}" >> "${GITHUB_OUTPUT}"
+          echo "Scope : hosting=${deploy_hosting}, rules=${deploy_rules}, functions=${deploy_functions}"
 
       - name: Setup Flutter
         uses: subosito/flutter-action@v2
@@ -36,7 +78,7 @@ jobs:
         run: flutter pub get
 
       - name: Write deployment manifest
-        if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
+        if: steps.scope.outputs.hosting == 'true'
         run: |
           cat > app/web/deployment-manifest.json <<EOF
           {
@@ -88,22 +130,24 @@ jobs:
         run: exit 1
 
       - name: Setup Node.js for Firebase
-        if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
+        if: steps.scope.outputs.hosting == 'true' || steps.scope.outputs.rules == 'true' || steps.scope.outputs.functions == 'true'
         uses: actions/setup-node@v4
         with:
           node-version: 22
           cache: npm
           cache-dependency-path: functions/package-lock.json
 
-      - name: Install Functions and Firebase dependencies
-        if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
+      - name: Install Firebase deployment dependencies
+        if: steps.scope.outputs.hosting == 'true' || steps.scope.outputs.rules == 'true' || steps.scope.outputs.functions == 'true'
         run: |
-          npm ci --prefix functions
           npm install --global firebase-tools@latest
+          if [ "${{ steps.scope.outputs.functions }}" = "true" ]; then
+            npm ci --prefix functions
+          fi
 
       - name: Configure and validate Firebase authentication
         id: firebase_auth
-        if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
+        if: steps.scope.outputs.hosting == 'true' || steps.scope.outputs.rules == 'true' || steps.scope.outputs.functions == 'true'
         env:
           FIREBASE_SERVICE_ACCOUNT_JSON: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_MASLIVE || secrets.FIREBASE_SERVICE_ACCOUNT || secrets.GOOGLE_CREDENTIALS }}
           FIREBASE_TOKEN: ${{ secrets.FIREBASE_TOKEN }}
@@ -142,7 +186,7 @@ jobs:
       - name: Deploy Firestore rules, indexes and Storage rules
         id: deploy_rules
         continue-on-error: true
-        if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
+        if: steps.scope.outputs.rules == 'true'
         env:
           FIREBASE_TOKEN: ${{ secrets.FIREBASE_TOKEN }}
         run: |
@@ -161,7 +205,7 @@ jobs:
       - name: Deploy Cloud Functions
         id: deploy_functions
         continue-on-error: true
-        if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
+        if: steps.scope.outputs.functions == 'true'
         env:
           FIREBASE_TOKEN: ${{ secrets.FIREBASE_TOKEN }}
         run: |
@@ -179,7 +223,7 @@ jobs:
       - name: Deploy Firebase Hosting
         id: deploy_hosting
         continue-on-error: true
-        if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
+        if: steps.scope.outputs.hosting == 'true'
         env:
           FIREBASE_TOKEN: ${{ secrets.FIREBASE_TOKEN }}
         run: |
@@ -205,6 +249,7 @@ jobs:
             firebase-functions.log
             firebase-hosting.log
             firebase-debug.log
+            changed-files.txt
           if-no-files-found: warn
           retention-days: 7
 
@@ -216,6 +261,8 @@ jobs:
           RULES_OUTCOME: ${{ steps.deploy_rules.outcome }}
           FUNCTIONS_OUTCOME: ${{ steps.deploy_functions.outcome }}
           HOSTING_OUTCOME: ${{ steps.deploy_hosting.outcome }}
+          RULES_REQUESTED: ${{ steps.scope.outputs.rules }}
+          FUNCTIONS_REQUESTED: ${{ steps.scope.outputs.functions }}
         run: |
           set -euo pipefail
           redact() {
@@ -229,8 +276,8 @@ jobs:
             echo "- Commit : \`${GITHUB_SHA}\`"
             echo "- Run : [${GITHUB_RUN_ID}](https://github.com/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID})"
             echo "- Authentification : **${AUTH_OUTCOME}**"
-            echo "- Règles / index : **${RULES_OUTCOME}**"
-            echo "- Functions : **${FUNCTIONS_OUTCOME}**"
+            echo "- Règles / index : **${RULES_OUTCOME}** (demandé: ${RULES_REQUESTED})"
+            echo "- Functions : **${FUNCTIONS_OUTCOME}** (demandé: ${FUNCTIONS_REQUESTED})"
             echo "- Hosting : **${HOSTING_OUTCOME}**"
             for item in firebase-auth.log firebase-rules.log firebase-functions.log firebase-hosting.log; do
               if [ -s "${item}" ]; then
@@ -248,28 +295,28 @@ jobs:
             "repos/${GITHUB_REPOSITORY}/issues/51/comments" \
             --input deployment-comment.json
 
-      - name: Enforce complete Firebase deployment
+      - name: Enforce requested Firebase deployment
         if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
         run: |
           set -euo pipefail
           failed=0
-          if [ "${{ steps.deploy_rules.outcome }}" != "success" ]; then
+          if [ "${{ steps.scope.outputs.hosting }}" = "true" ] && [ "${{ steps.deploy_hosting.outcome }}" != "success" ]; then
+            echo "::error::Le déploiement Firebase Hosting a échoué."
+            failed=1
+          fi
+          if [ "${{ steps.scope.outputs.rules }}" = "true" ] && [ "${{ steps.deploy_rules.outcome }}" != "success" ]; then
             echo "::error::Le déploiement des règles/index Firestore ou Storage a échoué."
             failed=1
           fi
-          if [ "${{ steps.deploy_functions.outcome }}" != "success" ]; then
+          if [ "${{ steps.scope.outputs.functions }}" = "true" ] && [ "${{ steps.deploy_functions.outcome }}" != "success" ]; then
             echo "::error::Le déploiement des Cloud Functions a échoué."
-            failed=1
-          fi
-          if [ "${{ steps.deploy_hosting.outcome }}" != "success" ]; then
-            echo "::error::Le déploiement Hosting a échoué."
             failed=1
           fi
           exit "$failed"
 
       - name: Verify production manifest
         id: verify_production
-        if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
+        if: steps.deploy_hosting.outcome == 'success'
         run: |
           set -euo pipefail
           expected="${GITHUB_SHA}"
@@ -316,10 +363,12 @@ jobs:
             --input responsive-production-comment.json
 
       - name: Production deployment summary
-        if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
+        if: steps.deploy_hosting.outcome == 'success'
         run: |
           echo "### MASLIVE déployé" >> "${GITHUB_STEP_SUMMARY}"
           echo "- Commit : \`${GITHUB_SHA}\`" >> "${GITHUB_STEP_SUMMARY}"
           echo "- Hosting : https://maslive.web.app" >> "${GITHUB_STEP_SUMMARY}"
           echo "- Firebase project : maslive" >> "${GITHUB_STEP_SUMMARY}"
-          echo "- Ressources : Hosting, Functions, règles/index Firestore et règles Storage" >> "${GITHUB_STEP_SUMMARY}"
+          echo "- Hosting : déployé et manifeste vérifié" >> "${GITHUB_STEP_SUMMARY}"
+          echo "- Règles/index demandés : ${{ steps.scope.outputs.rules }}" >> "${GITHUB_STEP_SUMMARY}"
+          echo "- Functions demandées : ${{ steps.scope.outputs.functions }}" >> "${GITHUB_STEP_SUMMARY}"
