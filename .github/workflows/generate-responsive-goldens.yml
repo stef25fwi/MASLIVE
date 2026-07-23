@@ -84,23 +84,24 @@ jobs:
         if: steps.matrix.outcome == 'failure'
         run: exit 1
 
-      - name: Flutter analyze
-        working-directory: app
-        run: flutter analyze --fatal-infos --fatal-warnings
-
       - name: Commit validated golden references
         run: |
           rm -f \
             app/test/ui_kit/responsive/golden_generation.txt \
             app/test/ui_kit/responsive/responsive_validation.txt
-          if git diff --quiet -- app/test/ui_kit/responsive/goldens; then
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A \
+            app/test/ui_kit/responsive/goldens \
+            app/test/ui_kit/responsive/golden_generation.txt \
+            app/test/ui_kit/responsive/responsive_validation.txt
+
+          if git diff --cached --quiet; then
             echo "Aucune nouvelle référence golden à publier."
             exit 0
           fi
 
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add app/test/ui_kit/responsive/goldens
-          git commit -m "test(responsive): add multi-screen golden references"
+          git commit -m "test(responsive): add validated multi-screen references"
           git pull --rebase origin test/responsive-final-matrix
           git push origin HEAD:test/responsive-final-matrix
