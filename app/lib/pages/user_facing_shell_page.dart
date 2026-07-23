@@ -346,9 +346,19 @@ class _UserFacingShellPageState extends State<UserFacingShellPage> {
       _currentTab == UserFacingBottomBarTab.explorer;
 
   Widget _buildPageStack(User? user) {
+    // La Home (carte Mapbox) reste montée en arrière-plan une fois visitée,
+    // pour que revenir dessus soit instantané et conserve sa sélection. Mais
+    // tant qu'elle n'a jamais été visitée dans CETTE instance de shell (ex:
+    // ouverture directe sur l'onglet Profil via '/account-ui'), la construire
+    // quand même ne servirait qu'à l'entretenir cachée derrière le profil —
+    // or c'est justement l'initialisation de la carte (Mapbox, POIs,
+    // Firestore) qui est coûteuse et retarde l'affichage du profil au premier
+    // tap. On ne la monte donc que si elle est déjà nécessaire ou en cache.
+    final homeMounted =
+        _isHomeMapVisible || _tabCache.containsKey(UserFacingBottomBarTab.home);
     return Stack(
       children: [
-        Positioned.fill(child: _buildHomePage()),
+        if (homeMounted) Positioned.fill(child: _buildHomePage()),
         if (!_isHomeMapVisible)
           Positioned.fill(
             child: ColoredBox(
