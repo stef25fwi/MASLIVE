@@ -61,7 +61,7 @@ class _GoldenViewport extends StatelessWidget {
               compact: (_, __) => _GoldenContent(
                 viewportWidth: width,
                 columns: 1,
-                itemCount: 2,
+                itemCount: 1,
                 windowLabel: 'Mobile',
               ),
               medium: (_, __) => _GoldenContent(
