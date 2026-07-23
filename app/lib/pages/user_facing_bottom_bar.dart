@@ -31,6 +31,24 @@ class UserFacingBottomBar extends StatelessWidget {
     // ses pages (et la carte) sont conservées, l'affichage est instantané.
     if (activeShellTabSwitcher?.call(context, tab) ?? false) return;
 
+    // Cas "Home" atteint hors shell (ex: page profil ouverte par un push
+    // simple depuis la DefaultMapPage "brute" sur la route '/') : la Home
+    // d'origine est déjà vivante juste en dessous dans la pile, avec son
+    // état (carte/circuit sélectionné). Si on peut l'y retrouver en
+    // dépilant, on le fait plutôt que de construire un shell neuf — sinon
+    // on remplacerait cette Home par une instance fraîche et perdrait sa
+    // sélection (voir bug: carte sélectionnée disparue après un aller-retour
+    // sur le profil).
+    if (tab == UserFacingBottomBarTab.home) {
+      final navigator = Navigator.of(context);
+      if (navigator.canPop()) {
+        navigator.popUntil(
+          (route) => route.settings.name == '/' || route.isFirst,
+        );
+        return;
+      }
+    }
+
     // Aucun shell vivant (premier accès): construction classique.
     Navigator.of(context).pushReplacementNamed(
       '/user-shell',
