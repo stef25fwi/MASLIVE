@@ -11,7 +11,7 @@ La matrice fonctionnelle complémentaire contrôle également 360, 390, 430, 768
 
 La génération CI utilise Flutter 3.44.4 sur Ubuntu afin de conserver un rendu reproductible. Elle vérifie les goldens, la matrice et l’accessibilité avant de publier les images ; le Quality Gate général réalise l’analyse Flutter et la suite complète. En cas d’échec, le diagnostic détaillé est conservé dans un artefact CI isolé afin de corriger le viewport concerné sans assouplir les contrôles. La validation finale exige la réussite simultanée des références visuelles, de la matrice et des contrats de production. Les exécutions devenues obsolètes sont annulées automatiquement afin que seul le dernier commit de la PR puisse publier les références.
 
-Les journaux de génération et de matrice sont temporaires : ils ne doivent jamais être conservés dans la branche après une validation réussie. Seules les images PNG de référence sont versionnées.
+Les journaux de génération et de matrice sont temporaires : ils ne doivent jamais être conservés dans la branche après une validation réussie. Seules les images PNG de référence sont versionnées. La publication est effectuée après les tests, sur le dernier head synchronisé de la PR.
 
 Génération contrôlée :
 
