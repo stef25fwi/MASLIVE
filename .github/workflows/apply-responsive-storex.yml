@@ -11,6 +11,10 @@ on:
 permissions:
   contents: write
 
+concurrency:
+  group: apply-responsive-storex-main
+  cancel-in-progress: false
+
 jobs:
   apply-validate-commit:
     if: github.actor != 'github-actions[bot]'
