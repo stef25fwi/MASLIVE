@@ -131,12 +131,40 @@ class _BusinessLiveTableManagerCardState
     );
   }
 
+  bool get _hasActiveFestivalPass {
+    final raw = widget.businessData['liveTableFestivalPasses'];
+    if (raw is! Map) return false;
+    return _subscriptionGuard.hasActiveFestivalPass(
+      Map<String, dynamic>.from(raw),
+      _linkedEventId,
+    );
+  }
+
   Future<void> _openLiveTableCheckout() async {
     try {
       final result = await _service.createRestaurantLiveTableSubscriptionCheckoutSession(
         planCode: 'food_pro_live',
         billingInterval: 'month',
       );
+      final opened = await PremiumService.instance.openCheckoutUrl(result.checkoutUrl);
+      if (!mounted) return;
+      if (!opened) {
+        TopSnackBar.show(
+          context,
+          const SnackBar(
+            content: Text('Impossible d\'ouvrir Stripe Checkout.'),
+          ),
+        );
+      }
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _statusError = e.toString());
+    }
+  }
+
+  Future<void> _openFestivalPassCheckout() async {
+    try {
+      final result = await _service.createRestaurantLiveTableFestivalPassCheckoutSession();
       final opened = await PremiumService.instance.openCheckoutUrl(result.checkoutUrl);
       if (!mounted) return;
       if (!opened) {
@@ -305,9 +333,11 @@ class _BusinessLiveTableManagerCardState
             Text(
               _hasBusinessLiveSubscription
                   ? 'Votre abonnement business live tables est actif.'
-                  : 'Activez un abonnement eligible pour modifier et publier vos tables en direct.',
+                  : _hasActiveFestivalPass
+                  ? 'Votre forfait festival live tables est actif pour cet événement.'
+                  : 'Activez un abonnement ou un forfait festival pour modifier et publier vos tables en direct.',
               style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                color: _hasBusinessLiveSubscription
+                color: (_hasBusinessLiveSubscription || _hasActiveFestivalPass)
                     ? Colors.green.shade700
                     : Colors.orange.shade800,
                 fontWeight: FontWeight.w600,
@@ -319,6 +349,18 @@ class _BusinessLiveTableManagerCardState
                 onPressed: _openLiveTableCheckout,
                 icon: const Icon(Icons.credit_card_rounded),
                 label: const Text('Prendre un abonnement Table Live (Stripe)'),
+              ),
+            ],
+            if (!_hasBusinessLiveSubscription &&
+                !_hasActiveFestivalPass &&
+                _hasPersistedLinkedIds) ...[
+              const SizedBox(height: 8),
+              OutlinedButton.icon(
+                onPressed: _openFestivalPassCheckout,
+                icon: const Icon(Icons.confirmation_number_outlined),
+                label: const Text(
+                  'Ou prendre le forfait festival (paiement unique)',
+                ),
               ),
             ],
             const SizedBox(height: 12),
@@ -468,15 +510,17 @@ class _BusinessLiveTableManagerCardState
                       ValueListenableBuilder<bool>(
                         valueListenable: PremiumService.instance.isPremium,
                         builder: (context, isPremium, _) {
-                          final hasLiveTableAccess =
-                              isPremium || _hasBusinessLiveSubscription;
+                          final hasLiveTableAccess = isPremium ||
+                              _hasBusinessLiveSubscription ||
+                              _hasActiveFestivalPass;
                           return Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               LiveTableProPanel(
                                 layerType: 'food',
                                 isPremium: isPremium,
-                                isBusinessSubscribed: _hasBusinessLiveSubscription,
+                                isBusinessSubscribed: _hasBusinessLiveSubscription ||
+                                    _hasActiveFestivalPass,
                                 isLoadingRemoteState: isRemoteLoading,
                                 enabled: _liveEnabled,
                                 status: _liveStatus,

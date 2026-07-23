@@ -15,6 +15,17 @@ class RestaurantSubscriptionGuard {
     return isStatusActive && _allowedPlanCodes.contains(planCode);
   }
 
+  bool hasActiveFestivalPass(
+    Map<String, dynamic>? festivalPasses,
+    String eventId,
+  ) {
+    if (festivalPasses == null || eventId.isEmpty) return false;
+    final raw = festivalPasses[eventId];
+    if (raw is! Map) return false;
+    final status = (raw['status'] ?? '').toString().trim().toLowerCase();
+    return status == 'active';
+  }
+
   bool canEditLiveTable({
     required bool isFoodPoi,
     required bool isPremium,

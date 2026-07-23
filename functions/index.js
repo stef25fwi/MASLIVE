@@ -599,6 +599,8 @@ function getRequiredLiveTablePriceEnvKeys() {
     keys.push(`STRIPE_PRICE_${upperPlanCode}_ANNUAL`);
   }
 
+  keys.push("STRIPE_PRICE_LIVE_TABLE_FESTIVAL_PASS");
+
   return keys;
 }
 
@@ -834,6 +836,8 @@ exports.setRestaurantLiveTableStatus =
   restaurantLiveTablesHandlers.setRestaurantLiveTableStatus;
 exports.createRestaurantLiveTableSubscriptionCheckoutSession =
   restaurantLiveTablesHandlers.createRestaurantLiveTableSubscriptionCheckoutSession;
+exports.createRestaurantLiveTableFestivalPassCheckoutSession =
+  restaurantLiveTablesHandlers.createRestaurantLiveTableFestivalPassCheckoutSession;
 exports.convertPlacePhotoUploadToWebp =
   poiImageWebpHandlers.convertPlacePhotoUploadToWebp;
 
@@ -4075,6 +4079,46 @@ async function finalizeStorexOrderPayment({
  * Traite l'événement checkout.session.completed
  * Commande payée via le Media Shop
  */
+async function handleBusinessLiveTableFestivalPassCheckoutCompleted(session) {
+  const metadata = session?.metadata || {};
+  const businessId = (metadata.businessId || metadata.uid || "").toString().trim();
+  const eventId = (metadata.eventId || "").toString().trim();
+  if (!businessId || !eventId) {
+    console.warn("Festival pass checkout completed but missing businessId/eventId", session.id);
+    return;
+  }
+
+  if (session.payment_status && session.payment_status !== "paid") {
+    console.warn("Festival pass checkout completed without paid status", session.id, session.payment_status);
+    return;
+  }
+
+  await db
+    .collection("businesses")
+    .doc(businessId)
+    .set(
+      {
+        liveTableFestivalPasses: {
+          [eventId]: {
+            status: "active",
+            eventId,
+            countryId: (metadata.countryId || "").toString().trim() || null,
+            circuitId: (metadata.circuitId || "").toString().trim() || null,
+            poiId: (metadata.poiId || "").toString().trim() || null,
+            stripeCheckoutSessionId: session.id,
+            stripePaymentIntentId: session.payment_intent || null,
+            amountTotal: typeof session.amount_total === "number" ? session.amount_total : null,
+            currency: session.currency || null,
+            purchasedAt: admin.firestore.FieldValue.serverTimestamp(),
+            updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+          },
+        },
+        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+      },
+      { merge: true }
+    );
+}
+
 async function handleCheckoutSessionCompleted(session, eventId) {
   console.log("Processing checkout.session.completed:", session.id);
 
@@ -4093,6 +4137,11 @@ async function handleCheckoutSessionCompleted(session, eventId) {
     const stripeClient = getStripe();
     const subscription = await stripeClient.subscriptions.retrieve(session.subscription);
     await syncBusinessLiveTableSubscriptionFromStripeSubscription(subscription, session.metadata);
+    return;
+  }
+
+  if (normalizeLowerString(session?.metadata?.kind) === "business_live_table_festival_pass") {
+    await handleBusinessLiveTableFestivalPassCheckoutCompleted(session);
     return;
   }
 
