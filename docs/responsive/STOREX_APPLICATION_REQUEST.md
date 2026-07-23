@@ -10,3 +10,5 @@ Le workflow doit :
 - compacter les chips catégories ;
 - adapter les grilles à 2, 3, 4 puis 5 colonnes ;
 - exécuter `flutter analyze` et les tests responsive avant de publier le changement sur la branche.
+
+Nouvelle exécution avec conservation des diagnostics d’analyse et de tests sur la branche de travail.
