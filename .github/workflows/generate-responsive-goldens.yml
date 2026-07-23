@@ -54,7 +54,7 @@ jobs:
           git commit -m "test(responsive): capture golden generation diagnostic"
           git push origin HEAD:test/responsive-final-matrix
 
-      - name: Stop after publishing diagnostic
+      - name: Stop after publishing golden diagnostic
         if: steps.goldens.outcome == 'failure'
         run: exit 1
 
@@ -63,11 +63,28 @@ jobs:
         run: flutter test test/ui_kit/responsive/responsive_golden_test.dart
 
       - name: Validate responsive matrix and accessibility
+        id: matrix
+        continue-on-error: true
         working-directory: app
         run: |
+          set -o pipefail
           flutter test \
             test/ui_kit/responsive/responsive_viewport_matrix_test.dart \
-            test/responsive/full_responsive_page_contract_test.dart
+            test/responsive/full_responsive_page_contract_test.dart \
+            2>&1 | tee test/ui_kit/responsive/responsive_validation.txt
+
+      - name: Commit responsive validation diagnostic when matrix fails
+        if: steps.matrix.outcome == 'failure'
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add app/test/ui_kit/responsive/responsive_validation.txt
+          git commit -m "test(responsive): capture matrix validation diagnostic"
+          git push origin HEAD:test/responsive-final-matrix
+
+      - name: Stop after publishing matrix diagnostic
+        if: steps.matrix.outcome == 'failure'
+        run: exit 1
 
       - name: Flutter analyze
         working-directory: app
@@ -75,7 +92,9 @@ jobs:
 
       - name: Commit validated golden references
         run: |
-          rm -f app/test/ui_kit/responsive/golden_generation.txt
+          rm -f \
+            app/test/ui_kit/responsive/golden_generation.txt \
+            app/test/ui_kit/responsive/responsive_validation.txt
           if git diff --quiet -- app/test/ui_kit/responsive/goldens; then
             echo "Aucune nouvelle référence golden à publier."
             exit 0
