@@ -53,20 +53,29 @@ jobs:
             app/test/ui_kit/responsive/responsive_breakpoints_test.dart
 
       - name: Flutter analyze
+        id: analyze
+        continue-on-error: true
         working-directory: app
-        run: flutter analyze --fatal-infos --fatal-warnings
+        run: |
+          set +e
+          flutter analyze --fatal-infos --fatal-warnings 2>&1 | tee ../docs/responsive/STOREX_ANALYZE.log
+          status=${PIPESTATUS[0]}
+          echo "status=$status" >> "$GITHUB_OUTPUT"
+          exit "$status"
 
       - name: Responsive unit tests
+        id: responsive_tests
+        continue-on-error: true
         working-directory: app
-        run: flutter test test/ui_kit/responsive/responsive_breakpoints_test.dart
-
-      - name: Commit validated responsive conversion
         run: |
-          if git diff --quiet; then
-            echo "Aucun changement responsive à publier."
-            exit 0
-          fi
+          set +e
+          flutter test test/ui_kit/responsive/responsive_breakpoints_test.dart 2>&1 | tee ../docs/responsive/STOREX_TESTS.log
+          status=${PIPESTATUS[0]}
+          echo "status=$status" >> "$GITHUB_OUTPUT"
+          exit "$status"
 
+      - name: Commit conversion snapshot and diagnostics
+        run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add \
@@ -75,6 +84,22 @@ jobs:
             app/lib/pages/user_facing_navigation_rail.dart \
             app/lib/shop/widgets/storex_page_header.dart \
             app/lib/ui_kit/responsive \
-            app/test/ui_kit/responsive/responsive_breakpoints_test.dart
-          git commit -m "feat(responsive): convert shell and boutique without mobile regression"
-          git push origin HEAD:${GITHUB_HEAD_REF:-responsive/storex-application}
+            app/test/ui_kit/responsive/responsive_breakpoints_test.dart \
+            docs/responsive/STOREX_ANALYZE.log \
+            docs/responsive/STOREX_TESTS.log
+
+          if git diff --cached --quiet; then
+            echo "Aucun changement responsive à publier."
+          else
+            git commit -m "feat(responsive): apply Storex conversion snapshot"
+            git push origin HEAD:${GITHUB_HEAD_REF:-responsive/storex-application}
+          fi
+
+      - name: Enforce validation result
+        run: |
+          analyze_status='${{ steps.analyze.outputs.status }}'
+          test_status='${{ steps.responsive_tests.outputs.status }}'
+          if [ "$analyze_status" != "0" ] || [ "$test_status" != "0" ]; then
+            echo "Validation responsive en échec: analyze=$analyze_status tests=$test_status"
+            exit 1
+          fi
