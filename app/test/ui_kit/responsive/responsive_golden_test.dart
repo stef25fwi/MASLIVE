@@ -4,14 +4,16 @@ import 'package:masslive/ui_kit/responsive/responsive.dart';
 
 void main() {
   group('MASLIVE responsive golden references', () {
-    for (final viewport in const <({double width, String name})>[
-      (width: 320, name: 'compact_320'),
-      (width: 600, name: 'tablet_600'),
-      (width: 1024, name: 'desktop_1024'),
-      (width: 1440, name: 'wide_1440'),
+    for (final viewport in const <({double width, double height, String name})>[
+      (width: 320, height: 1100, name: 'compact_320'),
+      (width: 600, height: 900, name: 'tablet_600'),
+      (width: 1024, height: 900, name: 'desktop_1024'),
+      (width: 1440, height: 900, name: 'wide_1440'),
     ]) {
       testWidgets(viewport.name, (tester) async {
-        await tester.binding.setSurfaceSize(Size(viewport.width, 900));
+        await tester.binding.setSurfaceSize(
+          Size(viewport.width, viewport.height),
+        );
         addTearDown(() => tester.binding.setSurfaceSize(null));
 
         await tester.pumpWidget(
@@ -121,17 +123,17 @@ class _GoldenContent extends StatelessWidget {
               Text(
                 'Galerie BLoOmOod Art',
                 style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                      fontWeight: FontWeight.w900,
-                      letterSpacing: -0.4,
-                    ),
+                  fontWeight: FontWeight.w900,
+                  letterSpacing: -0.4,
+                ),
               ),
               const SizedBox(height: 8),
               Text(
                 'Laissez-vous séduire par une œuvre, faites une offre et concrétisez votre coup de cœur à votre rythme.',
                 style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                      color: const Color(0xFF5F5A54),
-                      height: 1.35,
-                    ),
+                  color: const Color(0xFF5F5A54),
+                  height: 1.35,
+                ),
               ),
               const SizedBox(height: 14),
               Wrap(
