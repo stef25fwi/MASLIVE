@@ -103,8 +103,4 @@ Got dependencies!
 99 packages have newer versions incompatible with dependency constraints.
 Try `flutter pub outdated` for more information.
 Analyzing app...                                                
-
-  error • The map entry key can't be null, so the null-aware operator '?' is unnecessary. Try removing the operator '?' • lib/pages/default_map_page.dart:575:11 • invalid_null_aware_operator
-  error • The map entry key can't be null, so the null-aware operator '?' is unnecessary. Try removing the operator '?' • lib/pages/home_map_page_3d.dart:2475:11 • invalid_null_aware_operator
-
-2 issues found. (ran in 16.7s)
+No issues found! (ran in 25.0s)

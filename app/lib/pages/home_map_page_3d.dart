@@ -2472,7 +2472,7 @@ class _HomeMapPage3DState extends State<HomeMapPage3D>
           'type': type,
           'name': name,
           'desc': desc,
-          ?kPoiPictoIconIdProperty: pictoIconId,
+          kPoiPictoIconIdProperty: ?pictoIconId,
           'imageUrl': imageUrl,
           'lng': coord.$1,
           'lat': coord.$2,

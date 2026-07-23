@@ -572,7 +572,7 @@ class _DefaultMapPageState extends State<DefaultMapPage>
           'type': poi.type ?? poi.layerId,
           'title': poi.name,
           'name': poi.name,
-          ?kPoiPictoIconIdProperty: pictoIconId,
+          kPoiPictoIconIdProperty: ?pictoIconId,
         },
         'geometry': <String, dynamic>{
           'type': 'Point',
