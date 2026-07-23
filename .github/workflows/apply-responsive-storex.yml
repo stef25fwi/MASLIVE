@@ -1,35 +1,32 @@
 name: Apply Responsive Storex Conversion
 
 on:
-  push:
+  pull_request:
     branches: [main]
-    paths:
-      - .github/workflows/apply-responsive-storex.yml
-      - scripts/apply_responsive_storex.py
-  issues:
-    types: [opened]
+    types: [opened, synchronize, reopened]
   workflow_dispatch:
 
 permissions:
   contents: write
+  pull-requests: read
 
 concurrency:
-  group: apply-responsive-storex-main
+  group: apply-responsive-storex-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: false
 
 jobs:
   apply-validate-commit:
     if: >-
-      (github.event_name == 'issues' && startsWith(github.event.issue.title, '[responsive-storex]')) ||
-      (github.event_name != 'issues' && github.actor != 'github-actions[bot]')
+      github.actor != 'github-actions[bot]' &&
+      (github.event_name == 'workflow_dispatch' || github.head_ref == 'responsive/storex-application')
     runs-on: ubuntu-latest
     timeout-minutes: 35
 
     steps:
-      - name: Checkout main
+      - name: Checkout conversion branch
         uses: actions/checkout@v4
         with:
-          ref: main
+          ref: ${{ github.head_ref || 'responsive/storex-application' }}
           fetch-depth: 0
 
       - name: Setup Flutter
@@ -80,4 +77,4 @@ jobs:
             app/lib/ui_kit/responsive \
             app/test/ui_kit/responsive/responsive_breakpoints_test.dart
           git commit -m "feat(responsive): convert shell and boutique without mobile regression"
-          git push origin HEAD:main
+          git push origin HEAD:${GITHUB_HEAD_REF:-responsive/storex-application}
