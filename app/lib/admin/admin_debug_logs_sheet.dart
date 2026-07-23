@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:pointer_interceptor/pointer_interceptor.dart';
 
 import '../utils/debug_log_buffer.dart';
 import 'package:masslive/ui_kit/tokens/maslive_tokens.dart';
@@ -12,175 +13,166 @@ class AdminDebugLogsButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return IconButton(
-      tooltip: 'Logs de debug',
-      icon: const Icon(Icons.bug_report_outlined, color: Colors.white),
-      onPressed: () => showAdminDebugLogsSheet(context, scopeLabel: scopeLabel),
+    return PointerInterceptor(
+      child: IconButton(
+        tooltip: 'Logs de debug',
+        icon: const Icon(Icons.bug_report_outlined, color: Colors.white),
+        onPressed: () {
+          showAdminDebugLogsSheet(context, scopeLabel: scopeLabel);
+        },
+      ),
     );
   }
 }
 
+/// Ouvre les logs dans une vraie boîte de dialogue utilisant le navigateur
+/// racine. Cette approche reste cliquable même lorsqu'une vue HTML/Mapbox est
+/// affichée derrière la page sur Flutter Web.
 Future<void> showAdminDebugLogsSheet(
   BuildContext context, {
   String? scopeLabel,
-}) {
-  return showModalBottomSheet<void>(
+}) async {
+  final entries = DebugLogBuffer.snapshot(scope: scopeLabel);
+
+  await showDialog<void>(
     context: context,
-    isScrollControlled: true,
-    backgroundColor: Colors.transparent,
-    builder: (sheetContext) {
-      return DraggableScrollableSheet(
-        initialChildSize: 0.88,
-        minChildSize: 0.5,
-        maxChildSize: 0.97,
-        builder: (context, scrollController) {
-          final entries = DebugLogBuffer.snapshot(scope: scopeLabel);
-          return Container(
-            decoration: const BoxDecoration(
-              color: Color(0xFFF8FAFC),
-              borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-            ),
-            child: SafeArea(
-              top: false,
-              child: Column(
-                children: [
-                  const SizedBox(height: 10),
-                  Container(
-                    width: 44,
-                    height: 4,
-                    decoration: BoxDecoration(
-                      color: Colors.black12,
-                      borderRadius: BorderRadius.circular(999),
-                    ),
+    useRootNavigator: true,
+    barrierDismissible: true,
+    builder: (dialogContext) {
+      final screenSize = MediaQuery.sizeOf(dialogContext);
+      final dialogWidth = screenSize.width < 720 ? screenSize.width - 24 : 680.0;
+      final dialogHeight = screenSize.height < 760
+          ? screenSize.height - 32
+          : 720.0;
+
+      return PointerInterceptor(
+        child: Dialog(
+          insetPadding: const EdgeInsets.all(12),
+          clipBehavior: Clip.antiAlias,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(24),
+          ),
+          child: SizedBox(
+            width: dialogWidth,
+            height: dialogHeight,
+            child: Column(
+              children: <Widget>[
+                _DialogHeader(
+                  scopeLabel: scopeLabel,
+                  entries: entries,
+                  onClose: () => Navigator.of(
+                    dialogContext,
+                    rootNavigator: true,
+                  ).pop(),
+                  onCopyAll: () => _copyText(
+                    dialogContext,
+                    DebugLogBuffer.buildCopyText(scope: scopeLabel),
+                    successMessage: 'Logs copiés',
                   ),
-                  Padding(
-                    padding: const EdgeInsets.fromLTRB(16, 14, 12, 8),
-                    child: Row(
-                      children: [
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                'Debug admin',
-                                style: Theme.of(context).textTheme.titleLarge
-                                    ?.copyWith(fontWeight: FontWeight.w900),
-                              ),
-                              const SizedBox(height: 2),
-                              Text(
-                                scopeLabel ?? 'Tous les logs',
-                                style: Theme.of(context).textTheme.bodySmall
-                                    ?.copyWith(color: Colors.black54),
-                              ),
-                            ],
-                          ),
-                        ),
-                        IconButton(
-                          tooltip: 'Copier tous les logs',
-                          onPressed: () async {
-                            await Clipboard.setData(
-                              ClipboardData(
-                                text: DebugLogBuffer.buildCopyText(
-                                  scope: scopeLabel,
-                                ),
-                              ),
-                            );
-                            if (!context.mounted) return;
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(content: Text('Logs copiés')),
-                            );
-                          },
-                          icon: const Icon(Icons.copy_rounded),
-                        ),
-                        IconButton(
-                          tooltip: 'Fermer',
-                          onPressed: () => Navigator.of(sheetContext).pop(),
-                          icon: const Icon(Icons.close_rounded),
-                        ),
-                      ],
-                    ),
-                  ),
-                  Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 16),
-                    child: Row(
-                      children: [
-                        _CounterChip(
-                          label: 'Total',
-                          value: entries.length.toString(),
-                        ),
-                        const SizedBox(width: 8),
-                        _CounterChip(
-                          label: 'Échecs',
-                          value: entries
-                              .where((entry) => entry.isFailure)
-                              .length
-                              .toString(),
-                          accentColor: const Color(0xFFB42318),
-                        ),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(height: 10),
-                  Expanded(
-                    child: entries.isEmpty
-                        ? const Center(
-                            child: Padding(
-                              padding: EdgeInsets.all(24),
-                              child: Text(
-                                'Aucun log pour cette page.',
-                                textAlign: TextAlign.center,
-                              ),
+                ),
+                const Divider(height: 1),
+                Expanded(
+                  child: entries.isEmpty
+                      ? const Center(
+                          child: Padding(
+                            padding: EdgeInsets.all(24),
+                            child: Text(
+                              'Aucun log pour cette page.',
+                              textAlign: TextAlign.center,
                             ),
-                          )
-                        : ListView.separated(
-                            controller: scrollController,
-                            padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
-                            itemCount: entries.length,
-                            separatorBuilder: (_, _) =>
-                                const SizedBox(height: 10),
-                            itemBuilder: (context, index) {
-                              final entry = entries[index];
-                              return _LogCard(entry: entry);
-                            },
                           ),
-                  ),
-                ],
-              ),
+                        )
+                      : ListView.separated(
+                          padding: const EdgeInsets.all(16),
+                          itemCount: entries.length,
+                          separatorBuilder: (_, _) =>
+                              const SizedBox(height: 10),
+                          itemBuilder: (itemContext, index) {
+                            return _LogCard(entry: entries[index]);
+                          },
+                        ),
+                ),
+              ],
             ),
-          );
-        },
+          ),
+        ),
       );
     },
   );
 }
 
-class _CounterChip extends StatelessWidget {
-  const _CounterChip({
-    required this.label,
-    required this.value,
-    this.accentColor = const Color(0xFF1D2939),
+Future<void> _copyText(
+  BuildContext context,
+  String text, {
+  required String successMessage,
+}) async {
+  await Clipboard.setData(ClipboardData(text: text));
+  if (!context.mounted) return;
+
+  final messenger = ScaffoldMessenger.maybeOf(context);
+  if (messenger != null) {
+    messenger
+      ..hideCurrentSnackBar()
+      ..showSnackBar(SnackBar(content: Text(successMessage)));
+  }
+}
+
+class _DialogHeader extends StatelessWidget {
+  const _DialogHeader({
+    required this.scopeLabel,
+    required this.entries,
+    required this.onClose,
+    required this.onCopyAll,
   });
 
-  final String label;
-  final String value;
-  final Color accentColor;
+  final String? scopeLabel;
+  final List<DebugLogEntry> entries;
+  final VoidCallback onClose;
+  final VoidCallback onCopyAll;
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-      decoration: BoxDecoration(
-        color: accentColor.withValues(alpha: 0.08),
-        borderRadius: BorderRadius.circular(999),
-        border: Border.all(color: accentColor.withValues(alpha: 0.16)),
-      ),
-      child: Text(
-        '$label: $value',
-        style: TextStyle(
-          color: accentColor,
-          fontWeight: FontWeight.w800,
-          fontSize: 12,
-        ),
+    final failureCount = entries.where((entry) => entry.isFailure).length;
+
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(18, 16, 8, 12),
+      child: Row(
+        children: <Widget>[
+          const Icon(Icons.bug_report_outlined),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: <Widget>[
+                Text(
+                  'Debug admin',
+                  style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                        fontWeight: FontWeight.w900,
+                      ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  '${scopeLabel ?? 'Tous les logs'} · ${entries.length} log(s) · $failureCount échec(s)',
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                        color: Colors.black54,
+                      ),
+                ),
+              ],
+            ),
+          ),
+          FilledButton.tonalIcon(
+            onPressed: onCopyAll,
+            icon: const Icon(Icons.copy_rounded, size: 18),
+            label: const Text('Copier'),
+          ),
+          IconButton(
+            tooltip: 'Fermer',
+            onPressed: onClose,
+            icon: const Icon(Icons.close_rounded),
+          ),
+        ],
       ),
     );
   }
@@ -211,10 +203,10 @@ class _LogCard extends StatelessWidget {
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
+        children: <Widget>[
           Row(
             crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
+            children: <Widget>[
               Icon(
                 isFailure ? Icons.error_outline_rounded : Icons.notes_rounded,
                 size: 18,
@@ -222,7 +214,7 @@ class _LogCard extends StatelessWidget {
               ),
               const SizedBox(width: 8),
               Expanded(
-                child: Text(
+                child: SelectableText(
                   entry.message,
                   style: TextStyle(
                     color: Colors.black87,
@@ -233,15 +225,11 @@ class _LogCard extends StatelessWidget {
               IconButton(
                 tooltip: 'Copier cette ligne',
                 visualDensity: VisualDensity.compact,
-                onPressed: () async {
-                  await Clipboard.setData(
-                    ClipboardData(text: entry.formatForCopy()),
-                  );
-                  if (!context.mounted) return;
-                  ScaffoldMessenger.of(
-                    context,
-                  ).showSnackBar(const SnackBar(content: Text('Log copié')));
-                },
+                onPressed: () => _copyText(
+                  context,
+                  entry.formatForCopy(),
+                  successMessage: 'Log copié',
+                ),
                 icon: const Icon(Icons.copy_rounded, size: 18),
               ),
             ],
@@ -250,7 +238,7 @@ class _LogCard extends StatelessWidget {
           Wrap(
             spacing: 8,
             runSpacing: 6,
-            children: [
+            children: <Widget>[
               _SmallPill(text: entry.level, color: accentColor),
               _SmallPill(text: entry.scope, color: const Color(0xFF344054)),
               _SmallPill(
@@ -260,7 +248,7 @@ class _LogCard extends StatelessWidget {
             ],
           ),
           if (entry.stackTrace != null &&
-              entry.stackTrace!.trim().isNotEmpty) ...[
+              entry.stackTrace!.trim().isNotEmpty) ...<Widget>[
             const SizedBox(height: 10),
             SelectableText(
               entry.stackTrace!.trim(),
