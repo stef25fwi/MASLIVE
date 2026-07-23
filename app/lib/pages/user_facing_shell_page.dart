@@ -4,11 +4,13 @@ import 'package:flutter/material.dart';
 import '../features/media_marketplace/presentation/pages/photographer_public_storefront_page.dart';
 import '../features/media_marketplace/presentation/pages/private_media_gallery_page.dart';
 import '../features/shop/pages/media_photo_shop_page.dart';
+import '../ui_kit/responsive/responsive.dart';
 import 'account_page.dart';
 import 'default_map_page.dart';
 import 'login_page.dart';
 import 'storex_shop_page.dart';
 import 'user_facing_bottom_bar.dart';
+import 'user_facing_navigation_rail.dart';
 import 'user_facing_shell_switch.dart';
 
 class UserFacingShellPage extends StatefulWidget {
@@ -120,6 +122,31 @@ class _UserFacingShellPageState extends State<UserFacingShellPage> {
     if (tab == _currentTab) return;
     setState(() => _currentTab = tab);
     _syncHomeMapForegroundVisible();
+  }
+
+  void _handleNavigationSelection(UserFacingBottomBarTab tab) {
+    if (tab != UserFacingBottomBarTab.explorer) {
+      _selectTab(tab);
+      return;
+    }
+
+    if (_currentTab == UserFacingBottomBarTab.home) {
+      setState(() => _currentTab = UserFacingBottomBarTab.explorer);
+      _syncHomeMapForegroundVisible();
+      _homeActionsMenuSignal.value++;
+      return;
+    }
+
+    if (_currentTab == UserFacingBottomBarTab.explorer) {
+      setState(() => _currentTab = UserFacingBottomBarTab.home);
+      _syncHomeMapForegroundVisible();
+      _homeActionsMenuCloseSignal.value++;
+      return;
+    }
+
+    setState(() => _currentTab = UserFacingBottomBarTab.explorer);
+    _syncHomeMapForegroundVisible();
+    _homeActionsMenuSignal.value++;
   }
 
   @override
@@ -296,49 +323,60 @@ class _UserFacingShellPageState extends State<UserFacingShellPage> {
       _currentTab == UserFacingBottomBarTab.home ||
       _currentTab == UserFacingBottomBarTab.explorer;
 
+  Widget _buildPageStack(User? user) {
+    return Stack(
+      children: [
+        Positioned.fill(child: _buildHomePage()),
+        if (!_isHomeMapVisible)
+          Positioned.fill(
+            child: ColoredBox(
+              color: Theme.of(context).scaffoldBackgroundColor,
+              child: _buildForegroundPage(user),
+            ),
+          ),
+      ],
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return StreamBuilder<User?>(
       stream: FirebaseAuth.instance.authStateChanges(),
       initialData: FirebaseAuth.instance.currentUser,
       builder: (context, snapshot) {
-        return Scaffold(
-          resizeToAvoidBottomInset: false,
-          body: Stack(
-            children: [
-              Positioned.fill(child: _buildHomePage()),
-              if (!_isHomeMapVisible)
-                Positioned.fill(
-                  child: ColoredBox(
-                    color: Theme.of(context).scaffoldBackgroundColor,
-                    child: _buildForegroundPage(snapshot.data),
-                  ),
-                ),
-            ],
-          ),
-          bottomNavigationBar: UserFacingBottomBar(
-            currentTab: _currentTab,
-            onExplorerTap: () {
-              if (_currentTab == UserFacingBottomBarTab.home) {
-                setState(() => _currentTab = UserFacingBottomBarTab.explorer);
-                _syncHomeMapForegroundVisible();
-                _homeActionsMenuSignal.value++;
-                return;
-              }
+        return LayoutBuilder(
+          builder: (context, constraints) {
+            final width = constraints.maxWidth.isFinite
+                ? constraints.maxWidth
+                : MediaQuery.sizeOf(context).width;
+            final useNavigationRail =
+                width >= MasliveBreakpoints.mediumMin;
+            final pageStack = _buildPageStack(snapshot.data);
 
-              if (_currentTab == UserFacingBottomBarTab.explorer) {
-                setState(() => _currentTab = UserFacingBottomBarTab.home);
-                _syncHomeMapForegroundVisible();
-                _homeActionsMenuCloseSignal.value++;
-                return;
-              }
-
-              setState(() => _currentTab = UserFacingBottomBarTab.explorer);
-              _syncHomeMapForegroundVisible();
-              _homeActionsMenuSignal.value++;
-            },
-            onTabSelected: _selectTab,
-          ),
+            return Scaffold(
+              resizeToAvoidBottomInset: false,
+              body: useNavigationRail
+                  ? Row(
+                      children: [
+                        UserFacingNavigationRail(
+                          currentTab: _currentTab,
+                          onTabSelected: _handleNavigationSelection,
+                        ),
+                        Expanded(child: pageStack),
+                      ],
+                    )
+                  : pageStack,
+              bottomNavigationBar: useNavigationRail
+                  ? null
+                  : UserFacingBottomBar(
+                      currentTab: _currentTab,
+                      onExplorerTap: () => _handleNavigationSelection(
+                        UserFacingBottomBarTab.explorer,
+                      ),
+                      onTabSelected: _handleNavigationSelection,
+                    ),
+            );
+          },
         );
       },
     );
