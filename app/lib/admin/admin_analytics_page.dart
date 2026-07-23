@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../services/user_repo.dart';
 import '../theme/maslive_theme.dart';
+import '../ui_kit/responsive/responsive.dart';
 
 /// Page d'analytics avancées pour les administrateurs
 class AdminAnalyticsPage extends StatefulWidget {
@@ -13,7 +14,7 @@ class AdminAnalyticsPage extends StatefulWidget {
 
 class _AdminAnalyticsPageState extends State<AdminAnalyticsPage> {
   final _userRepo = UserRepository.instance;
-  
+
   Map<String, dynamic> _stats = {};
   List<Map<String, dynamic>> _recentActivity = [];
   bool _isLoading = true;
@@ -57,9 +58,9 @@ class _AdminAnalyticsPageState extends State<AdminAnalyticsPage> {
     } catch (e) {
       setState(() => _isLoading = false);
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Erreur: $e')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Erreur: $e')));
       }
     }
   }
@@ -98,9 +99,7 @@ class _AdminAnalyticsPageState extends State<AdminAnalyticsPage> {
         .where('lastLoginAt', isGreaterThanOrEqualTo: Timestamp.fromDate(since))
         .get();
 
-    return {
-      'uniqueLogins': snapshot.docs.length,
-    };
+    return {'uniqueLogins': snapshot.docs.length};
   }
 
   @override
@@ -119,20 +118,33 @@ class _AdminAnalyticsPageState extends State<AdminAnalyticsPage> {
           ? const Center(child: CircularProgressIndicator())
           : RefreshIndicator(
               onRefresh: _loadAnalytics,
-              child: SingleChildScrollView(
-                padding: const EdgeInsets.all(16),
-                physics: const AlwaysScrollableScrollPhysics(),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    _buildOverviewCards(),
-                    const SizedBox(height: 24),
-                    _buildGrowthChart(),
-                    const SizedBox(height: 24),
-                    _buildRoleDistribution(),
-                    const SizedBox(height: 24),
-                    _buildActivityTimeline(),
-                  ],
+              child: ResponsivePageContainer(
+                maxContentWidth: 1280,
+                compactPadding: EdgeInsets.zero,
+                mediumPadding: EdgeInsets.zero,
+                expandedPadding: EdgeInsets.zero,
+                widePadding: EdgeInsets.zero,
+                child: SingleChildScrollView(
+                  padding: responsiveValue<EdgeInsets>(
+                    context,
+                    compact: const EdgeInsets.all(16),
+                    medium: const EdgeInsets.fromLTRB(24, 20, 24, 28),
+                    expanded: const EdgeInsets.fromLTRB(36, 24, 36, 32),
+                    wide: const EdgeInsets.fromLTRB(44, 28, 44, 36),
+                  ),
+                  physics: const AlwaysScrollableScrollPhysics(),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      _buildOverviewCards(),
+                      const SizedBox(height: 24),
+                      _buildGrowthChart(),
+                      const SizedBox(height: 24),
+                      _buildRoleDistribution(),
+                      const SizedBox(height: 24),
+                      _buildActivityTimeline(),
+                    ],
+                  ),
                 ),
               ),
             ),
@@ -144,25 +156,39 @@ class _AdminAnalyticsPageState extends State<AdminAnalyticsPage> {
     final active = _stats['active'] ?? 0;
     final new7Days = _stats['newLast7Days'] ?? 0;
     final new30Days = _stats['newLast30Days'] ?? 0;
-    final activeRate = total > 0 ? (active / total * 100).toStringAsFixed(1) : '0';
+    final activeRate = total > 0
+        ? (active / total * 100).toStringAsFixed(1)
+        : '0';
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
           'Vue d\'ensemble',
-          style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                fontWeight: FontWeight.w700,
-              ),
+          style: Theme.of(
+            context,
+          ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w700),
         ),
         const SizedBox(height: 12),
         GridView.count(
-          crossAxisCount: 2,
+          crossAxisCount: responsiveValue<int>(
+            context,
+            compact: 2,
+            medium: 3,
+            expanded: 4,
+            wide: 4,
+          ),
           shrinkWrap: true,
           physics: const NeverScrollableScrollPhysics(),
           crossAxisSpacing: 12,
           mainAxisSpacing: 12,
-          childAspectRatio: 1.5,
+          childAspectRatio: responsiveValue<double>(
+            context,
+            compact: 1.5,
+            medium: 1.7,
+            expanded: 1.9,
+            wide: 2.0,
+          ),
           children: [
             _buildMetricCard(
               'Utilisateurs totaux',
@@ -194,7 +220,12 @@ class _AdminAnalyticsPageState extends State<AdminAnalyticsPage> {
     );
   }
 
-  Widget _buildMetricCard(String label, String value, IconData icon, Color color) {
+  Widget _buildMetricCard(
+    String label,
+    String value,
+    IconData icon,
+    Color color,
+  ) {
     return Card(
       child: Padding(
         padding: const EdgeInsets.all(16),
@@ -214,10 +245,7 @@ class _AdminAnalyticsPageState extends State<AdminAnalyticsPage> {
             const SizedBox(height: 4),
             Text(
               label,
-              style: TextStyle(
-                fontSize: 12,
-                color: Colors.grey[600],
-              ),
+              style: TextStyle(fontSize: 12, color: Colors.grey[600]),
               textAlign: TextAlign.center,
             ),
           ],
@@ -240,9 +268,9 @@ class _AdminAnalyticsPageState extends State<AdminAnalyticsPage> {
           children: [
             Text(
               'Croissance',
-              style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                    fontWeight: FontWeight.w700,
-                  ),
+              style: Theme.of(
+                context,
+              ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700),
             ),
             const SizedBox(height: 16),
             Row(
@@ -272,7 +300,12 @@ class _AdminAnalyticsPageState extends State<AdminAnalyticsPage> {
     );
   }
 
-  Widget _buildGrowthMetric(String label, String value, IconData icon, Color color) {
+  Widget _buildGrowthMetric(
+    String label,
+    String value,
+    IconData icon,
+    Color color,
+  ) {
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
@@ -294,10 +327,7 @@ class _AdminAnalyticsPageState extends State<AdminAnalyticsPage> {
           const SizedBox(height: 4),
           Text(
             label,
-            style: TextStyle(
-              fontSize: 11,
-              color: Colors.grey[700],
-            ),
+            style: TextStyle(fontSize: 11, color: Colors.grey[700]),
             textAlign: TextAlign.center,
           ),
         ],
@@ -317,15 +347,15 @@ class _AdminAnalyticsPageState extends State<AdminAnalyticsPage> {
           children: [
             Text(
               'Distribution des rôles',
-              style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                    fontWeight: FontWeight.w700,
-                  ),
+              style: Theme.of(
+                context,
+              ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700),
             ),
             const SizedBox(height: 16),
             ...roleStats.entries.map((entry) {
               final count = entry.value;
               final percentage = (count / total * 100).toStringAsFixed(1);
-              
+
               return Padding(
                 padding: const EdgeInsets.only(bottom: 12),
                 child: Column(
@@ -379,8 +409,8 @@ class _AdminAnalyticsPageState extends State<AdminAnalyticsPage> {
                 Text(
                   'Activité récente',
                   style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                        fontWeight: FontWeight.w700,
-                      ),
+                    fontWeight: FontWeight.w700,
+                  ),
                 ),
                 TextButton(
                   onPressed: () {
@@ -394,9 +424,7 @@ class _AdminAnalyticsPageState extends State<AdminAnalyticsPage> {
             if (_recentActivity.isEmpty)
               const Padding(
                 padding: EdgeInsets.all(24),
-                child: Center(
-                  child: Text('Aucune activité récente'),
-                ),
+                child: Center(child: Text('Aucune activité récente')),
               )
             else
               ListView.separated(
@@ -407,14 +435,20 @@ class _AdminAnalyticsPageState extends State<AdminAnalyticsPage> {
                 itemBuilder: (context, index) {
                   final activity = _recentActivity[index];
                   final updatedAt = activity['updatedAt'] as DateTime?;
-                  
+
                   return ListTile(
                     contentPadding: EdgeInsets.zero,
                     leading: CircleAvatar(
-                      backgroundColor: MasLiveTheme.getRoleColor(activity['role']),
+                      backgroundColor: MasLiveTheme.getRoleColor(
+                        activity['role'],
+                      ),
                       child: Text(
-                        (activity['displayName'] as String?)?.substring(0, 1).toUpperCase() ??
-                            (activity['email'] as String).substring(0, 1).toUpperCase(),
+                        (activity['displayName'] as String?)
+                                ?.substring(0, 1)
+                                .toUpperCase() ??
+                            (activity['email'] as String)
+                                .substring(0, 1)
+                                .toUpperCase(),
                         style: const TextStyle(color: Colors.white),
                       ),
                     ),
@@ -431,7 +465,9 @@ class _AdminAnalyticsPageState extends State<AdminAnalyticsPage> {
                         activity['role'],
                         style: const TextStyle(fontSize: 11),
                       ),
-                    backgroundColor: MasLiveTheme.getRoleColor(activity['role']).withValues(alpha: 0.2),
+                      backgroundColor: MasLiveTheme.getRoleColor(
+                        activity['role'],
+                      ).withValues(alpha: 0.2),
                       padding: EdgeInsets.zero,
                     ),
                   );
@@ -445,10 +481,10 @@ class _AdminAnalyticsPageState extends State<AdminAnalyticsPage> {
 
   String _formatDateTime(DateTime? date) {
     if (date == null) return 'jamais';
-    
+
     final now = DateTime.now();
     final diff = now.difference(date);
-    
+
     if (diff.inDays > 0) return 'il y a ${diff.inDays}j';
     if (diff.inHours > 0) return 'il y a ${diff.inHours}h';
     if (diff.inMinutes > 0) return 'il y a ${diff.inMinutes}min';

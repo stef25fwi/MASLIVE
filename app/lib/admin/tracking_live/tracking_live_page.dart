@@ -9,6 +9,7 @@ import 'widgets/live_stats_chart_placeholder.dart';
 import 'widgets/period_selector.dart';
 import 'widgets/tracking_filters_bar.dart';
 import 'widgets/tracking_kpi_tile.dart';
+import '../../ui_kit/responsive/responsive.dart';
 
 class TrackingLivePage extends StatelessWidget {
   const TrackingLivePage({super.key});
@@ -71,21 +72,34 @@ class _TrackingLiveView extends StatelessWidget {
           ),
         ],
       ),
-      body: ListView(
-        padding: const EdgeInsets.all(16),
-        children: [
-          _Header(provider: provider),
-          const SizedBox(height: 12),
-          TrackingFiltersBar(provider: provider),
-          const SizedBox(height: 12),
-          _KpiGrid(provider: provider),
-          const SizedBox(height: 12),
-          LiveStatsChartPlaceholder(summary: provider.globalSummary),
-          const SizedBox(height: 12),
-          _RecentEventsSection(provider: provider),
-          const SizedBox(height: 12),
-          _GroupsSection(provider: provider),
-        ],
+      body: ResponsivePageContainer(
+        maxContentWidth: 1440,
+        compactPadding: EdgeInsets.zero,
+        mediumPadding: EdgeInsets.zero,
+        expandedPadding: EdgeInsets.zero,
+        widePadding: EdgeInsets.zero,
+        child: ListView(
+          padding: responsiveValue<EdgeInsets>(
+            context,
+            compact: const EdgeInsets.all(16),
+            medium: const EdgeInsets.fromLTRB(24, 20, 24, 28),
+            expanded: const EdgeInsets.fromLTRB(36, 24, 36, 32),
+            wide: const EdgeInsets.fromLTRB(44, 28, 44, 36),
+          ),
+          children: [
+            _Header(provider: provider),
+            const SizedBox(height: 12),
+            TrackingFiltersBar(provider: provider),
+            const SizedBox(height: 12),
+            _KpiGrid(provider: provider),
+            const SizedBox(height: 12),
+            LiveStatsChartPlaceholder(summary: provider.globalSummary),
+            const SizedBox(height: 12),
+            _RecentEventsSection(provider: provider),
+            const SizedBox(height: 12),
+            _GroupsSection(provider: provider),
+          ],
+        ),
       ),
     );
   }
@@ -296,45 +310,68 @@ class _Header extends StatelessWidget {
     return Card(
       child: Padding(
         padding: const EdgeInsets.all(16),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Icon(Icons.radar, size: 28),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'Tracking Live',
-                    style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                      fontWeight: FontWeight.w900,
-                    ),
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            final info = Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: <Widget>[
+                const Icon(Icons.radar, size: 28),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: <Widget>[
+                      Text(
+                        'Tracking Live',
+                        style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                          fontWeight: FontWeight.w900,
+                        ),
+                      ),
+                      const SizedBox(height: 6),
+                      Text(
+                        'Monitoring des groupes et trackers en temps réel',
+                        style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                          color: Colors.grey[700],
+                        ),
+                      ),
+                      if (provider.lastUpdatedAt != null) ...<Widget>[
+                        const SizedBox(height: 6),
+                        Text(
+                          'Dernière mise à jour: ${provider.presence.formatLastSeen(provider.lastUpdatedAt)}',
+                          style: Theme.of(context).textTheme.bodySmall
+                              ?.copyWith(color: Colors.grey[600]),
+                        ),
+                      ],
+                    ],
                   ),
-                  const SizedBox(height: 6),
-                  Text(
-                    'Monitoring des groupes et trackers en temps réel',
-                    style: Theme.of(
-                      context,
-                    ).textTheme.bodyMedium?.copyWith(color: Colors.grey[700]),
-                  ),
-                  if (provider.lastUpdatedAt != null) ...[
-                    const SizedBox(height: 6),
-                    Text(
-                      'Dernière mise à jour: ${provider.presence.formatLastSeen(provider.lastUpdatedAt)}',
-                      style: Theme.of(
-                        context,
-                      ).textTheme.bodySmall?.copyWith(color: Colors.grey[600]),
-                    ),
-                  ],
-                ],
-              ),
-            ),
-            PeriodSelector(
+                ),
+              ],
+            );
+            final selector = PeriodSelector(
               selection: provider.selectedPeriod,
               onChanged: provider.setPeriod,
-            ),
-          ],
+            );
+
+            if (context.isCompactLayout) {
+              return Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: <Widget>[
+                  info,
+                  const SizedBox(height: 14),
+                  Align(alignment: Alignment.centerLeft, child: selector),
+                ],
+              );
+            }
+
+            return Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: <Widget>[
+                Expanded(child: info),
+                const SizedBox(width: 20),
+                selector,
+              ],
+            );
+          },
         ),
       ),
     );
