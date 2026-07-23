@@ -2,6 +2,7 @@ import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
 
+// Contract run after the generated administration layouts are committed.
 void main() {
   String source(String relativePath) => File(relativePath).readAsStringSync();
 
