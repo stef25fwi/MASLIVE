@@ -108,6 +108,26 @@ class _UserFacingShellPageState extends State<UserFacingShellPage> {
   void _selectTab(UserFacingBottomBarTab tab) {
     if (!mounted) return;
 
+    // Ce shell peut avoir été poussé par-dessus une Home "brute" déjà vivante
+    // (ex: '/account-ui', '/boutique', '/media-marketplace' construisent
+    // chacun un NOUVEAU UserFacingShellPage via Navigator.push depuis la
+    // DefaultMapPage initiale sur '/' ou '/splash'). Dans ce cas, taper
+    // "Home" ne doit pas afficher l'onglet Home DE CE shell (qui repartirait
+    // d'un état vierge, ex: carte/circuit sélectionné perdu) : on revient
+    // plutôt en dépilant vers la Home d'origine, déjà vivante en dessous.
+    // S'il n'y a rien à dépiler (ce shell EST la racine), on continue
+    // normalement et affiche son propre onglet Home.
+    if (tab == UserFacingBottomBarTab.home &&
+        _currentTab != UserFacingBottomBarTab.home) {
+      final navigator = Navigator.of(context);
+      if (navigator.canPop()) {
+        navigator.popUntil(
+          (route) => route.settings.name == '/' || route.isFirst,
+        );
+        return;
+      }
+    }
+
     if (tab == UserFacingBottomBarTab.explorer) {
       if (_currentTab == UserFacingBottomBarTab.explorer) return;
       setState(() => _currentTab = UserFacingBottomBarTab.explorer);
