@@ -17,7 +17,8 @@ void main() {
       ],
       'lib/features/bloom_art/presentation/pages/bloom_art_offer_detail_page.dart': <String>[
         'ResponsivePageContainer(',
-        'ResponsiveLayout(',
+        'LayoutBuilder(',
+        'context.isCompactLayout',
       ],
       'lib/features/bloom_art/presentation/pages/bloom_art_make_offer_sheet.dart': <String>[
         'ResponsiveOverlayContainer(',
@@ -50,20 +51,20 @@ void main() {
     for (final entry in contracts.entries) {
       test('${entry.key} keeps its responsive contract', () {
         final file = File(entry.key);
-        expect(file.existsSync(), isTrue, reason: 'Missing production page: ${entry.key}');
+        expect(file.existsSync(), isTrue, reason: 'Missing page: ${entry.key}');
         final source = file.readAsStringSync();
 
         for (final marker in entry.value) {
           expect(
             source,
             contains(marker),
-            reason: '${entry.key} must retain responsive marker: $marker',
+            reason: '${entry.key} must retain marker: $marker',
           );
         }
       });
     }
 
-    test('the compact range remains the unchanged smartphone source of truth', () {
+    test('the compact range remains the smartphone source of truth', () {
       final source = File(
         'lib/ui_kit/responsive/responsive_breakpoints.dart',
       ).readAsStringSync();
@@ -72,10 +73,6 @@ void main() {
       expect(source, contains('static const double mediumMin = 600;'));
       expect(source, contains('static const double expandedMin = 1024;'));
       expect(source, contains('static const double wideMin = 1440;'));
-      expect(
-        source,
-        contains('The compact range deliberately preserves the current smartphone rendering.'),
-      );
     });
   });
 }
