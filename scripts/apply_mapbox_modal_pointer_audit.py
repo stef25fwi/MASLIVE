@@ -178,8 +178,8 @@ def transform_poi_edit() -> None:
     final norm = raw.trim().replaceAll(',', '.');
     return double.tryParse(norm);
   }
-${interaction_lock_helper()}
-""",
+"""
+        + interaction_lock_helper(),
         "POI interaction lock helper",
     )
     replace_once(
@@ -254,8 +254,8 @@ def transform_circuit_editor() -> None:
         """  double _toRad(double deg) => deg * math.pi / 180;
 """,
         """  double _toRad(double deg) => deg * math.pi / 180;
-${interaction_lock_helper()}
-""",
+"""
+        + interaction_lock_helper(),
         "circuit interaction lock helper",
     )
     wrap_call(
