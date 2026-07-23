@@ -9,7 +9,7 @@ Les références golden couvrent quatre classes d’écran représentatives :
 
 La matrice fonctionnelle complémentaire contrôle également 360, 390, 430, 768 et 1280 px, puis répète les neuf largeurs avec un facteur de texte de 150 %.
 
-La génération CI utilise Flutter 3.44.4 sur Ubuntu afin de conserver un rendu reproductible. Elle vérifie les goldens, la matrice et l’accessibilité avant de publier les images ; le Quality Gate général réalise l’analyse Flutter et la suite complète. En cas d’échec, le diagnostic détaillé est conservé dans un artefact CI isolé afin de corriger le viewport concerné sans assouplir les contrôles.
+La génération CI utilise Flutter 3.44.4 sur Ubuntu afin de conserver un rendu reproductible. Elle vérifie les goldens, la matrice et l’accessibilité avant de publier les images ; le Quality Gate général réalise l’analyse Flutter et la suite complète. En cas d’échec, le diagnostic détaillé est conservé dans un artefact CI isolé afin de corriger le viewport concerné sans assouplir les contrôles. La validation finale exige la réussite simultanée des références visuelles, de la matrice et des contrats de production.
 
 Génération contrôlée :
 
