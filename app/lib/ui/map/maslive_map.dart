@@ -177,8 +177,25 @@ class MasLiveMap extends StatelessWidget {
     this.onStyleFallback,
   });
 
+  ValueChanged<MapPoint>? _guardMapTap(BuildContext context) {
+    final callback = onTap;
+    if (callback == null) return null;
+
+    return (point) {
+      final route = ModalRoute.of(context);
+
+      // Une boîte de dialogue, une bottom sheet ou une autre route est ouverte
+      // au-dessus de la carte. Le clic ne doit jamais traverser jusqu'à Mapbox.
+      if (route != null && !route.isCurrent) return;
+
+      callback(point);
+    };
+  }
+
   @override
   Widget build(BuildContext context) {
+    final guardedOnTap = _guardMapTap(context);
+
     // Choisir l'implémentation selon la plateforme
     if (kIsWeb) {
       return MasLiveMapWeb(
@@ -198,7 +215,7 @@ class MasLiveMap extends StatelessWidget {
         showMapboxLogo: showMapboxLogo,
         prioritizeFirstFrame: prioritizeFirstFrame,
         controlsPosition: controlsPosition,
-        onTap: onTap,
+        onTap: guardedOnTap,
         onMapReady: onMapReady,
         onInitError: onInitError,
         onStyleFallback: onStyleFallback,
@@ -215,7 +232,7 @@ class MasLiveMap extends StatelessWidget {
         showUserLocation: showUserLocation,
         userLng: userLng,
         userLat: userLat,
-        onTap: onTap,
+        onTap: guardedOnTap,
         onMapReady: onMapReady,
         onInitError: onInitError,
         onStyleFallback: onStyleFallback,
