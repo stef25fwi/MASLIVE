@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import re
 from pathlib import Path
 
 
@@ -32,319 +33,271 @@ def replace_once(path: Path, old: str, new: str, label: str) -> None:
     path.write_text(source.replace(old, new, 1), encoding="utf-8")
 
 
-def replace_last(path: Path, old: str, new: str, label: str) -> None:
+def replace_after(path: Path, anchor: str, old: str, new: str, label: str) -> None:
     source = path.read_text(encoding="utf-8")
-    index = source.rfind(old)
-    if index < 0:
-        raise RuntimeError(f"Missing {label} in {path}")
+    anchor_index = source.find(anchor)
+    if anchor_index < 0:
+        raise RuntimeError(f"Missing anchor for {label} in {path}: {anchor}")
+    target_index = source.find(old, anchor_index)
+    if target_index < 0:
+        raise RuntimeError(f"Missing {label} after anchor in {path}")
     path.write_text(
-        source[:index] + new + source[index + len(old) :],
+        source[:target_index] + new + source[target_index + len(old) :],
+        encoding="utf-8",
+    )
+
+
+def regex_once(path: Path, pattern: str, replacement: str, label: str) -> None:
+    source = path.read_text(encoding="utf-8")
+    updated, count = re.subn(pattern, replacement, source, count=1, flags=re.S)
+    if count != 1:
+        raise RuntimeError(f"Expected one regex match for {label} in {path}, found {count}")
+    path.write_text(updated, encoding="utf-8")
+
+
+def _matching_paren(source: str, open_index: int) -> int:
+    if source[open_index] != "(":
+        raise RuntimeError("The supplied index is not an opening parenthesis")
+
+    depth = 0
+    index = open_index
+    quote: str | None = None
+    escaped = False
+    line_comment = False
+    block_comment = False
+
+    while index < len(source):
+        char = source[index]
+        next_char = source[index + 1] if index + 1 < len(source) else ""
+
+        if line_comment:
+            if char == "\n":
+                line_comment = False
+            index += 1
+            continue
+
+        if block_comment:
+            if char == "*" and next_char == "/":
+                block_comment = False
+                index += 2
+                continue
+            index += 1
+            continue
+
+        if quote is not None:
+            if escaped:
+                escaped = False
+            elif char == "\\":
+                escaped = True
+            elif source.startswith(quote, index):
+                index += len(quote)
+                quote = None
+                continue
+            index += 1
+            continue
+
+        if char == "/" and next_char == "/":
+            line_comment = True
+            index += 2
+            continue
+        if char == "/" and next_char == "*":
+            block_comment = True
+            index += 2
+            continue
+        if source.startswith("'''", index) or source.startswith('\"\"\"', index):
+            quote = source[index : index + 3]
+            index += 3
+            continue
+        if char in ("'", '"'):
+            quote = char
+            index += 1
+            continue
+
+        if char == "(":
+            depth += 1
+        elif char == ")":
+            depth -= 1
+            if depth == 0:
+                return index
+        index += 1
+
+    raise RuntimeError("Unbalanced Dart call while wrapping responsive widget")
+
+
+def wrap_call(path: Path, marker: str, wrapper: str, label: str) -> None:
+    source = path.read_text(encoding="utf-8")
+    marker_index = source.find(marker)
+    if marker_index < 0:
+        raise RuntimeError(f"Missing {label} marker in {path}: {marker}")
+
+    call_start = marker_index + marker.rfind(" ") + 1
+    open_index = source.find("(", call_start)
+    if open_index < 0:
+        raise RuntimeError(f"Missing opening parenthesis for {label} in {path}")
+    close_index = _matching_paren(source, open_index)
+    expression = source[call_start : close_index + 1]
+    replacement = wrapper.replace("__CHILD__", expression)
+    path.write_text(
+        source[:call_start] + replacement + source[close_index + 1 :],
         encoding="utf-8",
     )
 
 
 def transform_admin_dashboard() -> None:
+    print("[admin] dashboard")
     ensure_import(
         ADMIN_DASHBOARD,
         "import 'package:masslive/ui_kit/tokens/maslive_tokens.dart';",
         "import '../ui_kit/responsive/responsive.dart';",
     )
-
-    replace_once(
+    wrap_call(
         ADMIN_DASHBOARD,
-        """            body: SingleChildScrollView(
-              padding: const EdgeInsets.all(16),
-              child: Column(
-""",
-        """            body: ResponsivePageContainer(
-              maxContentWidth: 1440,
-              compactPadding: EdgeInsets.zero,
-              mediumPadding: EdgeInsets.zero,
-              expandedPadding: EdgeInsets.zero,
-              widePadding: EdgeInsets.zero,
-              child: SingleChildScrollView(
-                padding: responsiveValue<EdgeInsets>(
-                  context,
-                  compact: const EdgeInsets.all(16),
-                  medium: const EdgeInsets.fromLTRB(24, 20, 24, 28),
-                  expanded: const EdgeInsets.fromLTRB(36, 24, 36, 32),
-                  wide: const EdgeInsets.fromLTRB(44, 28, 44, 36),
-                ),
-                child: Column(
-""",
-        "admin dashboard container start",
+        "body: SingleChildScrollView(",
+        """ResponsivePageContainer(
+  maxContentWidth: 1440,
+  compactPadding: EdgeInsets.zero,
+  mediumPadding: EdgeInsets.zero,
+  expandedPadding: EdgeInsets.zero,
+  widePadding: EdgeInsets.zero,
+  child: __CHILD__,
+)""",
+        "admin dashboard body",
     )
-
-    replace_last(
+    replace_after(
         ADMIN_DASHBOARD,
-        """                ],
-              ),
-            ),
-          );
-""",
-        """                  ],
-                ),
-              ),
-            ),
-          );
-""",
-        "admin dashboard container end",
+        "maxContentWidth: 1440",
+        "padding: const EdgeInsets.all(16),",
+        """padding: responsiveValue<EdgeInsets>(
+  context,
+  compact: const EdgeInsets.all(16),
+  medium: const EdgeInsets.fromLTRB(24, 20, 24, 28),
+  expanded: const EdgeInsets.fromLTRB(36, 24, 36, 32),
+  wide: const EdgeInsets.fromLTRB(44, 28, 44, 36),
+),""",
+        "dashboard responsive padding",
     )
 
 
 def transform_admin_analytics() -> None:
+    print("[admin] analytics")
     ensure_import(
         ADMIN_ANALYTICS,
         "import '../theme/maslive_theme.dart';",
         "import '../ui_kit/responsive/responsive.dart';",
     )
-
-    replace_once(
+    wrap_call(
         ADMIN_ANALYTICS,
-        """              child: SingleChildScrollView(
-                padding: const EdgeInsets.all(16),
-                physics: const AlwaysScrollableScrollPhysics(),
-                child: Column(
-""",
-        """              child: ResponsivePageContainer(
-                maxContentWidth: 1280,
-                compactPadding: EdgeInsets.zero,
-                mediumPadding: EdgeInsets.zero,
-                expandedPadding: EdgeInsets.zero,
-                widePadding: EdgeInsets.zero,
-                child: SingleChildScrollView(
-                  padding: responsiveValue<EdgeInsets>(
-                    context,
-                    compact: const EdgeInsets.all(16),
-                    medium: const EdgeInsets.fromLTRB(24, 20, 24, 28),
-                    expanded: const EdgeInsets.fromLTRB(36, 24, 36, 32),
-                    wide: const EdgeInsets.fromLTRB(44, 28, 44, 36),
-                  ),
-                  physics: const AlwaysScrollableScrollPhysics(),
-                  child: Column(
-""",
-        "analytics container start",
+        "child: SingleChildScrollView(",
+        """ResponsivePageContainer(
+  maxContentWidth: 1280,
+  compactPadding: EdgeInsets.zero,
+  mediumPadding: EdgeInsets.zero,
+  expandedPadding: EdgeInsets.zero,
+  widePadding: EdgeInsets.zero,
+  child: __CHILD__,
+)""",
+        "analytics scroll content",
     )
-
-    replace_once(
+    replace_after(
         ADMIN_ANALYTICS,
-        """                  ],
-                ),
-              ),
-            ),
-""",
-        """                    ],
-                  ),
-                ),
-              ),
-            ),
-""",
-        "analytics container end",
+        "maxContentWidth: 1280",
+        "padding: const EdgeInsets.all(16),",
+        """padding: responsiveValue<EdgeInsets>(
+  context,
+  compact: const EdgeInsets.all(16),
+  medium: const EdgeInsets.fromLTRB(24, 20, 24, 28),
+  expanded: const EdgeInsets.fromLTRB(36, 24, 36, 32),
+  wide: const EdgeInsets.fromLTRB(44, 28, 44, 36),
+),""",
+        "analytics responsive padding",
     )
-
+    regex_once(
+        ADMIN_ANALYTICS,
+        r"crossAxisCount:\s*2,\s*shrinkWrap:",
+        """crossAxisCount: responsiveValue<int>(
+  context,
+  compact: 2,
+  medium: 3,
+  expanded: 4,
+  wide: 4,
+),
+          shrinkWrap:""",
+        "analytics adaptive columns",
+    )
     replace_once(
         ADMIN_ANALYTICS,
-        """        GridView.count(
-          crossAxisCount: 2,
-          shrinkWrap: true,
-          physics: const NeverScrollableScrollPhysics(),
-          crossAxisSpacing: 12,
-          mainAxisSpacing: 12,
-          childAspectRatio: 1.5,
-""",
-        """        GridView.count(
-          crossAxisCount: responsiveValue<int>(
-            context,
-            compact: 2,
-            medium: 3,
-            expanded: 4,
-            wide: 4,
-          ),
-          shrinkWrap: true,
-          physics: const NeverScrollableScrollPhysics(),
-          crossAxisSpacing: 12,
-          mainAxisSpacing: 12,
-          childAspectRatio: responsiveValue<double>(
-            context,
-            compact: 1.5,
-            medium: 1.7,
-            expanded: 1.9,
-            wide: 2.0,
-          ),
-""",
-        "analytics metric grid",
+        "childAspectRatio: 1.5,",
+        """childAspectRatio: responsiveValue<double>(
+  context,
+  compact: 1.5,
+  medium: 1.7,
+  expanded: 1.9,
+  wide: 2.0,
+),""",
+        "analytics adaptive aspect ratio",
     )
 
 
 def transform_admin_orders() -> None:
+    print("[admin] orders")
     ensure_import(
         ADMIN_ORDERS,
         "import 'admin_gate.dart';",
         "import '../ui_kit/responsive/responsive.dart';",
     )
-
-    replace_once(
+    wrap_call(
         ADMIN_ORDERS,
-        """        body: Column(
-          children: [
-            Padding(
-              padding: const EdgeInsets.all(16),
-""",
-        """        body: ResponsivePageContainer(
-          maxContentWidth: 1280,
-          compactPadding: EdgeInsets.zero,
-          mediumPadding: EdgeInsets.zero,
-          expandedPadding: EdgeInsets.zero,
-          widePadding: EdgeInsets.zero,
-          child: Column(
-            children: [
-              Padding(
-                padding: responsiveValue<EdgeInsets>(
-                  context,
-                  compact: const EdgeInsets.all(16),
-                  medium: const EdgeInsets.fromLTRB(24, 20, 24, 18),
-                  expanded: const EdgeInsets.fromLTRB(36, 24, 36, 20),
-                  wide: const EdgeInsets.fromLTRB(44, 28, 44, 22),
-                ),
-""",
-        "orders container start",
+        "body: Column(",
+        """ResponsivePageContainer(
+  maxContentWidth: 1280,
+  compactPadding: EdgeInsets.zero,
+  mediumPadding: EdgeInsets.zero,
+  expandedPadding: EdgeInsets.zero,
+  widePadding: EdgeInsets.zero,
+  child: __CHILD__,
+)""",
+        "orders body",
     )
-
-    replace_once(
+    replace_after(
         ADMIN_ORDERS,
-        """            const Divider(height: 1),
-            Expanded(
-""",
-        """              const Divider(height: 1),
-              Expanded(
-""",
-        "orders inner indentation divider",
+        "maxContentWidth: 1280",
+        "padding: const EdgeInsets.all(16),",
+        """padding: responsiveValue<EdgeInsets>(
+  context,
+  compact: const EdgeInsets.all(16),
+  medium: const EdgeInsets.fromLTRB(24, 20, 24, 18),
+  expanded: const EdgeInsets.fromLTRB(36, 24, 36, 20),
+  wide: const EdgeInsets.fromLTRB(44, 28, 44, 22),
+),""",
+        "orders responsive filters",
     )
-
-    replace_once(
+    wrap_call(
         ADMIN_ORDERS,
-        """            ),
-          ],
-        ),
-      ),
-""",
-        """              ),
-            ],
-          ),
-        ),
-      ),
-""",
-        "orders container end",
-    )
-
-    replace_once(
-        ADMIN_ORDERS,
-        """                   return ListView.separated(
-                     padding: const EdgeInsets.all(16),
-""",
-        """                   return ListView.separated(
-                     padding: responsiveValue<EdgeInsets>(
-                       context,
-                       compact: const EdgeInsets.all(16),
-                       medium: const EdgeInsets.fromLTRB(24, 18, 24, 24),
-                       expanded: const EdgeInsets.fromLTRB(36, 20, 36, 28),
-                       wide: const EdgeInsets.fromLTRB(44, 22, 44, 32),
-                     ),
-""",
-        "orders list padding",
+        "builder: (ctx) => StatefulBuilder(",
+        """ResponsiveOverlayContainer(
+  compactHorizontalInset: 0,
+  mediumMaxWidth: 720,
+  expandedMaxWidth: 820,
+  wideMaxWidth: 900,
+  alignment: Alignment.bottomCenter,
+  child: __CHILD__,
+)""",
+        "orders detail sheet",
     )
 
 
-def transform_tracking_live() -> None:
-    ensure_import(
-        TRACKING_LIVE,
-        "import 'widgets/tracking_kpi_tile.dart';",
-        "import '../../ui_kit/responsive/responsive.dart';",
-    )
+def _responsive_tracking_header() -> str:
+    return """class _Header extends StatelessWidget {
+  const _Header({required this.provider});
 
-    replace_once(
-        TRACKING_LIVE,
-        """      body: ListView(
+  final TrackingLiveProvider provider;
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      child: Padding(
         padding: const EdgeInsets.all(16),
-        children: [
-""",
-        """      body: ResponsivePageContainer(
-        maxContentWidth: 1440,
-        compactPadding: EdgeInsets.zero,
-        mediumPadding: EdgeInsets.zero,
-        expandedPadding: EdgeInsets.zero,
-        widePadding: EdgeInsets.zero,
-        child: ListView(
-          padding: responsiveValue<EdgeInsets>(
-            context,
-            compact: const EdgeInsets.all(16),
-            medium: const EdgeInsets.fromLTRB(24, 20, 24, 28),
-            expanded: const EdgeInsets.fromLTRB(36, 24, 36, 32),
-            wide: const EdgeInsets.fromLTRB(44, 28, 44, 36),
-          ),
-          children: [
-""",
-        "tracking container start",
-    )
-
-    replace_once(
-        TRACKING_LIVE,
-        """        ],
-      ),
-    );
-""",
-        """          ],
-        ),
-      ),
-    );
-""",
-        "tracking container end",
-    )
-
-    replace_once(
-        TRACKING_LIVE,
-        """        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Icon(Icons.radar, size: 28),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'Tracking Live',
-                    style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                      fontWeight: FontWeight.w900,
-                    ),
-                  ),
-                  const SizedBox(height: 6),
-                  Text(
-                    'Monitoring des groupes et trackers en temps réel',
-                    style: Theme.of(
-                      context,
-                    ).textTheme.bodyMedium?.copyWith(color: Colors.grey[700]),
-                  ),
-                  if (provider.lastUpdatedAt != null) ...[
-                    const SizedBox(height: 6),
-                    Text(
-                      'Dernière mise à jour: ${provider.presence.formatLastSeen(provider.lastUpdatedAt)}',
-                      style: Theme.of(
-                        context,
-                      ).textTheme.bodySmall?.copyWith(color: Colors.grey[600]),
-                    ),
-                  ],
-                ],
-              ),
-            ),
-            PeriodSelector(
-              selection: provider.selectedPeriod,
-              onChanged: provider.setPeriod,
-            ),
-          ],
-        ),
-""",
-        """        child: LayoutBuilder(
+        child: LayoutBuilder(
           builder: (context, constraints) {
             final info = Row(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -382,7 +335,6 @@ def transform_tracking_live() -> None:
                 ),
               ],
             );
-
             final selector = PeriodSelector(
               selection: provider.selectedPeriod,
               onChanged: provider.setPeriod,
@@ -409,66 +361,98 @@ def transform_tracking_live() -> None:
             );
           },
         ),
-""",
-        "tracking responsive header",
+      ),
+    );
+  }
+}
+
+"""
+
+
+def transform_tracking_live() -> None:
+    print("[admin] tracking live")
+    ensure_import(
+        TRACKING_LIVE,
+        "import 'widgets/tracking_kpi_tile.dart';",
+        "import '../../ui_kit/responsive/responsive.dart';",
+    )
+    wrap_call(
+        TRACKING_LIVE,
+        "body: ListView(",
+        """ResponsivePageContainer(
+  maxContentWidth: 1440,
+  compactPadding: EdgeInsets.zero,
+  mediumPadding: EdgeInsets.zero,
+  expandedPadding: EdgeInsets.zero,
+  widePadding: EdgeInsets.zero,
+  child: __CHILD__,
+)""",
+        "tracking body",
+    )
+    replace_after(
+        TRACKING_LIVE,
+        "maxContentWidth: 1440",
+        "padding: const EdgeInsets.all(16),",
+        """padding: responsiveValue<EdgeInsets>(
+  context,
+  compact: const EdgeInsets.all(16),
+  medium: const EdgeInsets.fromLTRB(24, 20, 24, 28),
+  expanded: const EdgeInsets.fromLTRB(36, 24, 36, 32),
+  wide: const EdgeInsets.fromLTRB(44, 28, 44, 36),
+),""",
+        "tracking responsive padding",
+    )
+    source = TRACKING_LIVE.read_text(encoding="utf-8")
+    start = source.find("class _Header extends StatelessWidget {")
+    end = source.find("class _KpiGrid extends StatelessWidget {")
+    if start < 0 or end < 0 or end <= start:
+        raise RuntimeError("Unable to locate Tracking Live header class")
+    TRACKING_LIVE.write_text(
+        source[:start] + _responsive_tracking_header() + source[end:],
+        encoding="utf-8",
     )
 
 
 def transform_circuit_wizard() -> None:
+    print("[admin] circuit wizard")
     ensure_import(
         CIRCUIT_WIZARD,
         "import '../ui/widgets/maslive_button.dart';",
         "import '../ui_kit/responsive/responsive.dart';",
     )
-
-    replace_once(
+    wrap_call(
         CIRCUIT_WIZARD,
-        """                return ListView.builder(
-                  padding: const EdgeInsets.all(16),
-                  itemCount: projects.length,
-                  itemBuilder: (context, index) {
-                    final project = projects[index];
-                    return _buildProjectCard(project);
-                  },
-                );
-""",
-        """                return ResponsivePageContainer(
-                  maxContentWidth: 1200,
-                  compactPadding: EdgeInsets.zero,
-                  mediumPadding: EdgeInsets.zero,
-                  expandedPadding: EdgeInsets.zero,
-                  widePadding: EdgeInsets.zero,
-                  child: ListView.builder(
-                    padding: responsiveValue<EdgeInsets>(
-                      context,
-                      compact: const EdgeInsets.all(16),
-                      medium: const EdgeInsets.fromLTRB(24, 20, 24, 28),
-                      expanded: const EdgeInsets.fromLTRB(36, 24, 36, 32),
-                      wide: const EdgeInsets.fromLTRB(44, 28, 44, 36),
-                    ),
-                    itemCount: projects.length,
-                    itemBuilder: (context, index) {
-                      final project = projects[index];
-                      return _buildProjectCard(project);
-                    },
-                  ),
-                );
-""",
-        "circuit projects container",
+        "return ListView.builder(",
+        """ResponsivePageContainer(
+  maxContentWidth: 1200,
+  compactPadding: EdgeInsets.zero,
+  mediumPadding: EdgeInsets.zero,
+  expandedPadding: EdgeInsets.zero,
+  widePadding: EdgeInsets.zero,
+  child: __CHILD__,
+)""",
+        "circuit projects list",
     )
-
-    replace_once(
+    replace_after(
         CIRCUIT_WIZARD,
-        """    final screen = MediaQuery.of(context).size;
-    final availableWidth = (screen.width - 32).clamp(0.0, double.infinity);
-    final dialogWidth = availableWidth > 900 ? 900.0 : availableWidth;
-    final dialogMaxHeight = screen.height * 0.9;
-
-    return Dialog(
-      backgroundColor: Colors.white,
-      insetPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 24),
-""",
-        """    final screen = MediaQuery.of(context).size;
+        "maxContentWidth: 1200",
+        "padding: const EdgeInsets.all(16),",
+        """padding: responsiveValue<EdgeInsets>(
+  context,
+  compact: const EdgeInsets.all(16),
+  medium: const EdgeInsets.fromLTRB(24, 20, 24, 28),
+  expanded: const EdgeInsets.fromLTRB(36, 24, 36, 32),
+  wide: const EdgeInsets.fromLTRB(44, 28, 44, 36),
+),""",
+        "circuit projects padding",
+    )
+    regex_once(
+        CIRCUIT_WIZARD,
+        r"final screen = MediaQuery\.of\(context\)\.size;\s*"
+        r"final availableWidth = \(screen\.width - 32\)\.clamp\(0\.0, double\.infinity\);\s*"
+        r"final dialogWidth = availableWidth > 900 \? 900\.0 : availableWidth;\s*"
+        r"final dialogMaxHeight = screen\.height \* 0\.9;",
+        """final screen = MediaQuery.of(context).size;
     final compactWidth = (screen.width - 20).clamp(0.0, double.infinity);
     final requestedWidth = responsiveValue<double>(
       context,
@@ -478,35 +462,32 @@ def transform_circuit_wizard() -> None:
       wide: 980,
     );
     final dialogWidth = requestedWidth.clamp(0.0, compactWidth).toDouble();
-    final dialogMaxHeight = screen.height * 0.9;
-
-    return Dialog(
-      backgroundColor: Colors.white,
-      insetPadding: responsiveValue<EdgeInsets>(
-        context,
-        compact: const EdgeInsets.symmetric(horizontal: 10, vertical: 24),
-        medium: const EdgeInsets.symmetric(horizontal: 24, vertical: 28),
-        expanded: const EdgeInsets.symmetric(horizontal: 36, vertical: 32),
-        wide: const EdgeInsets.symmetric(horizontal: 44, vertical: 36),
-      ),
-""",
-        "circuit dialog sizing",
+    final dialogMaxHeight = screen.height * 0.9;""",
+        "circuit dialog width",
     )
-
     replace_once(
         CIRCUIT_WIZARD,
-        """          child: Padding(
-            padding: const EdgeInsets.all(16),
-""",
-        """          child: Padding(
-            padding: responsiveValue<EdgeInsets>(
-              context,
-              compact: const EdgeInsets.all(16),
-              medium: const EdgeInsets.all(20),
-              expanded: const EdgeInsets.all(24),
-              wide: const EdgeInsets.all(28),
-            ),
-""",
+        "insetPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 24),",
+        """insetPadding: responsiveValue<EdgeInsets>(
+  context,
+  compact: const EdgeInsets.symmetric(horizontal: 10, vertical: 24),
+  medium: const EdgeInsets.symmetric(horizontal: 24, vertical: 28),
+  expanded: const EdgeInsets.symmetric(horizontal: 36, vertical: 32),
+  wide: const EdgeInsets.symmetric(horizontal: 44, vertical: 36),
+),""",
+        "circuit dialog insets",
+    )
+    replace_after(
+        CIRCUIT_WIZARD,
+        "constraints: BoxConstraints(maxWidth: dialogWidth",
+        "padding: const EdgeInsets.all(16),",
+        """padding: responsiveValue<EdgeInsets>(
+  context,
+  compact: const EdgeInsets.all(16),
+  medium: const EdgeInsets.all(20),
+  expanded: const EdgeInsets.all(24),
+  wide: const EdgeInsets.all(28),
+),""",
         "circuit dialog padding",
     )
 
