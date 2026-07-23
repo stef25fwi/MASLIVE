@@ -19,8 +19,8 @@ class ResponsiveGridDelegate extends SliverGridDelegateWithFixedCrossAxisCount {
     double? mediumCrossAxisSpacing,
     double? expandedCrossAxisSpacing,
     double? wideCrossAxisSpacing,
-    double childAspectRatio = 1,
-    double? mainAxisExtent,
+    super.childAspectRatio = 1,
+    super.mainAxisExtent,
   }) : super(
          crossAxisCount: responsiveValue<int>(
            context,
@@ -43,7 +43,5 @@ class ResponsiveGridDelegate extends SliverGridDelegateWithFixedCrossAxisCount {
            expanded: expandedCrossAxisSpacing,
            wide: wideCrossAxisSpacing,
          ),
-         childAspectRatio: childAspectRatio,
-         mainAxisExtent: mainAxisExtent,
        );
 }
