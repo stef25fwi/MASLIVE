@@ -1,0 +1,129 @@
+name: Deploy Responsive Firebase Preview
+
+on:
+  pull_request:
+    branches: [main]
+    types: [opened, synchronize, reopened]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pull-requests: write
+
+concurrency:
+  group: responsive-preview-pr83
+  cancel-in-progress: true
+
+jobs:
+  preview:
+    if: github.event_name == 'workflow_dispatch' || github.head_ref == 'test/responsive-final-matrix'
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+
+    steps:
+      - name: Checkout responsive branch
+        uses: actions/checkout@v4
+        with:
+          ref: test/responsive-final-matrix
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: "3.44.4"
+          cache: true
+
+      - name: Install Flutter dependencies
+        working-directory: app
+        run: flutter pub get
+
+      - name: Build responsive preview
+        working-directory: app
+        env:
+          MAPBOX_TOKEN: ${{ secrets.MAPBOX_PUBLIC_TOKEN || secrets.MAPBOX_ACCESS_TOKEN || secrets.MAPBOX_TOKEN || vars.MAPBOX_PUBLIC_TOKEN || vars.MAPBOX_ACCESS_TOKEN || vars.MAPBOX_TOKEN }}
+          STRIPE_PUBLISHABLE_KEY: ${{ secrets.STRIPE_PUBLISHABLE_KEY || vars.STRIPE_PUBLISHABLE_KEY }}
+          STRIPE_PREMIUM_MONTHLY_PRICE_ID: ${{ secrets.STRIPE_PREMIUM_MONTHLY_PRICE_ID || vars.STRIPE_PREMIUM_MONTHLY_PRICE_ID }}
+          STRIPE_PREMIUM_YEARLY_PRICE_ID: ${{ secrets.STRIPE_PREMIUM_YEARLY_PRICE_ID || vars.STRIPE_PREMIUM_YEARLY_PRICE_ID }}
+        run: |
+          flutter build web --release \
+            --dart-define=MAPBOX_ACCESS_TOKEN="${MAPBOX_TOKEN}" \
+            --dart-define=STRIPE_PUBLISHABLE_KEY="${STRIPE_PUBLISHABLE_KEY}" \
+            --dart-define=STRIPE_PREMIUM_MONTHLY_PRICE_ID="${STRIPE_PREMIUM_MONTHLY_PRICE_ID}" \
+            --dart-define=STRIPE_PREMIUM_YEARLY_PRICE_ID="${STRIPE_PREMIUM_YEARLY_PRICE_ID}"
+
+      - name: Setup Firebase CLI
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Install Firebase CLI
+        run: npm install --global firebase-tools@latest
+
+      - name: Configure Firebase authentication
+        env:
+          FIREBASE_SERVICE_ACCOUNT_JSON: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_MASLIVE || secrets.FIREBASE_SERVICE_ACCOUNT || secrets.GOOGLE_CREDENTIALS }}
+          FIREBASE_TOKEN: ${{ secrets.FIREBASE_TOKEN }}
+        run: |
+          set -euo pipefail
+          if [ -n "${FIREBASE_SERVICE_ACCOUNT_JSON}" ]; then
+            credentials_file="${RUNNER_TEMP}/maslive-preview-service-account.json"
+            printf '%s' "${FIREBASE_SERVICE_ACCOUNT_JSON}" > "${credentials_file}"
+            chmod 600 "${credentials_file}"
+            node - "${credentials_file}" <<'NODE'
+          const fs = require('node:fs');
+          const file = process.argv[2];
+          const credentials = JSON.parse(fs.readFileSync(file, 'utf8'));
+          if (credentials.project_id !== 'maslive') {
+            throw new Error(`Compte de service Firebase incorrect: ${credentials.project_id}`);
+          }
+          NODE
+            echo "GOOGLE_APPLICATION_CREDENTIALS=${credentials_file}" >> "${GITHUB_ENV}"
+            echo "FIREBASE_AUTH_MODE=service_account" >> "${GITHUB_ENV}"
+          elif [ -n "${FIREBASE_TOKEN}" ]; then
+            echo "FIREBASE_AUTH_MODE=token" >> "${GITHUB_ENV}"
+          else
+            echo "::error::Aucune authentification Firebase disponible."
+            exit 1
+          fi
+
+      - name: Deploy Firebase Hosting preview
+        id: preview
+        env:
+          FIREBASE_TOKEN: ${{ secrets.FIREBASE_TOKEN }}
+        run: |
+          set -euo pipefail
+          auth_args=()
+          if [ "${FIREBASE_AUTH_MODE}" = "token" ]; then
+            auth_args+=(--token "${FIREBASE_TOKEN}")
+          fi
+
+          firebase hosting:channel:deploy responsive-final-pr83 \
+            --project maslive \
+            --non-interactive \
+            "${auth_args[@]}" 2>&1 | tee firebase-preview.log
+
+          preview_url="$(grep -Eo 'https://[^[:space:]]+\.web\.app' firebase-preview.log | tail -n 1)"
+          if [ -z "${preview_url}" ]; then
+            echo "::error::URL de preview introuvable dans le journal Firebase."
+            exit 1
+          fi
+          echo "url=${preview_url}" >> "${GITHUB_OUTPUT}"
+
+      - name: Publish preview URL in PR
+        if: github.event_name == 'pull_request'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PREVIEW_URL: ${{ steps.preview.outputs.url }}
+        run: |
+          jq -n \
+            --arg body "## Preview responsive Firebase\n\nLa version validée de la PR est disponible ici : ${PREVIEW_URL}\n\nCommit : \`${GITHUB_SHA}\`" \
+            '{body: $body}' > preview-comment.json
+          gh api --method POST \
+            "repos/${GITHUB_REPOSITORY}/issues/${{ github.event.pull_request.number }}/comments" \
+            --input preview-comment.json
+
+      - name: Preview summary
+        run: |
+          echo "### Preview responsive" >> "${GITHUB_STEP_SUMMARY}"
+          echo "- URL : ${{ steps.preview.outputs.url }}" >> "${GITHUB_STEP_SUMMARY}"
+          echo "- Branche : test/responsive-final-matrix" >> "${GITHUB_STEP_SUMMARY}"
+          echo "- Firebase project : maslive" >> "${GITHUB_STEP_SUMMARY}"
