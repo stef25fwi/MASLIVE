@@ -49,6 +49,7 @@ import '../utils/web_viewport_resize.dart';
 import 'storex_shop_page.dart';
 import 'home_vertical_nav.dart';
 import 'package:masslive/ui_kit/tokens/maslive_tokens.dart';
+import '../ui_kit/responsive/responsive.dart';
 
 // Menu vertical: modes/actions (pour refléter la sélection UI)
 // Note: seul le tracking et les projets sont pleinement câblés ici.
@@ -2302,8 +2303,22 @@ class _DefaultMapPageState extends State<DefaultMapPage>
             final mediaQuery = MediaQuery.of(context);
             final topInset = mediaQuery.padding.top;
             final bottomInset = mediaQuery.padding.bottom;
-            final menuTopOffset = topInset + 104;
-            const navMenuRightOffset = -6.0;
+            final menuTopOffset =
+                topInset +
+                responsiveValue<double>(
+                  context,
+                  compact: 104,
+                  medium: 24,
+                  expanded: 24,
+                  wide: 24,
+                );
+            final navMenuRightOffset = responsiveValue<double>(
+              context,
+              compact: -6,
+              medium: -14,
+              expanded: -20,
+              wide: -24,
+            );
 
             const bottomBarHeight = _homeBottomBarHeight;
 
@@ -2417,10 +2432,14 @@ class _DefaultMapPageState extends State<DefaultMapPage>
                 if (activeCircuitName != null)
                   Positioned(
                     top: topInset + 10,
-                    left: 88,
-                    right: 88,
+                    left: 0,
+                    right: 0,
                     child: IgnorePointer(
-                      child: Center(
+                      child: ResponsiveOverlayContainer(
+                        compactHorizontalInset: 88,
+                        mediumMaxWidth: 520,
+                        expandedMaxWidth: 640,
+                        wideMaxWidth: 720,
                         child: ActiveCircuitHeaderBanner(
                           circuitName: activeCircuitName,
                         ),
@@ -2431,13 +2450,19 @@ class _DefaultMapPageState extends State<DefaultMapPage>
                 // Tracking pill
                 if (_isTracking)
                   Positioned(
-                    left: 16,
-                    right: 16,
+                    left: 0,
+                    right: 0,
                     bottom: bottomInset + bottomBarHeight + 12,
                     child: PointerInterceptor(
-                      child: _TrackingPill(
-                        isTracking: _isTracking,
-                        onToggle: _toggleTracking,
+                      child: ResponsiveOverlayContainer(
+                        compactHorizontalInset: 16,
+                        mediumMaxWidth: 560,
+                        expandedMaxWidth: 600,
+                        wideMaxWidth: 640,
+                        child: _TrackingPill(
+                          isTracking: _isTracking,
+                          onToggle: _toggleTracking,
+                        ),
                       ),
                     ),
                   ),
