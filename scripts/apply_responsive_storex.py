@@ -53,15 +53,15 @@ def main() -> None:
 
     replace_once_or_applied(
         DEFAULT_MAP_PATH,
-        "          if (pictoIconId != null) kPoiPictoIconIdProperty: pictoIconId,",
         "          ?kPoiPictoIconIdProperty: pictoIconId,",
-        "default map null-aware POI property",
+        "          kPoiPictoIconIdProperty: ?pictoIconId,",
+        "default map null-aware POI value",
     )
     replace_once_or_applied(
         HOME_MAP_PATH,
-        "          if (pictoIconId != null) kPoiPictoIconIdProperty: pictoIconId,",
         "          ?kPoiPictoIconIdProperty: pictoIconId,",
-        "3D map null-aware POI property",
+        "          kPoiPictoIconIdProperty: ?pictoIconId,",
+        "3D map null-aware POI value",
     )
     replace_once_or_applied(
         POI_STYLE_PATH,
