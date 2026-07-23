@@ -13,6 +13,7 @@ import '../../../../ui/widgets/storage_image.dart';
 import '../../../../ui/theme/maslive_theme.dart';
 import '../../../../ui/snack/top_snack_bar.dart';
 import '../../../../utils/country_flag.dart';
+import '../../../../ui_kit/responsive/responsive.dart';
 import '../widgets/media_marketplace_context_chips.dart';
 import '../widgets/media_marketplace_message_card.dart';
 
@@ -125,8 +126,7 @@ class _MediaMarketplaceHomeView extends StatefulWidget {
 
 class _MediaMarketplaceHomeViewState extends State<_MediaMarketplaceHomeView> {
   bool _catalogMenuExpanded = false;
-  final TextEditingController _photographerController =
-      TextEditingController();
+  final TextEditingController _photographerController = TextEditingController();
   final PhotographerRepository _photographerRepository =
       PhotographerRepository();
   final Map<String, String> _photographerNamesById = <String, String>{};
@@ -219,13 +219,16 @@ class _MediaMarketplaceHomeViewState extends State<_MediaMarketplaceHomeView> {
     return buffer.isEmpty ? 'SELECTIONNER UN PAYS' : buffer.toString();
   }
 
-  Future<void> _ensurePhotographerNames(List<MediaGalleryModel> galleries) async {
-    final ids = galleries
-        .map((gallery) => gallery.photographerId.trim())
-        .where((id) => id.isNotEmpty)
-        .toSet()
-        .toList()
-      ..sort();
+  Future<void> _ensurePhotographerNames(
+    List<MediaGalleryModel> galleries,
+  ) async {
+    final ids =
+        galleries
+            .map((gallery) => gallery.photographerId.trim())
+            .where((id) => id.isNotEmpty)
+            .toSet()
+            .toList()
+          ..sort();
     final signature = ids.join('|');
     if (signature == _loadedPhotographerSignature) return;
     _loadedPhotographerSignature = signature;
@@ -260,7 +263,8 @@ class _MediaMarketplaceHomeViewState extends State<_MediaMarketplaceHomeView> {
     final currentContext = anchorKey.currentContext;
     if (currentContext == null || options.isEmpty) return;
     final box = currentContext.findRenderObject() as RenderBox?;
-    final overlay = Overlay.of(context).context.findRenderObject() as RenderBox?;
+    final overlay =
+        Overlay.of(context).context.findRenderObject() as RenderBox?;
     if (box == null || overlay == null) return;
     final position = RelativeRect.fromRect(
       Rect.fromPoints(
@@ -305,31 +309,34 @@ class _MediaMarketplaceHomeViewState extends State<_MediaMarketplaceHomeView> {
     }
 
     final photographerQuery = _photographerController.text.trim().toLowerCase();
-    final filteredGalleries = catalog.galleries.where((gallery) {
-      if (_selectedCountryId != null &&
-          gallery.linkedCountry?.trim() != _selectedCountryId) {
-        return false;
-      }
-      if (_selectedEventId != null && gallery.eventId.trim() != _selectedEventId) {
-        return false;
-      }
-      if (_selectedCircuitId != null &&
-          gallery.linkedCircuitId?.trim() != _selectedCircuitId) {
-        return false;
-      }
-      if (photographerQuery.isNotEmpty) {
-        final photographerId = gallery.photographerId.trim().toLowerCase();
-        final photographerName =
-            (_photographerNamesById[gallery.photographerId] ?? '')
-                .trim()
-                .toLowerCase();
-        if (!photographerId.contains(photographerQuery) &&
-            !photographerName.contains(photographerQuery)) {
-          return false;
-        }
-      }
-      return true;
-    }).toList(growable: false);
+    final filteredGalleries = catalog.galleries
+        .where((gallery) {
+          if (_selectedCountryId != null &&
+              gallery.linkedCountry?.trim() != _selectedCountryId) {
+            return false;
+          }
+          if (_selectedEventId != null &&
+              gallery.eventId.trim() != _selectedEventId) {
+            return false;
+          }
+          if (_selectedCircuitId != null &&
+              gallery.linkedCircuitId?.trim() != _selectedCircuitId) {
+            return false;
+          }
+          if (photographerQuery.isNotEmpty) {
+            final photographerId = gallery.photographerId.trim().toLowerCase();
+            final photographerName =
+                (_photographerNamesById[gallery.photographerId] ?? '')
+                    .trim()
+                    .toLowerCase();
+            if (!photographerId.contains(photographerQuery) &&
+                !photographerName.contains(photographerQuery)) {
+              return false;
+            }
+          }
+          return true;
+        })
+        .toList(growable: false);
 
     if (!catalog.loading &&
         catalog.error == null &&
@@ -355,63 +362,69 @@ class _MediaMarketplaceHomeViewState extends State<_MediaMarketplaceHomeView> {
             orElse: () => null,
           );
     final bool canOpenAllMedia =
-      selectedGallery != null &&
-      (catalog.photos.isNotEmpty || catalog.packs.isNotEmpty);
+        selectedGallery != null &&
+        (catalog.photos.isNotEmpty || catalog.packs.isNotEmpty);
 
-    final countryIds = catalog.galleries
-        .map((gallery) => gallery.linkedCountry?.trim())
-        .whereType<String>()
-        .where((value) => value.isNotEmpty)
-        .toSet()
-        .toList()
-      ..sort();
+    final countryIds =
+        catalog.galleries
+            .map((gallery) => gallery.linkedCountry?.trim())
+            .whereType<String>()
+            .where((value) => value.isNotEmpty)
+            .toSet()
+            .toList()
+          ..sort();
     final countryOptions = <_InlineFilterOption>[
       const _InlineFilterOption(value: null, label: 'TOUS LES PAYS'),
       ...countryIds.map((code) {
-      return _InlineFilterOption(
-        value: code,
-        label: _countryFieldLabel(
-          code,
-          code == widget.countryId ? widget.countryName : null,
-        ),
-      );
+        return _InlineFilterOption(
+          value: code,
+          label: _countryFieldLabel(
+            code,
+            code == widget.countryId ? widget.countryName : null,
+          ),
+        );
       }),
     ];
 
-    final eventIds = catalog.galleries
-        .map((gallery) => gallery.eventId.trim())
-        .where((value) => value.isNotEmpty)
-        .toSet()
-        .toList()
-      ..sort();
+    final eventIds =
+        catalog.galleries
+            .map((gallery) => gallery.eventId.trim())
+            .where((value) => value.isNotEmpty)
+            .toSet()
+            .toList()
+          ..sort();
     final eventOptions = <_InlineFilterOption>[
       const _InlineFilterOption(value: null, label: 'TOUS LES EVENEMENTS'),
       ...eventIds.map((eventId) {
-      return _InlineFilterOption(
-        value: eventId,
-        label: eventId == widget.eventId
-            ? _upperText(widget.eventName, fallback: eventId.toUpperCase())
-            : eventId.toUpperCase(),
-      );
+        return _InlineFilterOption(
+          value: eventId,
+          label: eventId == widget.eventId
+              ? _upperText(widget.eventName, fallback: eventId.toUpperCase())
+              : eventId.toUpperCase(),
+        );
       }),
     ];
 
-    final circuitIds = catalog.galleries
-        .map((gallery) => gallery.linkedCircuitId?.trim())
-        .whereType<String>()
-        .where((value) => value.isNotEmpty)
-        .toSet()
-        .toList()
-      ..sort();
+    final circuitIds =
+        catalog.galleries
+            .map((gallery) => gallery.linkedCircuitId?.trim())
+            .whereType<String>()
+            .where((value) => value.isNotEmpty)
+            .toSet()
+            .toList()
+          ..sort();
     final circuitOptions = <_InlineFilterOption>[
       const _InlineFilterOption(value: null, label: 'TOUS LES CIRCUITS'),
       ...circuitIds.map((circuitId) {
-      return _InlineFilterOption(
-        value: circuitId,
-        label: circuitId == widget.circuitId
-            ? _upperText(widget.circuitName, fallback: circuitId.toUpperCase())
-            : circuitId.toUpperCase(),
-      );
+        return _InlineFilterOption(
+          value: circuitId,
+          label: circuitId == widget.circuitId
+              ? _upperText(
+                  widget.circuitName,
+                  fallback: circuitId.toUpperCase(),
+                )
+              : circuitId.toUpperCase(),
+        );
       }),
     ];
 
@@ -424,8 +437,12 @@ class _MediaMarketplaceHomeViewState extends State<_MediaMarketplaceHomeView> {
                     ? catalog.packs.first.coverUrl
                     : null));
 
-    final content = Padding(
-      padding: const EdgeInsets.fromLTRB(8, 18, 8, 10),
+    final content = ResponsivePageContainer(
+      maxContentWidth: 1280,
+      compactPadding: const EdgeInsets.fromLTRB(8, 18, 8, 10),
+      mediumPadding: const EdgeInsets.fromLTRB(18, 20, 18, 12),
+      expandedPadding: const EdgeInsets.fromLTRB(28, 22, 28, 14),
+      widePadding: const EdgeInsets.fromLTRB(36, 24, 36, 16),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -463,16 +480,24 @@ class _MediaMarketplaceHomeViewState extends State<_MediaMarketplaceHomeView> {
             _CatalogFilterTrigger(
               countryFieldLabel: _countryFieldLabel(
                 _selectedCountryId,
-                _selectedCountryId == widget.countryId ? widget.countryName : null,
+                _selectedCountryId == widget.countryId
+                    ? widget.countryName
+                    : null,
               ),
               eventFieldLabel: _selectedEventId == widget.eventId
-                  ? _upperText(widget.eventName, fallback: 'SELECTIONNER UN EVENEMENT')
+                  ? _upperText(
+                      widget.eventName,
+                      fallback: 'SELECTIONNER UN EVENEMENT',
+                    )
                   : _upperText(
                       _selectedEventId,
                       fallback: 'SELECTIONNER UN EVENEMENT',
                     ),
               circuitFieldLabel: _selectedCircuitId == widget.circuitId
-                  ? _upperText(widget.circuitName, fallback: 'SELECTIONNER UN CIRCUIT')
+                  ? _upperText(
+                      widget.circuitName,
+                      fallback: 'SELECTIONNER UN CIRCUIT',
+                    )
                   : _upperText(
                       _selectedCircuitId,
                       fallback: 'SELECTIONNER UN CIRCUIT',
@@ -517,7 +542,8 @@ class _MediaMarketplaceHomeViewState extends State<_MediaMarketplaceHomeView> {
             ),
             const SizedBox(height: 14),
           ],
-          if (widget.showContextHeader && catalog.currentEventId != null) ...<Widget>[
+          if (widget.showContextHeader &&
+              catalog.currentEventId != null) ...<Widget>[
             MediaMarketplaceContextChips(
               eventId: catalog.currentEventId!,
               circuitName: widget.circuitName,
@@ -537,7 +563,8 @@ class _MediaMarketplaceHomeViewState extends State<_MediaMarketplaceHomeView> {
                           label: gallery.title.isEmpty
                               ? 'GALERIE'
                               : gallery.title.toUpperCase(),
-                          selected: catalog.selectedGalleryId == gallery.galleryId,
+                          selected:
+                              catalog.selectedGalleryId == gallery.galleryId,
                           onTap: () => catalog.selectGallery(gallery.galleryId),
                         ),
                       ),
@@ -551,8 +578,8 @@ class _MediaMarketplaceHomeViewState extends State<_MediaMarketplaceHomeView> {
               title: selectedGallery?.title.trim().isNotEmpty == true
                   ? selectedGallery!.title.trim().toUpperCase()
                   : (widget.eventName?.trim().isNotEmpty == true
-                      ? widget.eventName!.trim().toUpperCase()
-                      : 'GALERIE'),
+                        ? widget.eventName!.trim().toUpperCase()
+                        : 'GALERIE'),
               imageUrl: heroImageUrl,
               onTap: catalog.selectedGalleryId == null ? null : () {},
             ),
@@ -576,16 +603,19 @@ class _MediaMarketplaceHomeViewState extends State<_MediaMarketplaceHomeView> {
               InkWell(
                 onTap: canOpenAllMedia
                     ? () => _openAllGalleryMedia(
-                          context,
-                          gallery: selectedGallery,
-                          photos: catalog.photos,
-                          packs: catalog.packs,
-                          cart: cart,
-                        )
+                        context,
+                        gallery: selectedGallery,
+                        photos: catalog.photos,
+                        packs: catalog.packs,
+                        cart: cart,
+                      )
                     : null,
                 borderRadius: BorderRadius.circular(10),
                 child: Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 6,
+                    vertical: 4,
+                  ),
                   child: Text(
                     'Voir tout',
                     style: TextStyle(
@@ -603,7 +633,9 @@ class _MediaMarketplaceHomeViewState extends State<_MediaMarketplaceHomeView> {
           const SizedBox(height: 14),
           if (selectedGallery == null)
             MediaMarketplaceMessageCard.empty(
-              title: filteredGalleries.isEmpty ? 'Aucun resultat' : 'Sélectionne une galerie',
+              title: filteredGalleries.isEmpty
+                  ? 'Aucun resultat'
+                  : 'Sélectionne une galerie',
               message: filteredGalleries.isEmpty
                   ? 'Aucune galerie ne correspond aux filtres actifs.'
                   : 'Choisis une catégorie ci-dessus pour afficher les médias disponibles.',
@@ -625,7 +657,9 @@ class _MediaMarketplaceHomeViewState extends State<_MediaMarketplaceHomeView> {
     final body = DecoratedBox(
       decoration: const BoxDecoration(color: MasliveTheme.surfaceAlt),
       child: Column(
-        mainAxisSize: widget.useParentScroll ? MainAxisSize.min : MainAxisSize.max,
+        mainAxisSize: widget.useParentScroll
+            ? MainAxisSize.min
+            : MainAxisSize.max,
         children: <Widget>[
           if (catalog.loading) const LinearProgressIndicator(minHeight: 2),
           if (catalog.error != null)
@@ -988,11 +1022,16 @@ class _AllGalleryMediaSheet extends StatelessWidget {
                   GridView.builder(
                     shrinkWrap: true,
                     physics: const NeverScrollableScrollPhysics(),
-                    gridDelegate:
-                        const SliverGridDelegateWithFixedCrossAxisCount(
-                      crossAxisCount: 2,
-                      mainAxisSpacing: 12,
-                      crossAxisSpacing: 12,
+                    gridDelegate: ResponsiveGridDelegate(
+                      context: context,
+                      compactCount: 2,
+                      mediumCount: 3,
+                      expandedCount: 4,
+                      wideCount: 5,
+                      compactMainAxisSpacing: 12,
+                      compactCrossAxisSpacing: 12,
+                      mediumMainAxisSpacing: 16,
+                      mediumCrossAxisSpacing: 16,
                       childAspectRatio: 0.76,
                     ),
                     itemCount: photos.length,
@@ -1115,11 +1154,7 @@ class _GalleryMediaCard extends StatelessWidget {
                         shape: BoxShape.circle,
                       ),
                       alignment: Alignment.center,
-                      child: Icon(
-                        badgeIcon,
-                        size: 18,
-                        color: Colors.white,
-                      ),
+                      child: Icon(badgeIcon, size: 18, color: Colors.white),
                     ),
                   ),
                 ],
@@ -1543,7 +1578,8 @@ class _CatalogReadOnlyField extends StatelessWidget {
                             ? resolvedValue.toUpperCase()
                             : hintText.toUpperCase(),
                         style: TextStyle(
-                          color: resolvedValue != null && resolvedValue.isNotEmpty
+                          color:
+                              resolvedValue != null && resolvedValue.isNotEmpty
                               ? MasliveTheme.textPrimary
                               : MasliveTheme.textSecondary,
                         ),
