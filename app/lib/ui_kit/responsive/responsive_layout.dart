@@ -2,10 +2,8 @@ import 'package:flutter/widgets.dart';
 
 import 'responsive_breakpoints.dart';
 
-typedef ResponsiveWidgetBuilder = Widget Function(
-  BuildContext context,
-  BoxConstraints constraints,
-);
+typedef ResponsiveWidgetBuilder =
+    Widget Function(BuildContext context, BoxConstraints constraints);
 
 /// Chooses a layout builder from the current window class without changing
 /// compact rendering when larger builders are omitted.

@@ -572,7 +572,7 @@ class _DefaultMapPageState extends State<DefaultMapPage>
           'type': poi.type ?? poi.layerId,
           'title': poi.name,
           'name': poi.name,
-          if (pictoIconId != null) kPoiPictoIconIdProperty: pictoIconId,
+          kPoiPictoIconIdProperty: ?pictoIconId,
         },
         'geometry': <String, dynamic>{
           'type': 'Point',
@@ -596,8 +596,7 @@ class _DefaultMapPageState extends State<DefaultMapPage>
   /// Rasterise (une fois) les images de pictos et les enregistre sur la carte.
   Future<void> _registerPoiPictoImages() async {
     try {
-      final images =
-          await PoiPictoImageFactory.build(devicePixelRatio: 2.0);
+      final images = await PoiPictoImageFactory.build(devicePixelRatio: 2.0);
       if (!mounted) return;
       await _mapController.registerPoiPictoImages(images);
     } catch (_) {
@@ -1357,8 +1356,7 @@ class _DefaultMapPageState extends State<DefaultMapPage>
       } else {
         final style = _marketRouteStyle;
         final color =
-            _parseHexColor(style['color']?.toString()) ??
-            MasliveTokens.primary;
+            _parseHexColor(style['color']?.toString()) ?? MasliveTokens.primary;
         final width = (style['width'] as num?)?.toDouble() ?? 6.0;
         final roadLike = (style['roadLike'] as bool?) ?? true;
         final shadow3d = (style['shadow3d'] as bool?) ?? true;
@@ -1463,7 +1461,11 @@ class _DefaultMapPageState extends State<DefaultMapPage>
     int animTick,
   ) {
     if (cfg.trafficDemoEnabled) {
-      const traffic = [Color(0xFF22C55E), MasliveTokens.warning, Color(0xFFEF4444)];
+      const traffic = [
+        Color(0xFF22C55E),
+        MasliveTokens.warning,
+        Color(0xFFEF4444),
+      ];
       return traffic[index % traffic.length];
     }
 

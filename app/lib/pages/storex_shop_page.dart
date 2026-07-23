@@ -19,6 +19,7 @@ import '../ui/snack/top_snack_bar.dart';
 import '../ui/widgets/storage_image.dart';
 import 'package:masslive/ui_kit/tokens/maslive_tokens.dart';
 import '../ui/widgets/maslive_button.dart';
+import '../ui_kit/responsive/responsive.dart';
 
 /// ===============================================================
 /// Storex-style Shop for MassLive (Firestore: products + categories)
@@ -293,15 +294,10 @@ class _StorexHome extends StatelessWidget {
         title: const StorexPageHeaderTitle(subtitle: 'LA BOUTIQUE'),
         actions: [
           IconButton(
-            icon: StorexHeaderCartIcon(
-              badgeCount: cartCount,
-              selected: false,
-            ),
-            onPressed: () => Navigator.of(context).push(
-              MaterialPageRoute(
-                builder: (_) => const UnifiedCartPage(),
-              ),
-            ),
+            icon: StorexHeaderCartIcon(badgeCount: cartCount, selected: false),
+            onPressed: () => Navigator.of(
+              context,
+            ).push(MaterialPageRoute(builder: (_) => const UnifiedCartPage())),
           ),
           const SizedBox(width: 4),
         ],
@@ -350,7 +346,8 @@ class _StorexHome extends StatelessWidget {
                     const _StorexHeroBanner(),
                     const SizedBox(height: 18),
                     _StorexBloomArtBanner(
-                      onTap: () => Navigator.of(context).pushNamed('/bloom-art'),
+                      onTap: () =>
+                          Navigator.of(context).pushNamed('/bloom-art'),
                     ),
                     if (cats.isNotEmpty) ...[
                       const SizedBox(height: 18),
@@ -364,15 +361,15 @@ class _StorexHome extends StatelessWidget {
                           height: 1,
                         ),
                       ),
-                      const SizedBox(height: 16),
+                      const SizedBox(height: 12),
                       SizedBox(
-                        height: 46,
+                        height: 40,
                         child: ListView.separated(
                           scrollDirection: Axis.horizontal,
                           physics: const BouncingScrollPhysics(),
                           itemCount: cats.length,
                           separatorBuilder: (context, index) =>
-                              const SizedBox(width: 12),
+                              const SizedBox(width: 8),
                           itemBuilder: (_, i) => _StorexCategoryChip(
                             label: cats[i].toUpperCase(),
                             onTap: () => Navigator.of(context).push(
@@ -435,13 +432,18 @@ class _StorexHome extends StatelessWidget {
                       shrinkWrap: true,
                       physics: const NeverScrollableScrollPhysics(),
                       itemCount: min(products.length, 10),
-                      gridDelegate:
-                          const SliverGridDelegateWithFixedCrossAxisCount(
-                            crossAxisCount: 2,
-                            mainAxisSpacing: 14,
-                            crossAxisSpacing: 14,
-                            childAspectRatio: 0.735,
-                          ),
+                      gridDelegate: ResponsiveGridDelegate(
+                        context: context,
+                        compactCount: 2,
+                        mediumCount: 3,
+                        expandedCount: 4,
+                        wideCount: 5,
+                        compactMainAxisSpacing: 14,
+                        compactCrossAxisSpacing: 14,
+                        mediumMainAxisSpacing: 18,
+                        mediumCrossAxisSpacing: 18,
+                        childAspectRatio: 0.735,
+                      ),
                       itemBuilder: (context, index) {
                         final p = products[index];
                         return _StorexPremiumProductCard(
@@ -479,7 +481,13 @@ class _StorexHeroBanner extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       padding: const EdgeInsets.all(2),
-      height: 188,
+      height: responsiveValue<double>(
+        context,
+        compact: 188,
+        medium: 220,
+        expanded: 250,
+        wide: 280,
+      ),
       width: double.infinity,
       decoration: BoxDecoration(
         gradient: const LinearGradient(
@@ -534,72 +542,83 @@ class _StorexBloomArtBanner extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(18),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(28),
-        border: Border.all(color: const Color(0xFFE7DCCF)),
-        boxShadow: const <BoxShadow>[
-          BoxShadow(
-            color: Color(0x11000000),
-            blurRadius: 18,
-            offset: Offset(0, 10),
-          ),
-        ],
-      ),
-      child: Row(
-        children: [
-          Container(
-            width: 58,
-            height: 58,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              color: const Color(0xFFF7EEE5),
-            ),
-            child: const Icon(
-              Icons.palette_outlined,
-              color: Color(0xFF7A5C45),
-            ),
-          ),
-          const SizedBox(width: 14),
-          const Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Galerie BLoOmOod Art',
-                  style: TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.w900,
-                    color: _ShopUi.textMain,
-                  ),
-                ),
-                SizedBox(height: 4),
-                Text(
-                  'Exposez une creation, recevez des offres et basculez vers le checkout Stripe centralise.',
-                  style: TextStyle(
-                    color: _ShopUi.textMuted,
-                    height: 1.35,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(width: 12),
-          FilledButton(
-            onPressed: onTap,
-            style: FilledButton.styleFrom(
-              backgroundColor: _ShopUi.textMain,
-              foregroundColor: Colors.white,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(18),
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final stackContent = constraints.maxWidth < 560;
+        final textContent = const Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              'Galerie BLoOmOod Art',
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.w900,
+                color: _ShopUi.textMain,
+                height: 1.15,
               ),
             ),
-            child: const Text('Ouvrir'),
+            SizedBox(height: 8),
+            Text(
+              'Exposez une création, recevez des offres et basculez vers le checkout Stripe centralisé.',
+              style: TextStyle(
+                color: _ShopUi.textMuted,
+                fontWeight: FontWeight.w500,
+                height: 1.35,
+              ),
+            ),
+          ],
+        );
+
+        final openButton = FilledButton(
+          onPressed: onTap,
+          style: FilledButton.styleFrom(
+            minimumSize: const Size(104, 48),
+            backgroundColor: _ShopUi.textMain,
+            foregroundColor: Colors.white,
+            padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 14),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(18),
+            ),
           ),
-        ],
-      ),
+          child: const Text('Ouvrir'),
+        );
+
+        return Container(
+          width: double.infinity,
+          padding: EdgeInsets.all(stackContent ? 18 : 20),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(28),
+            border: Border.all(color: const Color(0xFFE7DCCF)),
+            boxShadow: const <BoxShadow>[
+              BoxShadow(
+                color: Color(0x11000000),
+                blurRadius: 18,
+                offset: Offset(0, 10),
+              ),
+            ],
+          ),
+          child: stackContent
+              ? Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    textContent,
+                    const SizedBox(height: 14),
+                    Align(alignment: Alignment.centerRight, child: openButton),
+                  ],
+                )
+              : Row(
+                  children: [
+                    Expanded(child: textContent),
+                    const SizedBox(width: 24),
+                    openButton,
+                  ],
+                ),
+        );
+      },
     );
   }
 }
@@ -616,20 +635,22 @@ class _StorexCategoryChip extends StatelessWidget {
     return GestureDetector(
       onTap: onTap,
       child: Container(
-        height: 46,
-        padding: const EdgeInsets.symmetric(horizontal: 12),
+        height: 38,
+        padding: const EdgeInsets.symmetric(horizontal: 10),
         decoration: BoxDecoration(
           color: _ShopUi.textMain,
-          borderRadius: BorderRadius.circular(24),
+          borderRadius: BorderRadius.circular(20),
         ),
         alignment: Alignment.center,
         child: Text(
           label,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
           style: const TextStyle(
-            fontSize: 14,
+            fontSize: 12.5,
             fontWeight: FontWeight.w800,
             color: Colors.white,
-            letterSpacing: 0.2,
+            letterSpacing: 0.15,
             height: 1,
           ),
         ),
@@ -1017,10 +1038,16 @@ class _StorexCategory extends StatelessWidget {
               _pageHorizontalInset,
               14,
             ),
-            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-              crossAxisCount: 2,
-              crossAxisSpacing: 10,
-              mainAxisSpacing: 10,
+            gridDelegate: ResponsiveGridDelegate(
+              context: context,
+              compactCount: 2,
+              mediumCount: 3,
+              expandedCount: 4,
+              wideCount: 5,
+              compactCrossAxisSpacing: 10,
+              compactMainAxisSpacing: 10,
+              mediumCrossAxisSpacing: 14,
+              mediumMainAxisSpacing: 14,
               childAspectRatio: 1.05,
             ),
             itemCount: cats.length,
@@ -1051,8 +1078,9 @@ class _StorexCategory extends StatelessWidget {
                           url: imgUrl,
                           fit: BoxFit.cover,
                           cacheWidth: 400,
-                          errorWidget:
-                              Container(color: const Color(0xFFE3E5EA)),
+                          errorWidget: Container(
+                            color: const Color(0xFFE3E5EA),
+                          ),
                         )
                       else
                         Container(color: const Color(0xFFE3E5EA)),
@@ -1154,10 +1182,8 @@ class _ListPageState extends State<_ListPage> {
           Navigator.of(context).pop();
           Navigator.of(context).pushReplacement(
             MaterialPageRoute(
-              builder: (_) => _StorexHome(
-                shopId: widget.shopId,
-                groupId: widget.groupId,
-              ),
+              builder: (_) =>
+                  _StorexHome(shopId: widget.shopId, groupId: widget.groupId),
             ),
           );
         },
@@ -1165,10 +1191,8 @@ class _ListPageState extends State<_ListPage> {
           Navigator.of(context).pop();
           Navigator.of(context).push(
             MaterialPageRoute(
-              builder: (_) => _SearchPage(
-                shopId: widget.shopId,
-                groupId: widget.groupId,
-              ),
+              builder: (_) =>
+                  _SearchPage(shopId: widget.shopId, groupId: widget.groupId),
             ),
           );
         },
@@ -1260,10 +1284,16 @@ class _ListPageState extends State<_ListPage> {
               if (grid) {
                 return GridView.builder(
                   padding: const EdgeInsets.fromLTRB(14, 10, 14, 14),
-                  gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                    crossAxisCount: 2,
-                    crossAxisSpacing: 10,
-                    mainAxisSpacing: 10,
+                  gridDelegate: ResponsiveGridDelegate(
+                    context: context,
+                    compactCount: 2,
+                    mediumCount: 3,
+                    expandedCount: 4,
+                    wideCount: 5,
+                    compactCrossAxisSpacing: 10,
+                    compactMainAxisSpacing: 10,
+                    mediumCrossAxisSpacing: 14,
+                    mediumMainAxisSpacing: 14,
                     childAspectRatio: 0.82,
                   ),
                   itemCount: products.length,
@@ -1618,10 +1648,8 @@ class _WishlistPage extends StatelessWidget {
             Navigator.of(context).pop();
             Navigator.of(context).pushReplacement(
               MaterialPageRoute(
-                builder: (_) => _StorexHome(
-                  shopId: repo.shopId,
-                  groupId: repo.groupId,
-                ),
+                builder: (_) =>
+                    _StorexHome(shopId: repo.shopId, groupId: repo.groupId),
               ),
             );
           },
@@ -1629,10 +1657,8 @@ class _WishlistPage extends StatelessWidget {
             Navigator.of(context).pop();
             Navigator.of(context).push(
               MaterialPageRoute(
-                builder: (_) => _SearchPage(
-                  shopId: repo.shopId,
-                  groupId: repo.groupId,
-                ),
+                builder: (_) =>
+                    _SearchPage(shopId: repo.shopId, groupId: repo.groupId),
               ),
             );
           },
@@ -1713,10 +1739,8 @@ class _WishlistPage extends StatelessWidget {
           Navigator.of(context).pop();
           Navigator.of(context).pushReplacement(
             MaterialPageRoute(
-              builder: (_) => _StorexHome(
-                shopId: repo.shopId,
-                groupId: repo.groupId,
-              ),
+              builder: (_) =>
+                  _StorexHome(shopId: repo.shopId, groupId: repo.groupId),
             ),
           );
         },
@@ -1724,10 +1748,8 @@ class _WishlistPage extends StatelessWidget {
           Navigator.of(context).pop();
           Navigator.of(context).push(
             MaterialPageRoute(
-              builder: (_) => _SearchPage(
-                shopId: repo.shopId,
-                groupId: repo.groupId,
-              ),
+              builder: (_) =>
+                  _SearchPage(shopId: repo.shopId, groupId: repo.groupId),
             ),
           );
         },
@@ -1948,10 +1970,8 @@ class _OrdersPage extends StatelessWidget {
             Navigator.of(context).pop();
             Navigator.of(context).pushReplacement(
               MaterialPageRoute(
-                builder: (_) => _StorexHome(
-                  shopId: repo.shopId,
-                  groupId: repo.groupId,
-                ),
+                builder: (_) =>
+                    _StorexHome(shopId: repo.shopId, groupId: repo.groupId),
               ),
             );
           },
@@ -1959,10 +1979,8 @@ class _OrdersPage extends StatelessWidget {
             Navigator.of(context).pop();
             Navigator.of(context).push(
               MaterialPageRoute(
-                builder: (_) => _SearchPage(
-                  shopId: repo.shopId,
-                  groupId: repo.groupId,
-                ),
+                builder: (_) =>
+                    _SearchPage(shopId: repo.shopId, groupId: repo.groupId),
               ),
             );
           },
@@ -2043,10 +2061,8 @@ class _OrdersPage extends StatelessWidget {
           Navigator.of(context).pop();
           Navigator.of(context).pushReplacement(
             MaterialPageRoute(
-              builder: (_) => _StorexHome(
-                shopId: repo.shopId,
-                groupId: repo.groupId,
-              ),
+              builder: (_) =>
+                  _StorexHome(shopId: repo.shopId, groupId: repo.groupId),
             ),
           );
         },
@@ -2054,10 +2070,8 @@ class _OrdersPage extends StatelessWidget {
           Navigator.of(context).pop();
           Navigator.of(context).push(
             MaterialPageRoute(
-              builder: (_) => _SearchPage(
-                shopId: repo.shopId,
-                groupId: repo.groupId,
-              ),
+              builder: (_) =>
+                  _SearchPage(shopId: repo.shopId, groupId: repo.groupId),
             ),
           );
         },
