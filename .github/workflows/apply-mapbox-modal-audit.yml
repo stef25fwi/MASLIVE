@@ -49,9 +49,38 @@ jobs:
             app/lib/admin/circuit_wizard_entry_page.dart \
             app/test/mapbox_modal_pointer_audit_test.dart
 
-      - name: Flutter analyze
+      - name: Capture Flutter analyze report
+        id: analyze
         working-directory: app
-        run: flutter analyze --fatal-infos --fatal-warnings
+        shell: bash
+        run: |
+          set +e
+          flutter analyze --fatal-infos --fatal-warnings 2>&1 | tee ../MAPBOX_MODAL_ANALYZE.md
+          status=${PIPESTATUS[0]}
+          echo "status=$status" >> "$GITHUB_OUTPUT"
+          exit 0
+
+      - name: Publish transformed sources and analyzer report
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add \
+            MAPBOX_MODAL_ANALYZE.md \
+            app/lib/ui/widgets/polaroid_poi_sheet.dart \
+            app/lib/ui/widgets/marketmap_poi_selector_sheet.dart \
+            app/lib/admin/poi_edit_popup.dart \
+            app/lib/admin/circuit_map_editor.dart \
+            app/lib/admin/circuit_wizard_entry_page.dart \
+            app/test/mapbox_modal_pointer_audit_test.dart
+          if git diff --cached --quiet; then
+            echo "Aucun changement Mapbox à publier."
+          else
+            git commit -m "fix(mapbox): apply modal pointer protections"
+            git push origin HEAD:fix/mapbox-modal-pointer-audit
+          fi
+
+      - name: Enforce Flutter analyze
+        run: test "${{ steps.analyze.outputs.status }}" = "0"
 
       - name: Pointer interception tests
         working-directory: app
@@ -60,22 +89,3 @@ jobs:
             test/mapbox_modal_pointer_audit_test.dart \
             test/admin/parking_style_sheet_pointer_test.dart \
             test/ui_kit/responsive/responsive_breakpoints_test.dart
-
-      - name: Commit validated pointer protections
-        run: |
-          if git diff --quiet; then
-            echo "Aucun changement Mapbox à publier."
-            exit 0
-          fi
-
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add \
-            app/lib/ui/widgets/polaroid_poi_sheet.dart \
-            app/lib/ui/widgets/marketmap_poi_selector_sheet.dart \
-            app/lib/admin/poi_edit_popup.dart \
-            app/lib/admin/circuit_map_editor.dart \
-            app/lib/admin/circuit_wizard_entry_page.dart \
-            app/test/mapbox_modal_pointer_audit_test.dart
-          git commit -m "fix(mapbox): intercept modal pointers above maps"
-          git push origin HEAD:fix/mapbox-modal-pointer-audit
