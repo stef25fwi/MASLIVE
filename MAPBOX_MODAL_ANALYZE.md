@@ -103,8 +103,4 @@ Got dependencies!
 99 packages have newer versions incompatible with dependency constraints.
 Try `flutter pub outdated` for more information.
 Analyzing app...                                                
-
-   info • Statements in an if should be enclosed in a block. Try wrapping the statement in a block • lib/ui/widgets/polaroid_poi_sheet.dart:468:7 • curly_braces_in_flow_control_structures
-   info • Statements in an if should be enclosed in a block. Try wrapping the statement in a block • lib/ui/widgets/polaroid_poi_sheet.dart:472:9 • curly_braces_in_flow_control_structures
-
-2 issues found. (ran in 26.7s)
+No issues found! (ran in 25.5s)

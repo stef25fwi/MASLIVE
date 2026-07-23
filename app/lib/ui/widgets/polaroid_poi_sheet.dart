@@ -464,15 +464,17 @@ class _InfoArea extends StatelessWidget {
 
   String _prettyHours(String raw) {
     final value = raw.trim();
-    if (value.isEmpty || !(value.startsWith('{') || value.startsWith('[')))
+    if (value.isEmpty || !(value.startsWith('{') || value.startsWith('['))) {
       return value;
+    }
     try {
       final decoded = jsonDecode(value);
-      if (decoded is Map)
+      if (decoded is Map) {
         return decoded.entries
             .take(3)
             .map((e) => '${e.key}: ${e.value}')
             .join(' · ');
+      }
       if (decoded is List) return decoded.take(3).join(' · ');
     } catch (_) {}
     return '';
