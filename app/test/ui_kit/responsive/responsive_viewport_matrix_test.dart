@@ -1,3 +1,5 @@
+import 'dart:ui' show SemanticsFlag;
+
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:masslive/ui_kit/responsive/responsive.dart';
@@ -7,7 +9,7 @@ const _targetWidths = <double>[320, 360, 390, 430, 600, 768, 1024, 1280, 1440];
 void main() {
   group('MASLIVE final responsive viewport matrix', () {
     test('the nine target widths resolve to the expected window classes', () {
-      const expected = <double, MasliveWindowClass>{
+      final expected = <double, MasliveWindowClass>{
         320: MasliveWindowClass.compact,
         360: MasliveWindowClass.compact,
         390: MasliveWindowClass.compact,
@@ -23,16 +25,22 @@ void main() {
         final resolved = MasliveBreakpoints.isCompact(entry.key)
             ? MasliveWindowClass.compact
             : MasliveBreakpoints.isMedium(entry.key)
-                ? MasliveWindowClass.medium
-                : MasliveBreakpoints.isExpanded(entry.key)
-                    ? MasliveWindowClass.expanded
-                    : MasliveWindowClass.wide;
-        expect(resolved, entry.value, reason: 'Unexpected class at ${entry.key}px');
+            ? MasliveWindowClass.medium
+            : MasliveBreakpoints.isExpanded(entry.key)
+            ? MasliveWindowClass.expanded
+            : MasliveWindowClass.wide;
+        expect(
+          resolved,
+          entry.value,
+          reason: 'Unexpected class at ${entry.key}px',
+        );
       }
     });
 
     for (final width in _targetWidths) {
-      testWidgets('renders without overflow at ${width.toInt()}px', (tester) async {
+      testWidgets('renders without overflow at ${width.toInt()}px', (
+        tester,
+      ) async {
         await _pumpFixture(tester, width: width, textScale: 1);
 
         expect(tester.takeException(), isNull);
@@ -54,7 +62,9 @@ void main() {
       );
     }
 
-    testWidgets('interactive controls keep accessible tap targets', (tester) async {
+    testWidgets('interactive controls keep accessible tap targets', (
+      tester,
+    ) async {
       await _pumpFixture(tester, width: 320, textScale: 1.5);
 
       for (final finder in <Finder>[
@@ -72,7 +82,9 @@ void main() {
       addTearDown(semantics.dispose);
       await _pumpFixture(tester, width: 390, textScale: 1.3);
 
-      final node = tester.getSemantics(find.byKey(const Key('primary-action')));
+      final node = tester.getSemantics(
+        find.byKey(const Key('primary-action')),
+      );
       expect(node.label, contains('Déposer une œuvre'));
       expect(node.hasFlag(SemanticsFlag.isButton), isTrue);
     });
@@ -91,9 +103,9 @@ Future<void> _pumpFixture(
     MaterialApp(
       debugShowCheckedModeBanner: false,
       builder: (context, child) => MediaQuery(
-        data: MediaQuery.of(context).copyWith(
-          textScaler: TextScaler.linear(textScale),
-        ),
+        data: MediaQuery.of(
+          context,
+        ).copyWith(textScaler: TextScaler.linear(textScale)),
         child: child!,
       ),
       home: _ResponsiveMatrixFixture(viewportWidth: width),
@@ -168,8 +180,8 @@ class _MatrixContent extends StatelessWidget {
           child: Text(
             'Galerie BLoOmOod Art',
             style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                  fontWeight: FontWeight.w900,
-                ),
+              fontWeight: FontWeight.w900,
+            ),
           ),
         ),
         const SizedBox(height: 8),
