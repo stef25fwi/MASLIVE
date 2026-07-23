@@ -8,6 +8,7 @@ import '../services/auth_service.dart';
 import '../l10n/app_localizations.dart';
 import 'business_signup_page.dart';
 import 'package:masslive/ui_kit/tokens/maslive_tokens.dart';
+import '../ui_kit/responsive/responsive.dart';
 
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key, this.onLoginSuccess});
@@ -386,363 +387,383 @@ class _LoginPageState extends State<LoginPage> {
             ),
             Center(
               child: SingleChildScrollView(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 18,
-                  vertical: 16,
-                ),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    const SizedBox(height: 6),
-                    Text(
-                      AppLocalizations.of(context)!.connection,
-                      style: Theme.of(context).textTheme.headlineMedium
-                          ?.copyWith(
-                            fontWeight: FontWeight.w700,
-                            color: text,
-                            letterSpacing: 0.2,
-                          ),
-                      textAlign: TextAlign.center,
-                    ),
-                    const SizedBox(height: 6),
-                    Text(
-                      AppLocalizations.of(context)!.accessYourSpace,
-                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                        color: subText,
-                        fontWeight: FontWeight.w500,
+                child: ResponsivePageContainer(
+                  maxContentWidth: 1120,
+                  compactPadding: const EdgeInsets.symmetric(
+                    horizontal: 18,
+                    vertical: 16,
+                  ),
+                  mediumPadding: const EdgeInsets.symmetric(
+                    horizontal: 28,
+                    vertical: 22,
+                  ),
+                  expandedPadding: const EdgeInsets.symmetric(
+                    horizontal: 36,
+                    vertical: 26,
+                  ),
+                  widePadding: const EdgeInsets.symmetric(
+                    horizontal: 44,
+                    vertical: 30,
+                  ),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const SizedBox(height: 6),
+                      Text(
+                        AppLocalizations.of(context)!.connection,
+                        style: Theme.of(context).textTheme.headlineMedium
+                            ?.copyWith(
+                              fontWeight: FontWeight.w700,
+                              color: text,
+                              letterSpacing: 0.2,
+                            ),
+                        textAlign: TextAlign.center,
                       ),
-                      textAlign: TextAlign.center,
-                    ),
-                    const SizedBox(height: 22),
-                    if (_error != null) ...[
-                      Container(
-                        padding: const EdgeInsets.all(12),
-                        decoration: BoxDecoration(
-                          color: Colors.red.shade50,
-                          borderRadius: BorderRadius.circular(12),
-                          border: Border.all(color: Colors.red.shade200),
+                      const SizedBox(height: 6),
+                      Text(
+                        AppLocalizations.of(context)!.accessYourSpace,
+                        style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                          color: subText,
+                          fontWeight: FontWeight.w500,
                         ),
-                        child: Text(
-                          _error!,
-                          style: TextStyle(
-                            color: Colors.red.shade700,
-                            fontSize: 13,
+                        textAlign: TextAlign.center,
+                      ),
+                      const SizedBox(height: 22),
+                      if (_error != null) ...[
+                        Container(
+                          padding: const EdgeInsets.all(12),
+                          decoration: BoxDecoration(
+                            color: Colors.red.shade50,
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(color: Colors.red.shade200),
+                          ),
+                          child: Text(
+                            _error!,
+                            style: TextStyle(
+                              color: Colors.red.shade700,
+                              fontSize: 13,
+                            ),
                           ),
                         ),
-                      ),
-                      const SizedBox(height: 12),
-                    ],
-                    LayoutBuilder(
-                      builder: (context, constraints) {
-                        final isWide = constraints.maxWidth >= 700;
-                        final sectionWidth = isWide
-                            ? (constraints.maxWidth - 14) / 2
-                            : constraints.maxWidth;
+                        const SizedBox(height: 12),
+                      ],
+                      LayoutBuilder(
+                        builder: (context, constraints) {
+                          final isWide = constraints.maxWidth >= 700;
+                          final sectionWidth = isWide
+                              ? (constraints.maxWidth - 14) / 2
+                              : constraints.maxWidth;
 
-                        return Wrap(
-                          alignment: WrapAlignment.center,
-                          spacing: 14,
-                          runSpacing: 14,
-                          children: [
-                            SizedBox(
-                              width: sectionWidth,
-                              child: _GlassCard(
-                                borderColor: border,
-                                child: Column(
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: [
-                                    const SizedBox(height: 6),
-                                    _PremiumField(
-                                      controller: _emailCtrl,
-                                      hintText: AppLocalizations.of(
-                                        context,
-                                      )!.email,
-                                      prefixIcon: Icons.mail_outline_rounded,
-                                      borderColor: border,
-                                      hasError: _emailError,
-                                      suffix: _emailCtrl.text.trim().isEmpty
-                                          ? null
-                                          : Tooltip(
-                                              message: _hasValidEmail
-                                                  ? 'Format email valide'
-                                                  : 'Format email invalide',
-                                              child: Icon(
-                                                _hasValidEmail
-                                                    ? Icons.check_circle_rounded
-                                                    : Icons
-                                                          .error_outline_rounded,
-                                                color: _hasValidEmail
-                                                    ? Colors.green
-                                                    : Colors.orange,
-                                              ),
-                                            ),
-                                    ),
-                                    const SizedBox(height: 12),
-                                    _PremiumField(
-                                      controller: _passCtrl,
-                                      hintText: AppLocalizations.of(
-                                        context,
-                                      )!.password,
-                                      prefixIcon: Icons.lock_outline_rounded,
-                                      borderColor: border,
-                                      obscureText: _obscure,
-                                      hasError: _passwordError,
-                                      suffix: IconButton(
-                                        onPressed: () => setState(
-                                          () => _obscure = !_obscure,
-                                        ),
-                                        icon: Icon(
-                                          _obscure
-                                              ? Icons.visibility_off_outlined
-                                              : Icons.visibility_outlined,
-                                          color: MasliveTokens.textMuted,
-                                        ),
-                                      ),
-                                    ),
-                                    if (_isSignUpMode) ...[
-                                      const SizedBox(height: 12),
+                          return Wrap(
+                            alignment: WrapAlignment.center,
+                            spacing: 14,
+                            runSpacing: 14,
+                            children: [
+                              SizedBox(
+                                width: sectionWidth,
+                                child: _GlassCard(
+                                  borderColor: border,
+                                  child: Column(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      const SizedBox(height: 6),
                                       _PremiumField(
-                                        controller: _confirmPassCtrl,
+                                        controller: _emailCtrl,
                                         hintText: AppLocalizations.of(
                                           context,
-                                        )!.confirmPassword,
-                                        prefixIcon: Icons.lock_reset_rounded,
+                                        )!.email,
+                                        prefixIcon: Icons.mail_outline_rounded,
+                                        borderColor: border,
+                                        hasError: _emailError,
+                                        suffix: _emailCtrl.text.trim().isEmpty
+                                            ? null
+                                            : Tooltip(
+                                                message: _hasValidEmail
+                                                    ? 'Format email valide'
+                                                    : 'Format email invalide',
+                                                child: Icon(
+                                                  _hasValidEmail
+                                                      ? Icons
+                                                            .check_circle_rounded
+                                                      : Icons
+                                                            .error_outline_rounded,
+                                                  color: _hasValidEmail
+                                                      ? Colors.green
+                                                      : Colors.orange,
+                                                ),
+                                              ),
+                                      ),
+                                      const SizedBox(height: 12),
+                                      _PremiumField(
+                                        controller: _passCtrl,
+                                        hintText: AppLocalizations.of(
+                                          context,
+                                        )!.password,
+                                        prefixIcon: Icons.lock_outline_rounded,
                                         borderColor: border,
                                         obscureText: _obscure,
-                                        hasError: _confirmPasswordError,
+                                        hasError: _passwordError,
+                                        suffix: IconButton(
+                                          onPressed: () => setState(
+                                            () => _obscure = !_obscure,
+                                          ),
+                                          icon: Icon(
+                                            _obscure
+                                                ? Icons.visibility_off_outlined
+                                                : Icons.visibility_outlined,
+                                            color: MasliveTokens.textMuted,
+                                          ),
+                                        ),
                                       ),
-                                    ],
-                                    const SizedBox(height: 18),
-                                    _GradientButton(
-                                      gradient: masliveGradient,
-                                      text: _loading
-                                          ? (_isSignUpMode
-                                                ? AppLocalizations.of(
-                                                    context,
-                                                  )!.creating
-                                                : AppLocalizations.of(
-                                                    context,
-                                                  )!.signingIn)
-                                          : (_isSignUpMode
-                                                ? AppLocalizations.of(
-                                                    context,
-                                                  )!.signup
-                                                : AppLocalizations.of(
-                                                    context,
-                                                  )!.signIn),
-                                      onPressed: _loading
-                                          ? () {}
-                                          : _submitEmailAuth,
-                                    ),
-                                    const SizedBox(height: 10),
-                                    if (!_isSignUpMode)
+                                      if (_isSignUpMode) ...[
+                                        const SizedBox(height: 12),
+                                        _PremiumField(
+                                          controller: _confirmPassCtrl,
+                                          hintText: AppLocalizations.of(
+                                            context,
+                                          )!.confirmPassword,
+                                          prefixIcon: Icons.lock_reset_rounded,
+                                          borderColor: border,
+                                          obscureText: _obscure,
+                                          hasError: _confirmPasswordError,
+                                        ),
+                                      ],
+                                      const SizedBox(height: 18),
+                                      _GradientButton(
+                                        gradient: masliveGradient,
+                                        text: _loading
+                                            ? (_isSignUpMode
+                                                  ? AppLocalizations.of(
+                                                      context,
+                                                    )!.creating
+                                                  : AppLocalizations.of(
+                                                      context,
+                                                    )!.signingIn)
+                                            : (_isSignUpMode
+                                                  ? AppLocalizations.of(
+                                                      context,
+                                                    )!.signup
+                                                  : AppLocalizations.of(
+                                                      context,
+                                                    )!.signIn),
+                                        onPressed: _loading
+                                            ? () {}
+                                            : _submitEmailAuth,
+                                      ),
+                                      const SizedBox(height: 10),
+                                      if (!_isSignUpMode)
+                                        Align(
+                                          alignment: Alignment.centerLeft,
+                                          child: TextButton(
+                                            onPressed: _loading
+                                                ? null
+                                                : _showResetPasswordDialog,
+                                            child: Text(
+                                              AppLocalizations.of(
+                                                context,
+                                              )!.forgotPassword,
+                                            ),
+                                          ),
+                                        ),
                                       Align(
-                                        alignment: Alignment.centerLeft,
+                                        alignment: Alignment.centerRight,
                                         child: TextButton(
-                                          onPressed: _loading
-                                              ? null
-                                              : _showResetPasswordDialog,
+                                          onPressed: () => Navigator.of(
+                                            context,
+                                          ).pushReplacementNamed('/'),
+                                          style: TextButton.styleFrom(
+                                            foregroundColor: subText,
+                                            padding: const EdgeInsets.symmetric(
+                                              horizontal: 14,
+                                              vertical: 10,
+                                            ),
+                                          ),
                                           child: Text(
                                             AppLocalizations.of(
                                               context,
-                                            )!.forgotPassword,
+                                            )!.continueAsGuest,
+                                            style: const TextStyle(
+                                              fontWeight: FontWeight.w700,
+                                            ),
                                           ),
                                         ),
                                       ),
-                                    Align(
-                                      alignment: Alignment.centerRight,
-                                      child: TextButton(
-                                        onPressed: () => Navigator.of(
-                                          context,
-                                        ).pushReplacementNamed('/'),
-                                        style: TextButton.styleFrom(
-                                          foregroundColor: subText,
-                                          padding: const EdgeInsets.symmetric(
-                                            horizontal: 14,
-                                            vertical: 10,
-                                          ),
-                                        ),
-                                        child: Text(
-                                          AppLocalizations.of(
-                                            context,
-                                          )!.continueAsGuest,
-                                          style: const TextStyle(
-                                            fontWeight: FontWeight.w700,
-                                          ),
-                                        ),
-                                      ),
-                                    ),
-                                  ],
+                                    ],
+                                  ),
                                 ),
                               ),
-                            ),
-                            SizedBox(
-                              width: sectionWidth,
-                              child: _GlassCard(
-                                borderColor: border,
-                                child: Column(
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: [
-                                    const SizedBox(height: 6),
-                                    _GradientButton(
-                                      gradient: masliveGradient,
-                                      text: _isSignUpMode
-                                          ? AppLocalizations.of(context)!.signIn
-                                          : AppLocalizations.of(
-                                              context,
-                                            )!.createAccountWithEmail,
-                                      onPressed: _loading
-                                          ? () {}
-                                          : () => _setMode(
-                                              _isSignUpMode
-                                                  ? LoginPageMode.signIn
-                                                  : LoginPageMode.signUp,
-                                            ),
-                                    ),
-                                    const SizedBox(height: 12),
-                                    _SocialButton(
-                                      label: AppLocalizations.of(
-                                        context,
-                                      )!.continueWithGoogle,
-                                      leading: const _GLogo(),
-                                      onPressed: _loading
-                                          ? () {}
-                                          : () =>
-                                                _runProvider(AuthAction.google),
-                                    ),
-                                    if (_supportsAppleSignInUi) ...[
-                                      const SizedBox(height: 10),
+                              SizedBox(
+                                width: sectionWidth,
+                                child: _GlassCard(
+                                  borderColor: border,
+                                  child: Column(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      const SizedBox(height: 6),
+                                      _GradientButton(
+                                        gradient: masliveGradient,
+                                        text: _isSignUpMode
+                                            ? AppLocalizations.of(
+                                                context,
+                                              )!.signIn
+                                            : AppLocalizations.of(
+                                                context,
+                                              )!.createAccountWithEmail,
+                                        onPressed: _loading
+                                            ? () {}
+                                            : () => _setMode(
+                                                _isSignUpMode
+                                                    ? LoginPageMode.signIn
+                                                    : LoginPageMode.signUp,
+                                              ),
+                                      ),
+                                      const SizedBox(height: 12),
                                       _SocialButton(
                                         label: AppLocalizations.of(
                                           context,
-                                        )!.continueWithApple,
-                                        leading: const Icon(
-                                          Icons.apple,
-                                          size: 22,
-                                          color: MasliveTokens.text,
-                                        ),
+                                        )!.continueWithGoogle,
+                                        leading: const _GLogo(),
                                         onPressed: _loading
                                             ? () {}
                                             : () => _runProvider(
-                                                AuthAction.apple,
+                                                AuthAction.google,
                                               ),
                                       ),
+                                      if (_supportsAppleSignInUi) ...[
+                                        const SizedBox(height: 10),
+                                        _SocialButton(
+                                          label: AppLocalizations.of(
+                                            context,
+                                          )!.continueWithApple,
+                                          leading: const Icon(
+                                            Icons.apple,
+                                            size: 22,
+                                            color: MasliveTokens.text,
+                                          ),
+                                          onPressed: _loading
+                                              ? () {}
+                                              : () => _runProvider(
+                                                  AuthAction.apple,
+                                                ),
+                                        ),
+                                      ],
+                                      const SizedBox(height: 6),
                                     ],
-                                    const SizedBox(height: 6),
+                                  ),
+                                ),
+                              ),
+                            ],
+                          );
+                        },
+                      ),
+                      const SizedBox(height: 20),
+                      // Bouton Compte Professionnel
+                      Container(
+                        padding: const EdgeInsets.all(20),
+                        decoration: BoxDecoration(
+                          gradient: const LinearGradient(
+                            colors: [Color(0xFFFF6FAE), Color(0xFF9B7BFF)],
+                          ),
+                          borderRadius: BorderRadius.circular(20),
+                          boxShadow: [
+                            BoxShadow(
+                              color: const Color(
+                                0xFF9B7BFF,
+                              ).withValues(alpha: 0.30),
+                              blurRadius: 20,
+                              offset: const Offset(0, 10),
+                            ),
+                          ],
+                        ),
+                        child: Column(
+                          children: [
+                            Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                const Text(
+                                  'Vous êtes un professionnel ?',
+                                  style: TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.w700,
+                                  ),
+                                ),
+                                const SizedBox(height: 4),
+                                Text(
+                                  'Créez votre compte entreprise',
+                                  style: TextStyle(
+                                    color: Colors.white.withValues(alpha: 0.90),
+                                    fontSize: 13,
+                                  ),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 16),
+                            SizedBox(
+                              width: double.infinity,
+                              child: ElevatedButton(
+                                onPressed: () {
+                                  Navigator.push(
+                                    context,
+                                    MaterialPageRoute(
+                                      builder: (_) =>
+                                          const BusinessSignupPage(),
+                                    ),
+                                  );
+                                },
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: Colors.white,
+                                  foregroundColor: const Color(0xFF9B7BFF),
+                                  padding: const EdgeInsets.symmetric(
+                                    vertical: 16,
+                                  ),
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(14),
+                                  ),
+                                  elevation: 0,
+                                ),
+                                child: const Row(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: [
+                                    Text(
+                                      'Créer un compte professionnel',
+                                      style: TextStyle(
+                                        fontSize: 15,
+                                        fontWeight: FontWeight.w700,
+                                      ),
+                                    ),
+                                    SizedBox(width: 8),
+                                    Icon(Icons.arrow_forward, size: 18),
                                   ],
                                 ),
                               ),
                             ),
                           ],
-                        );
-                      },
-                    ),
-                    const SizedBox(height: 20),
-                    // Bouton Compte Professionnel
-                    Container(
-                      padding: const EdgeInsets.all(20),
-                      decoration: BoxDecoration(
-                        gradient: const LinearGradient(
-                          colors: [Color(0xFFFF6FAE), Color(0xFF9B7BFF)],
                         ),
-                        borderRadius: BorderRadius.circular(20),
-                        boxShadow: [
-                          BoxShadow(
-                            color: const Color(
-                              0xFF9B7BFF,
-                            ).withValues(alpha: 0.30),
-                            blurRadius: 20,
-                            offset: const Offset(0, 10),
-                          ),
-                        ],
                       ),
-                      child: Column(
-                        children: [
-                          Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              const Text(
-                                'Vous êtes un professionnel ?',
-                                style: TextStyle(
-                                  color: Colors.white,
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.w700,
-                                ),
-                              ),
-                              const SizedBox(height: 4),
-                              Text(
-                                'Créez votre compte entreprise',
-                                style: TextStyle(
-                                  color: Colors.white.withValues(alpha: 0.90),
-                                  fontSize: 13,
-                                ),
-                              ),
-                            ],
+                      const SizedBox(height: 14),
+                      Center(
+                        child: TextButton.icon(
+                          onPressed: () =>
+                              Navigator.of(context).pushNamed('/legal'),
+                          icon: const Icon(Icons.info_outline, size: 16),
+                          style: TextButton.styleFrom(
+                            foregroundColor: MasliveTokens.primary,
                           ),
-                          const SizedBox(height: 16),
-                          SizedBox(
-                            width: double.infinity,
-                            child: ElevatedButton(
-                              onPressed: () {
-                                Navigator.push(
-                                  context,
-                                  MaterialPageRoute(
-                                    builder: (_) => const BusinessSignupPage(),
-                                  ),
-                                );
-                              },
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: Colors.white,
-                                foregroundColor: const Color(0xFF9B7BFF),
-                                padding: const EdgeInsets.symmetric(
-                                  vertical: 16,
-                                ),
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(14),
-                                ),
-                                elevation: 0,
-                              ),
-                              child: const Row(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                children: [
-                                  Text(
-                                    'Créer un compte professionnel',
-                                    style: TextStyle(
-                                      fontSize: 15,
-                                      fontWeight: FontWeight.w700,
-                                    ),
-                                  ),
-                                  SizedBox(width: 8),
-                                  Icon(Icons.arrow_forward, size: 18),
-                                ],
-                              ),
+                          label: const Text(
+                            'Qui sommes-nous ? · Mentions légales & CGU',
+                            textAlign: TextAlign.center,
+                            style: TextStyle(
+                              fontSize: 12.5,
+                              fontWeight: FontWeight.w700,
+                              decoration: TextDecoration.underline,
                             ),
                           ),
-                        ],
-                      ),
-                    ),
-                    const SizedBox(height: 14),
-                    Center(
-                      child: TextButton.icon(
-                        onPressed: () =>
-                            Navigator.of(context).pushNamed('/legal'),
-                        icon: const Icon(Icons.info_outline, size: 16),
-                        style: TextButton.styleFrom(
-                          foregroundColor: MasliveTokens.primary,
-                        ),
-                        label: const Text(
-                          'Qui sommes-nous ? · Mentions légales & CGU',
-                          textAlign: TextAlign.center,
-                          style: TextStyle(
-                            fontSize: 12.5,
-                            fontWeight: FontWeight.w700,
-                            decoration: TextDecoration.underline,
-                          ),
                         ),
                       ),
-                    ),
-                    const SizedBox(height: 6),
-                  ],
+                      const SizedBox(height: 6),
+                    ],
+                  ),
                 ),
               ),
             ),
