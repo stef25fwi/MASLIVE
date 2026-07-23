@@ -401,13 +401,13 @@ module.exports = function createBloomArtHandlers(deps) {
     if (session.payment_status !== "paid") return true;
     const eventKey = clean(session.id, orderId);
     const eventRef = db.collection(C.events).doc(`checkout_${eventKey}`);
-    await db.runTransaction(async (tx) => {
-      if ((await tx.get(eventRef)).exists) return;
+    const newlyPaid = await db.runTransaction(async (tx) => {
+      if ((await tx.get(eventRef)).exists) return false;
       const orderRef = db.collection(C.orders).doc(orderId);
       const orderSnap = await tx.get(orderRef);
       if (!orderSnap.exists) throw new Error(`Bloom Art order ${orderId} missing`);
       const order = orderSnap.data() || {};
-      if (order.paymentStatus === "paid") { tx.set(eventRef, { processedAt: now() }); return; }
+      if (order.paymentStatus === "paid") { tx.set(eventRef, { processedAt: now() }); return false; }
       tx.update(orderRef, { paymentStatus: "paid", orderStatus: ORDER.paid, stripeCheckoutSessionId: session.id, stripePaymentIntentId: session.payment_intent || null, paidAt: now(), updatedAt: now() });
       tx.update(db.collection(C.offers).doc(offerId), { status: OFFER.paid, paidAt: now(), checkoutEligible: false, updatedAt: now() });
       const itemRef = db.collection(C.items).doc(itemId || order.itemId);
@@ -416,13 +416,20 @@ module.exports = function createBloomArtHandlers(deps) {
       if (item.reservedByOfferId !== offerId) throw new Error("Reservation ownership mismatch");
       tx.update(itemRef, { availabilityStatus: ITEM.sold, soldAt: now(), updatedAt: now() });
       tx.set(eventRef, { processedAt: now(), orderId, offerId, itemId: itemId || order.itemId });
+      return true;
     });
+    // settlePayout est idempotent (garde payoutStatus === "paid") : on le retente a
+    // chaque webhook pour recuperer un eventuel echec de transfert precedent, mais
+    // les notifications ne doivent partir qu'une seule fois (Stripe envoie a la fois
+    // checkout.session.completed et payment_intent.succeeded pour le meme paiement).
     await settlePayout(orderId);
-    const order = (await db.collection(C.orders).doc(orderId).get()).data() || {};
-    await Promise.all([
-      notify(order.buyerId, { type: "bloom_art_order", title: "Paiement confirmé", body: "Votre œuvre est réservée définitivement.", itemId: order.itemId, offerId, orderId }),
-      notify(order.sellerId, { type: "bloom_art_order", title: "Œuvre vendue", body: "Le paiement de l'acheteur est confirmé.", itemId: order.itemId, offerId, orderId }),
-    ]);
+    if (newlyPaid) {
+      const order = (await db.collection(C.orders).doc(orderId).get()).data() || {};
+      await Promise.all([
+        notify(order.buyerId, { type: "bloom_art_order", title: "Paiement confirmé", body: "Votre œuvre est réservée définitivement.", itemId: order.itemId, offerId, orderId }),
+        notify(order.sellerId, { type: "bloom_art_order", title: "Œuvre vendue", body: "Le paiement de l'acheteur est confirmé.", itemId: order.itemId, offerId, orderId }),
+      ]);
+    }
     return true;
   }
 
