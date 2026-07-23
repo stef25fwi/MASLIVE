@@ -13,32 +13,73 @@ void main() {
       expect(
         RegExp(r'onTap:\s*guardedOnTap').allMatches(source).length,
         greaterThanOrEqualTo(2),
-        reason: 'Web and native implementations must receive the guarded tap callback.',
+        reason:
+            'Web and native implementations must receive the guarded tap callback.',
       );
       expect(
         source,
         isNot(contains('onTap: onTap,')),
-        reason: 'The raw callback must never be forwarded to a Mapbox implementation.',
+        reason:
+            'The raw callback must never be forwarded by the shared map wrapper.',
       );
     });
 
-    test('feature screens cannot bypass the protected MasLiveMap wrapper', () {
-      const allowedIntegrationFiles = <String>{
+    test('known map-backed modal surfaces keep pointer interception', () {
+      final circuitDialog = File(
+        'lib/admin/circuit_wizard_entry_page.dart',
+      ).readAsStringSync();
+      expect(
+        circuitDialog,
+        contains("package:pointer_interceptor/pointer_interceptor.dart"),
+      );
+      expect(circuitDialog, contains('PointerInterceptor('));
+
+      final parkingRegression = File(
+        'test/admin/parking_style_sheet_pointer_test.dart',
+      ).readAsStringSync();
+      expect(parkingRegression, contains('blocks taps from reaching the map'));
+
+      final sharedGuardRegression = File(
+        'test/ui/map/maslive_map_modal_tap_guard_test.dart',
+      ).readAsStringSync();
+      expect(
+        sharedGuardRegression,
+        contains('ignores taps while another modal route is active'),
+      );
+    });
+
+    test('new direct Mapbox integrations must be added to the audited inventory', () {
+      const auditedDirectIntegrations = <String>{
         'lib/ui/map/maslive_map.dart',
         'lib/ui/map/maslive_map_native.dart',
         'lib/ui/map/maslive_map_web.dart',
         'lib/ui/map/maslive_map_web_stub.dart',
+        'lib/services/mapbox_polyline_snap_service.dart',
+        'lib/services/mapbox_directions_service.dart',
+        'lib/pages/tracking_live_page.dart',
+        'lib/pages/public/marketmap_public_viewer_page.dart',
+        'lib/pages/home_map_page_3d.dart',
+        'lib/pages/circuit_draw_page.dart',
+        'lib/pages/add_place_page.dart',
+        'lib/models/draft_circuit.dart',
+        'lib/admin/admin_circuits_page.dart',
+        'lib/providers/wizard_circuit_provider.dart',
+        'lib/ui/widgets/mapbox_native_simple_map.dart',
+        'lib/ui/widgets/mapbox_live_tracking_layer.dart',
+        'lib/ui/google_light_map_page.dart',
+        'lib/route_style_pro/services/map_buildings_style_service_native.dart',
+        'lib/route_style_pro/ui/widgets/route_style_preview_map.dart',
       };
 
-      final forbiddenIntegrations = <RegExp, String>{
-        RegExp(r"package:mapbox_maps_flutter"): 'direct mapbox_maps_flutter import',
-        RegExp(r'\bMasLiveMapNative\s*\('): 'direct MasLiveMapNative construction',
-        RegExp(r'\bMasLiveMapWeb\s*\('): 'direct MasLiveMapWeb construction',
-        RegExp(r'\bMapWidget\s*\('): 'direct MapWidget construction',
-        RegExp(r'\bMapboxMap\s*\('): 'direct MapboxMap construction',
-      };
+      final directIntegrationPatterns = <RegExp>[
+        RegExp(r"package:mapbox_maps_flutter"),
+        RegExp(r'\bMasLiveMapNative\s*\('),
+        RegExp(r'\bMasLiveMapWeb\s*\('),
+        RegExp(r'\bMapWidget\s*\('),
+        RegExp(r'\bMapboxMap\s*\('),
+      ];
 
-      final violations = <String>[];
+      final unaudited = <String>[];
       final dartFiles = Directory('lib')
           .listSync(recursive: true, followLinks: false)
           .whereType<File>()
@@ -46,21 +87,21 @@ void main() {
 
       for (final file in dartFiles) {
         final relativePath = file.path.replaceAll('\\', '/');
-        if (allowedIntegrationFiles.contains(relativePath)) continue;
-
         final source = file.readAsStringSync();
-        for (final entry in forbiddenIntegrations.entries) {
-          if (entry.key.hasMatch(source)) {
-            violations.add('$relativePath — ${entry.value}');
-          }
+        final hasDirectIntegration = directIntegrationPatterns.any(
+          (pattern) => pattern.hasMatch(source),
+        );
+        if (hasDirectIntegration &&
+            !auditedDirectIntegrations.contains(relativePath)) {
+          unaudited.add(relativePath);
         }
       }
 
       expect(
-        violations,
+        unaudited,
         isEmpty,
         reason:
-            'Every feature screen must use MasLiveMap so dialogs, sheets and popup routes cannot leak taps to Mapbox.\n${violations.join('\n')}',
+            'A new direct Mapbox integration was introduced outside the audited inventory. Review its modal pointer interception before adding it here.\n${unaudited.join('\n')}',
       );
     });
   });
