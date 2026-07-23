@@ -84,7 +84,8 @@ jobs:
             app/lib/pages/user_facing_navigation_rail.dart \
             app/lib/shop/widgets/storex_page_header.dart \
             app/lib/ui_kit/responsive \
-            app/test/ui_kit/responsive/responsive_breakpoints_test.dart \
+            app/test/ui_kit/responsive/responsive_breakpoints_test.dart
+          git add -f \
             docs/responsive/STOREX_ANALYZE.log \
             docs/responsive/STOREX_TESTS.log
 
