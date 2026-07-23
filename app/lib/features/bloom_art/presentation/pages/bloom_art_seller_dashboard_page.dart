@@ -12,6 +12,7 @@ import '../widgets/bloom_art_cta_button.dart';
 import '../widgets/bloom_art_item_card.dart';
 import '../widgets/bloom_art_offer_status_badge.dart';
 import 'package:masslive/ui_kit/tokens/maslive_tokens.dart';
+import '../../../../ui_kit/responsive/responsive.dart';
 
 class BloomArtSellerDashboardPage extends StatelessWidget {
   BloomArtSellerDashboardPage({super.key});
@@ -47,99 +48,167 @@ class BloomArtSellerDashboardPage extends StatelessWidget {
           final canSell = profile?.canSell == true;
           final isLaunchGuide = profile?.isLaunchGuide == true;
 
-          return ListView(
-            padding: const EdgeInsets.fromLTRB(10, 16, 10, 28),
-            children: <Widget>[
-              _DashboardHero(profile: profile),
-              const SizedBox(height: 18),
-              if (profile == null)
-                _NoSellerProfileCard()
-              else if (!canSell)
-                _BlockedSellerCard(profile: profile, isLaunchGuide: isLaunchGuide)
-              else
-                BloomArtCtaButton(
-                  label: 'Déposer une nouvelle création',
-                  icon: Icons.add_photo_alternate_outlined,
-                  onPressed: () => Navigator.of(context).pushNamed(
-                    '/bloom-art/create',
-                    arguments: <String, dynamic>{'profileType': profile.profileType},
-                  ),
-                ),
-              if (canSell) ...<Widget>[
+          return ResponsivePageContainer(
+            maxContentWidth: 1280,
+            compactPadding: EdgeInsets.zero,
+            mediumPadding: EdgeInsets.zero,
+            expandedPadding: EdgeInsets.zero,
+            widePadding: EdgeInsets.zero,
+            child: ListView(
+              padding: responsiveValue<EdgeInsets>(
+                context,
+                compact: const EdgeInsets.fromLTRB(10, 16, 10, 28),
+                medium: const EdgeInsets.fromLTRB(24, 20, 24, 32),
+                expanded: const EdgeInsets.fromLTRB(36, 24, 36, 36),
+                wide: const EdgeInsets.fromLTRB(44, 28, 44, 40),
+              ),
+              children: <Widget>[
+                _DashboardHero(profile: profile),
                 const SizedBox(height: 18),
-                _BloomArtStripeConnectCard(profile: profile!),
-                const SizedBox(height: 24),
-                const Text(
-                  'Mes créations',
-                  style: TextStyle(fontSize: 22, fontWeight: FontWeight.w900),
-                ),
-                const SizedBox(height: 12),
-                StreamBuilder<List<BloomArtItem>>(
-                  stream: _repository.watchSellerItems(user.uid),
-                  builder: (context, itemsSnapshot) {
-                    final items = itemsSnapshot.data ?? const <BloomArtItem>[];
-                    if (itemsSnapshot.connectionState == ConnectionState.waiting) {
-                      return const Center(child: CircularProgressIndicator());
-                    }
-                    if (items.isEmpty) {
-                      return const _EmptyBloomArtBlock(
-                        message:
-                            'Aucune création déposée pour le moment. Publiez votre première pièce Bloom Art.',
-                      );
-                    }
+                if (profile == null)
+                  _NoSellerProfileCard()
+                else if (!canSell)
+                  _BlockedSellerCard(
+                    profile: profile,
+                    isLaunchGuide: isLaunchGuide,
+                  )
+                else
+                  BloomArtCtaButton(
+                    label: 'Déposer une nouvelle création',
+                    icon: Icons.add_photo_alternate_outlined,
+                    onPressed: () => Navigator.of(context).pushNamed(
+                      '/bloom-art/create',
+                      arguments: <String, dynamic>{
+                        'profileType': profile.profileType,
+                      },
+                    ),
+                  ),
+                if (canSell) ...<Widget>[
+                  const SizedBox(height: 18),
+                  _BloomArtStripeConnectCard(profile: profile!),
+                  const SizedBox(height: 24),
+                  const Text(
+                    'Mes créations',
+                    style: TextStyle(fontSize: 22, fontWeight: FontWeight.w900),
+                  ),
+                  const SizedBox(height: 12),
+                  StreamBuilder<List<BloomArtItem>>(
+                    stream: _repository.watchSellerItems(user.uid),
+                    builder: (context, itemsSnapshot) {
+                      final items =
+                          itemsSnapshot.data ?? const <BloomArtItem>[];
+                      if (itemsSnapshot.connectionState ==
+                          ConnectionState.waiting) {
+                        return const Center(child: CircularProgressIndicator());
+                      }
+                      if (items.isEmpty) {
+                        return const _EmptyBloomArtBlock(
+                          message:
+                              'Aucune création déposée pour le moment. Publiez votre première pièce Bloom Art.',
+                        );
+                      }
 
-                    return Column(
-                      children: items
-                          .map(
-                            (item) => Padding(
-                              padding: const EdgeInsets.only(bottom: 14),
-                              child: BloomArtItemCard(
-                                item: item,
-                                showSellerMeta: false,
-                                onTap: () => Navigator.of(context).pushNamed(
-                                  '/bloom-art/item/${item.id}',
-                                ),
-                              ),
-                            ),
-                          )
-                          .toList(growable: false),
-                    );
-                  },
-                ),
-                const SizedBox(height: 24),
-                const Text(
-                  'Offres reçues',
-                  style: TextStyle(fontSize: 22, fontWeight: FontWeight.w900),
-                ),
-                const SizedBox(height: 12),
-                StreamBuilder<List<BloomArtOffer>>(
-                  stream: _offerRepository.watchSellerOffers(user.uid),
-                  builder: (context, offersSnapshot) {
-                    final offers = offersSnapshot.data ?? const <BloomArtOffer>[];
-                    if (offersSnapshot.connectionState == ConnectionState.waiting) {
-                      return const Center(child: CircularProgressIndicator());
-                    }
-                    if (offers.isEmpty) {
-                      return const _EmptyBloomArtBlock(
-                        message:
-                            'Aucune offre reçue pour le moment. Les visiteurs pourront proposer un prix depuis la fiche publique de vos pièces.',
+                      return LayoutBuilder(
+                        builder: (context, constraints) {
+                          final columns = responsiveValue<int>(
+                            context,
+                            compact: 1,
+                            medium: 2,
+                            expanded: 3,
+                            wide: 3,
+                          );
+                          final spacing = responsiveValue<double>(
+                            context,
+                            compact: 0,
+                            medium: 14,
+                            expanded: 16,
+                            wide: 18,
+                          );
+                          final cardWidth =
+                              (constraints.maxWidth - spacing * (columns - 1)) /
+                              columns;
+                          return Wrap(
+                            spacing: spacing,
+                            runSpacing: 14,
+                            children: items
+                                .map(
+                                  (item) => SizedBox(
+                                    width: cardWidth,
+                                    child: BloomArtItemCard(
+                                      item: item,
+                                      showSellerMeta: false,
+                                      onTap: () => Navigator.of(
+                                        context,
+                                      ).pushNamed('/bloom-art/item/${item.id}'),
+                                    ),
+                                  ),
+                                )
+                                .toList(growable: false),
+                          );
+                        },
                       );
-                    }
+                    },
+                  ),
+                  const SizedBox(height: 24),
+                  const Text(
+                    'Offres reçues',
+                    style: TextStyle(fontSize: 22, fontWeight: FontWeight.w900),
+                  ),
+                  const SizedBox(height: 12),
+                  StreamBuilder<List<BloomArtOffer>>(
+                    stream: _offerRepository.watchSellerOffers(user.uid),
+                    builder: (context, offersSnapshot) {
+                      final offers =
+                          offersSnapshot.data ?? const <BloomArtOffer>[];
+                      if (offersSnapshot.connectionState ==
+                          ConnectionState.waiting) {
+                        return const Center(child: CircularProgressIndicator());
+                      }
+                      if (offers.isEmpty) {
+                        return const _EmptyBloomArtBlock(
+                          message:
+                              'Aucune offre reçue pour le moment. Les visiteurs pourront proposer un prix depuis la fiche publique de vos pièces.',
+                        );
+                      }
 
-                    return Column(
-                      children: offers
-                          .map(
-                            (offer) => Padding(
-                              padding: const EdgeInsets.only(bottom: 12),
-                              child: _OfferPreviewCard(offer: offer),
-                            ),
-                          )
-                          .toList(growable: false),
-                    );
-                  },
-                ),
+                      return LayoutBuilder(
+                        builder: (context, constraints) {
+                          final columns = responsiveValue<int>(
+                            context,
+                            compact: 1,
+                            medium: 2,
+                            expanded: 2,
+                            wide: 3,
+                          );
+                          final spacing = responsiveValue<double>(
+                            context,
+                            compact: 0,
+                            medium: 14,
+                            expanded: 16,
+                            wide: 18,
+                          );
+                          final cardWidth =
+                              (constraints.maxWidth - spacing * (columns - 1)) /
+                              columns;
+                          return Wrap(
+                            spacing: spacing,
+                            runSpacing: 12,
+                            children: offers
+                                .map(
+                                  (offer) => SizedBox(
+                                    width: cardWidth,
+                                    child: _OfferPreviewCard(offer: offer),
+                                  ),
+                                )
+                                .toList(growable: false),
+                          );
+                        },
+                      );
+                    },
+                  ),
+                ],
               ],
-            ],
+            ),
           );
         },
       ),
@@ -160,10 +229,10 @@ class _DashboardHero extends StatelessWidget {
     final statusLabel = profile == null
         ? 'Profil vendeur non configuré'
         : profile!.canSell
-            ? 'SIRET vérifié · Galerie active'
-            : profile!.isLaunchGuide
-                ? 'Guide création d’entreprise'
-                : 'Vérification SIRET requise';
+        ? 'SIRET vérifié · Galerie active'
+        : profile!.isLaunchGuide
+        ? 'Guide création d’entreprise'
+        : 'Vérification SIRET requise';
 
     return Container(
       padding: const EdgeInsets.all(22),
@@ -181,13 +250,19 @@ class _DashboardHero extends StatelessWidget {
           const SizedBox(height: 8),
           Text(
             statusLabel,
-            style: const TextStyle(color: MasliveTokens.textMuted, height: 1.45),
+            style: const TextStyle(
+              color: MasliveTokens.textMuted,
+              height: 1.45,
+            ),
           ),
           if (profile?.canSell == true) ...<Widget>[
             const SizedBox(height: 8),
             Text(
               '${profile!.businessName} · ${profile!.siret} · ${profile!.city} ${profile!.postalCode}',
-              style: const TextStyle(color: MasliveTokens.textMuted, height: 1.35),
+              style: const TextStyle(
+                color: MasliveTokens.textMuted,
+                height: 1.35,
+              ),
             ),
           ],
         ],
@@ -231,7 +306,10 @@ class _NoSellerProfileCard extends StatelessWidget {
 }
 
 class _BlockedSellerCard extends StatelessWidget {
-  const _BlockedSellerCard({required this.profile, required this.isLaunchGuide});
+  const _BlockedSellerCard({
+    required this.profile,
+    required this.isLaunchGuide,
+  });
 
   final BloomArtSellerProfile profile;
   final bool isLaunchGuide;
@@ -262,7 +340,10 @@ class _BlockedSellerCard extends StatelessWidget {
           const SizedBox(height: 8),
           Text(
             message,
-            style: const TextStyle(color: MasliveTokens.textMuted, height: 1.45),
+            style: const TextStyle(
+              color: MasliveTokens.textMuted,
+              height: 1.45,
+            ),
           ),
           const SizedBox(height: 14),
           BloomArtCtaButton(
@@ -285,14 +366,17 @@ class _BloomArtStripeConnectCard extends StatefulWidget {
   final BloomArtSellerProfile profile;
 
   @override
-  State<_BloomArtStripeConnectCard> createState() => _BloomArtStripeConnectCardState();
+  State<_BloomArtStripeConnectCard> createState() =>
+      _BloomArtStripeConnectCardState();
 }
 
-class _BloomArtStripeConnectCardState extends State<_BloomArtStripeConnectCard> {
+class _BloomArtStripeConnectCardState
+    extends State<_BloomArtStripeConnectCard> {
   bool _loading = false;
   String? _error;
 
-  FirebaseFunctions get _functions => FirebaseFunctions.instanceFor(region: 'us-east1');
+  FirebaseFunctions get _functions =>
+      FirebaseFunctions.instanceFor(region: 'us-east1');
 
   Future<void> _startOrResumeOnboarding() async {
     setState(() {
@@ -301,7 +385,9 @@ class _BloomArtStripeConnectCardState extends State<_BloomArtStripeConnectCard> 
     });
 
     try {
-      final callable = _functions.httpsCallable('createBloomArtConnectOnboardingLink');
+      final callable = _functions.httpsCallable(
+        'createBloomArtConnectOnboardingLink',
+      );
       final res = await callable.call(<String, dynamic>{});
       final data = res.data;
 
@@ -362,8 +448,8 @@ class _BloomArtStripeConnectCardState extends State<_BloomArtStripeConnectCard> 
             !hasAccount
                 ? 'Aucun compte Stripe lié : vos ventes ne sont pas reversées tant que ce compte n\'est pas configuré (commission plateforme 10%).'
                 : payoutActive
-                    ? 'Compte Stripe actif : vos ventes vous sont reversées automatiquement (90% du prix, commission plateforme 10%).'
-                    : 'Compte Stripe créé mais incomplet : terminez la configuration pour être payé.',
+                ? 'Compte Stripe actif : vos ventes vous sont reversées automatiquement (90% du prix, commission plateforme 10%).'
+                : 'Compte Stripe créé mais incomplet : terminez la configuration pour être payé.',
             style: const TextStyle(color: MasliveTokens.textMuted, height: 1.4),
           ),
           if (_error != null) ...<Widget>[
@@ -376,7 +462,9 @@ class _BloomArtStripeConnectCardState extends State<_BloomArtStripeConnectCard> 
             runSpacing: 8,
             children: <Widget>[
               BloomArtCtaButton(
-                label: hasAccount ? 'Reprendre la configuration' : 'Configurer Stripe',
+                label: hasAccount
+                    ? 'Reprendre la configuration'
+                    : 'Configurer Stripe',
                 icon: Icons.account_balance_outlined,
                 onPressed: _loading ? null : _startOrResumeOnboarding,
               ),
@@ -402,7 +490,8 @@ class _OfferPreviewCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return InkWell(
       borderRadius: BorderRadius.circular(24),
-      onTap: () => Navigator.of(context).pushNamed('/bloom-art/offers/${offer.id}'),
+      onTap: () =>
+          Navigator.of(context).pushNamed('/bloom-art/offers/${offer.id}'),
       child: Container(
         padding: const EdgeInsets.all(18),
         decoration: BoxDecoration(
@@ -418,7 +507,10 @@ class _OfferPreviewCard extends StatelessWidget {
                 Expanded(
                   child: Text(
                     'Offre sur ${offer.itemId}',
-                    style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w900),
+                    style: const TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w900,
+                    ),
                   ),
                 ),
                 BloomArtOfferStatusBadge(status: offer.status),
@@ -439,7 +531,10 @@ class _OfferPreviewCard extends StatelessWidget {
                 offer.buyerMessage,
                 maxLines: 2,
                 overflow: TextOverflow.ellipsis,
-                style: const TextStyle(color: MasliveTokens.textMuted, height: 1.4),
+                style: const TextStyle(
+                  color: MasliveTokens.textMuted,
+                  height: 1.4,
+                ),
               ),
             ],
           ],

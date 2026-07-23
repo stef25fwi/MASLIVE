@@ -10,6 +10,7 @@ import '../../data/repositories/bloom_art_repository.dart';
 import '../widgets/bloom_art_cta_button.dart';
 import '../widgets/bloom_art_offer_status_badge.dart';
 import 'package:masslive/ui_kit/tokens/maslive_tokens.dart';
+import '../../../../ui_kit/responsive/responsive.dart';
 
 class BloomArtOfferDetailPage extends StatefulWidget {
   const BloomArtOfferDetailPage({super.key, required this.offerId});
@@ -104,9 +105,9 @@ class _BloomArtOfferDetailPageState extends State<BloomArtOfferDetailPage> {
     try {
       await _offerRepository.declineOffer(offer.id);
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Offre refusée.')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Offre refusée.')));
     } catch (error) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
@@ -183,21 +184,57 @@ class _BloomArtOfferDetailPageState extends State<BloomArtOfferDetailPage> {
             stream: _itemRepository.watchItem(offer.itemId),
             builder: (context, itemSnapshot) {
               final item = itemSnapshot.data;
-              return ListView(
-                padding: const EdgeInsets.fromLTRB(12, 16, 12, 28),
-                children: <Widget>[
-                  _OfferSummaryCard(offer: offer, item: item),
-                  const SizedBox(height: 18),
-                  _ActionPanel(
-                    offer: offer,
-                    isSeller: currentUser.uid == offer.sellerId,
-                    isBuyer: currentUser.uid == offer.buyerId,
-                    busy: _busy,
-                    onAccept: () => _acceptOffer(offer),
-                    onDecline: () => _declineOffer(offer),
-                    onCheckout: () => _startCheckout(offer),
+              return ResponsivePageContainer(
+                maxContentWidth: 1120,
+                compactPadding: EdgeInsets.zero,
+                mediumPadding: EdgeInsets.zero,
+                expandedPadding: EdgeInsets.zero,
+                widePadding: EdgeInsets.zero,
+                child: ListView(
+                  padding: responsiveValue<EdgeInsets>(
+                    context,
+                    compact: const EdgeInsets.fromLTRB(12, 16, 12, 28),
+                    medium: const EdgeInsets.fromLTRB(24, 20, 24, 32),
+                    expanded: const EdgeInsets.fromLTRB(36, 24, 36, 36),
+                    wide: const EdgeInsets.fromLTRB(44, 28, 44, 40),
                   ),
-                ],
+                  children: <Widget>[
+                    LayoutBuilder(
+                      builder: (context, constraints) {
+                        final summary = _OfferSummaryCard(
+                          offer: offer,
+                          item: item,
+                        );
+                        final actions = _ActionPanel(
+                          offer: offer,
+                          isSeller: currentUser.uid == offer.sellerId,
+                          isBuyer: currentUser.uid == offer.buyerId,
+                          busy: _busy,
+                          onAccept: () => _acceptOffer(offer),
+                          onDecline: () => _declineOffer(offer),
+                          onCheckout: () => _startCheckout(offer),
+                        );
+                        if (context.isCompactLayout) {
+                          return Column(
+                            children: <Widget>[
+                              summary,
+                              const SizedBox(height: 18),
+                              actions,
+                            ],
+                          );
+                        }
+                        return Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: <Widget>[
+                            Expanded(flex: 3, child: summary),
+                            const SizedBox(width: 20),
+                            Expanded(flex: 2, child: actions),
+                          ],
+                        );
+                      },
+                    ),
+                  ],
+                ),
               );
             },
           );
@@ -256,8 +293,10 @@ class _OfferSummaryCard extends StatelessWidget {
           ),
           const SizedBox(height: 14),
           Text(
-            NumberFormat.currency(locale: 'fr_FR', symbol: '€')
-                .format(offer.proposedPrice),
+            NumberFormat.currency(
+              locale: 'fr_FR',
+              symbol: '€',
+            ).format(offer.proposedPrice),
             style: const TextStyle(fontSize: 34, fontWeight: FontWeight.w900),
           ),
           const SizedBox(height: 12),
@@ -273,8 +312,10 @@ class _OfferSummaryCard extends StatelessWidget {
           if (offer.paymentDeadlineAt != null)
             _MetaLine(
               label: 'Paiement avant',
-              value: DateFormat('dd/MM/yyyy à HH:mm', 'fr_FR')
-                  .format(offer.paymentDeadlineAt!.toLocal()),
+              value: DateFormat(
+                'dd/MM/yyyy à HH:mm',
+                'fr_FR',
+              ).format(offer.paymentDeadlineAt!.toLocal()),
             ),
           if (item?.sellerDisplayName.trim().isNotEmpty == true)
             _MetaLine(label: 'Artiste', value: item!.sellerDisplayName),
@@ -306,7 +347,8 @@ class _ActionPanel extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final deadlineExpired = offer.paymentDeadlineAt != null &&
+    final deadlineExpired =
+        offer.paymentDeadlineAt != null &&
         offer.paymentDeadlineAt!.isBefore(DateTime.now());
 
     final subtitle = switch (offer.status) {
