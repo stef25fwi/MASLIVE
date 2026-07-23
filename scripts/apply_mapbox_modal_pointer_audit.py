@@ -295,12 +295,52 @@ def transform_circuit_entry() -> None:
     )
 
 
+def fix_polaroid_analyzer_lints() -> None:
+    source = POLAROID.read_text(encoding="utf-8")
+    source = source.replace(
+        """    if (value.isEmpty || !(value.startsWith('{') || value.startsWith('[')))
+      return value;
+""",
+        """    if (value.isEmpty || !(value.startsWith('{') || value.startsWith('['))) {
+      return value;
+    }
+""",
+        1,
+    )
+    source = source.replace(
+        """      if (decoded is Map)
+        return decoded.entries
+            .take(3)
+            .map((e) => '${e.key}: ${e.value}')
+            .join(' · ');
+""",
+        """      if (decoded is Map) {
+        return decoded.entries
+            .take(3)
+            .map((e) => '${e.key}: ${e.value}')
+            .join(' · ');
+      }
+""",
+        1,
+    )
+    POLAROID.write_text(source, encoding="utf-8")
+
+
 def main() -> None:
-    transform_polaroid()
-    transform_selector()
-    transform_poi_edit()
-    transform_circuit_editor()
-    transform_circuit_entry()
+    already_applied = (
+        "_interactionOverlayOpen" in POI_EDIT.read_text(encoding="utf-8")
+        and POINTER_IMPORT in POLAROID.read_text(encoding="utf-8")
+        and POINTER_IMPORT in SELECTOR.read_text(encoding="utf-8")
+    )
+    if not already_applied:
+        transform_polaroid()
+        transform_selector()
+        transform_poi_edit()
+        transform_circuit_editor()
+        transform_circuit_entry()
+    else:
+        print("Mapbox modal pointer protections already applied; keeping generated code.")
+    fix_polaroid_analyzer_lints()
     print("Mapbox modal pointer audit applied successfully.")
 
 
