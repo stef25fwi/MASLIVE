@@ -11,7 +11,7 @@ void main() {
       (width: 1440, name: 'wide_1440'),
     ]) {
       testWidgets(viewport.name, (tester) async {
-        await tester.binding.setSurfaceSize(Size(viewport.width, 760));
+        await tester.binding.setSurfaceSize(Size(viewport.width, 900));
         addTearDown(() => tester.binding.setSurfaceSize(null));
 
         await tester.pumpWidget(
