@@ -13,6 +13,8 @@ La génération CI utilise Flutter 3.44.4 sur Ubuntu afin de conserver un rendu 
 
 Les journaux de génération et de matrice sont temporaires : ils ne doivent jamais être conservés dans la branche après une validation réussie. Seules les images PNG de référence sont versionnées. La publication est effectuée après les tests, sur le dernier head synchronisé de la PR.
 
+Les quatre PNG versionnés constituent désormais la référence officielle des classes compact, tablette, desktop et grand écran. Toute évolution ultérieure devra être intentionnelle, vérifiée sur la matrice complète et accompagnée d’une régénération explicite.
+
 Génération contrôlée :
 
 ```bash
