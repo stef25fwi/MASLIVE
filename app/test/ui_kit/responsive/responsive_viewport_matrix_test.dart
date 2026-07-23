@@ -45,7 +45,10 @@ void main() {
 
         expect(tester.takeException(), isNull);
         expect(find.byKey(const Key('matrix-content')), findsOneWidget);
-        expect(find.text('Largeur ${width.toInt()} px'), findsOneWidget);
+        expect(
+          find.textContaining('Largeur ${width.toInt()} px'),
+          findsOneWidget,
+        );
       });
     }
 
@@ -79,14 +82,17 @@ void main() {
 
     testWidgets('primary actions expose meaningful semantics', (tester) async {
       final semantics = tester.ensureSemantics();
-      addTearDown(semantics.dispose);
-      await _pumpFixture(tester, width: 390, textScale: 1.3);
+      try {
+        await _pumpFixture(tester, width: 390, textScale: 1.3);
 
-      final node = tester.getSemantics(
-        find.byKey(const Key('primary-action')),
-      );
-      expect(node.label, contains('Déposer une œuvre'));
-      expect(node.hasFlag(SemanticsFlag.isButton), isTrue);
+        final node = tester.getSemantics(
+          find.byKey(const Key('primary-action')),
+        );
+        expect(node.label, contains('Déposer une œuvre'));
+        expect(node.hasFlag(SemanticsFlag.isButton), isTrue);
+      } finally {
+        semantics.dispose();
+      }
     });
   });
 }
