@@ -43,14 +43,14 @@ jobs:
         run: |
           set -o pipefail
           flutter test test/ui_kit/responsive/responsive_golden_test.dart --update-goldens \
-            2>&1 | tee test/ui_kit/responsive/golden_generation.log
+            2>&1 | tee test/ui_kit/responsive/golden_generation.txt
 
       - name: Commit golden diagnostic when generation fails
         if: steps.goldens.outcome == 'failure'
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add app/test/ui_kit/responsive/golden_generation.log
+          git add app/test/ui_kit/responsive/golden_generation.txt
           git commit -m "test(responsive): capture golden generation diagnostic"
           git push origin HEAD:test/responsive-final-matrix
 
@@ -75,7 +75,7 @@ jobs:
 
       - name: Commit validated golden references
         run: |
-          rm -f app/test/ui_kit/responsive/golden_generation.log
+          rm -f app/test/ui_kit/responsive/golden_generation.txt
           if git diff --quiet -- app/test/ui_kit/responsive/goldens; then
             echo "Aucune nouvelle référence golden à publier."
             exit 0
