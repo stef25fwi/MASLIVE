@@ -6,6 +6,8 @@ on:
     paths:
       - .github/workflows/apply-responsive-storex.yml
       - scripts/apply_responsive_storex.py
+  issues:
+    types: [opened]
   workflow_dispatch:
 
 permissions:
@@ -17,7 +19,9 @@ concurrency:
 
 jobs:
   apply-validate-commit:
-    if: github.actor != 'github-actions[bot]'
+    if: >-
+      (github.event_name == 'issues' && startsWith(github.event.issue.title, '[responsive-storex]')) ||
+      (github.event_name != 'issues' && github.actor != 'github-actions[bot]')
     runs-on: ubuntu-latest
     timeout-minutes: 35
 
