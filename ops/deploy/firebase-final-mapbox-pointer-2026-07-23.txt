@@ -1,0 +1,8 @@
+Déploiement production demandé le 23 juillet 2026.
+
+Contenu inclus :
+- interception globale des clics Mapbox lorsqu’une fenêtre modale est ouverte ;
+- correction du bouton debug administrateur et popup de copie des logs ;
+- tests de non-régression associés.
+
+Cible : Firebase projet maslive, branche main.
