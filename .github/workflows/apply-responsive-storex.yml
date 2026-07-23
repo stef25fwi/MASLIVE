@@ -46,9 +46,12 @@ jobs:
         run: |
           dart format \
             app/lib/pages/storex_shop_page.dart \
+            app/lib/pages/default_map_page.dart \
+            app/lib/pages/home_map_page_3d.dart \
             app/lib/pages/user_facing_shell_page.dart \
             app/lib/pages/user_facing_navigation_rail.dart \
             app/lib/shop/widgets/storex_page_header.dart \
+            app/lib/ui/map/maslive_poi_style.dart \
             app/lib/ui_kit/responsive \
             app/test/ui_kit/responsive/responsive_breakpoints_test.dart
 
@@ -80,9 +83,12 @@ jobs:
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add \
             app/lib/pages/storex_shop_page.dart \
+            app/lib/pages/default_map_page.dart \
+            app/lib/pages/home_map_page_3d.dart \
             app/lib/pages/user_facing_shell_page.dart \
             app/lib/pages/user_facing_navigation_rail.dart \
             app/lib/shop/widgets/storex_page_header.dart \
+            app/lib/ui/map/maslive_poi_style.dart \
             app/lib/ui_kit/responsive \
             app/test/ui_kit/responsive/responsive_breakpoints_test.dart
           git add -f \
