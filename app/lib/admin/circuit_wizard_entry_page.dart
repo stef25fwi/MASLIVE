@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
+import 'package:pointer_interceptor/pointer_interceptor.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:http/http.dart' as http;
@@ -789,243 +790,247 @@ class _NewCircuitInputDialogState extends State<_NewCircuitInputDialog> {
     final dialogWidth = requestedWidth.clamp(0.0, compactWidth).toDouble();
     final dialogMaxHeight = screen.height * 0.9;
 
-    return Dialog(
-      backgroundColor: Colors.white,
-      insetPadding: responsiveValue<EdgeInsets>(
-        context,
-        compact: const EdgeInsets.symmetric(horizontal: 10, vertical: 24),
-        medium: const EdgeInsets.symmetric(horizontal: 24, vertical: 28),
-        expanded: const EdgeInsets.symmetric(horizontal: 36, vertical: 32),
-        wide: const EdgeInsets.symmetric(horizontal: 44, vertical: 36),
-      ),
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(16),
-        side: BorderSide(color: Colors.grey.shade300),
-      ),
-      child: ConstrainedBox(
-        constraints: BoxConstraints(
-          maxWidth: dialogWidth,
-          maxHeight: dialogMaxHeight,
+    return PointerInterceptor(
+      child: Dialog(
+        backgroundColor: Colors.white,
+        insetPadding: responsiveValue<EdgeInsets>(
+          context,
+          compact: const EdgeInsets.symmetric(horizontal: 10, vertical: 24),
+          medium: const EdgeInsets.symmetric(horizontal: 24, vertical: 28),
+          expanded: const EdgeInsets.symmetric(horizontal: 36, vertical: 32),
+          wide: const EdgeInsets.symmetric(horizontal: 44, vertical: 36),
         ),
-        child: SizedBox(
-          width: dialogWidth,
-          child: Padding(
-            padding: responsiveValue<EdgeInsets>(
-              context,
-              compact: const EdgeInsets.all(16),
-              medium: const EdgeInsets.all(20),
-              expanded: const EdgeInsets.all(24),
-              wide: const EdgeInsets.all(28),
-            ),
-            child: StreamBuilder<List<MarketCountry>>(
-              stream: _marketMapService.watchCountries(),
-              builder: (context, snapshot) {
-                final countries = snapshot.data ?? const <MarketCountry>[];
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(16),
+          side: BorderSide(color: Colors.grey.shade300),
+        ),
+        child: ConstrainedBox(
+          constraints: BoxConstraints(
+            maxWidth: dialogWidth,
+            maxHeight: dialogMaxHeight,
+          ),
+          child: SizedBox(
+            width: dialogWidth,
+            child: Padding(
+              padding: responsiveValue<EdgeInsets>(
+                context,
+                compact: const EdgeInsets.all(16),
+                medium: const EdgeInsets.all(20),
+                expanded: const EdgeInsets.all(24),
+                wide: const EdgeInsets.all(28),
+              ),
+              child: StreamBuilder<List<MarketCountry>>(
+                stream: _marketMapService.watchCountries(),
+                builder: (context, snapshot) {
+                  final countries = snapshot.data ?? const <MarketCountry>[];
 
-                final resolvedCountry = _resolveCountry(countries);
-                final resolvedCountryInput = _resolveCountryInput(countries);
-                final cam = _countryPreviewCamera(resolvedCountry);
+                  final resolvedCountry = _resolveCountry(countries);
+                  final resolvedCountryInput = _resolveCountryInput(countries);
+                  final cam = _countryPreviewCamera(resolvedCountry);
 
-                return SingleChildScrollView(
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Row(
-                        children: [
-                          const Expanded(
-                            child: Text(
-                              'Nouveau circuit',
-                              style: TextStyle(
-                                fontSize: 18,
-                                fontWeight: FontWeight.w700,
-                              ),
-                            ),
-                          ),
-                          IconButton(
-                            onPressed: () => Navigator.pop(context),
-                            icon: const Icon(Icons.close),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 8),
-                      Theme(
-                        data: Theme.of(context).copyWith(
-                          inputDecorationTheme: Theme.of(context)
-                              .inputDecorationTheme
-                              .copyWith(
-                                filled: true,
-                                fillColor: Colors.grey.shade100,
-                                border: OutlineInputBorder(
-                                  borderRadius: BorderRadius.circular(12),
+                  return SingleChildScrollView(
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Row(
+                          children: [
+                            const Expanded(
+                              child: Text(
+                                'Nouveau circuit',
+                                style: TextStyle(
+                                  fontSize: 18,
+                                  fontWeight: FontWeight.w700,
                                 ),
                               ),
-                        ),
-                        child: MarketCountryAutocompleteField(
-                          items: countries,
-                          controller: _countryController,
-                          labelText: 'Pays',
-                          hintText: 'Rechercher un pays…',
-                          enabled: true,
-                          onSelected: (c) {
-                            setState(() => _selectedCountry = c);
-                            if (c == null) return;
-                            _countryController.text = _countryLabel(c);
-                            unawaited(_focusPreviewMapOnCountry(c));
-                          },
-                        ),
-                      ),
-                      const SizedBox(height: 8),
-                      ClipRRect(
-                        borderRadius: BorderRadius.circular(12),
-                        child: SizedBox(
-                          height: 140,
-                          width: double.infinity,
-                          child: Container(
-                            decoration: BoxDecoration(
-                              border: Border.all(color: Colors.grey.shade300),
                             ),
-                            clipBehavior: Clip.hardEdge,
-                            child: MasLiveMap(
-                              controller: _previewMapController,
-                              initialLng: cam.lng,
-                              initialLat: cam.lat,
-                              initialZoom: cam.zoom,
-                              styleUrl: null,
-                              onTap: null,
-                              onMapReady: (c) async {
-                                _previewMapReady = true;
-                                // recentrer après ready pour refléter le pays sélectionné
-                                await c.moveTo(
-                                  lng: cam.lng,
-                                  lat: cam.lat,
-                                  zoom: cam.zoom,
-                                  animate: false,
-                                );
-                              },
+                            IconButton(
+                              onPressed: () => Navigator.pop(context),
+                              icon: const Icon(Icons.close),
                             ),
+                          ],
+                        ),
+                        const SizedBox(height: 8),
+                        Theme(
+                          data: Theme.of(context).copyWith(
+                            inputDecorationTheme: Theme.of(context)
+                                .inputDecorationTheme
+                                .copyWith(
+                                  filled: true,
+                                  fillColor: Colors.grey.shade100,
+                                  border: OutlineInputBorder(
+                                    borderRadius: BorderRadius.circular(12),
+                                  ),
+                                ),
+                          ),
+                          child: MarketCountryAutocompleteField(
+                            items: countries,
+                            controller: _countryController,
+                            labelText: 'Pays',
+                            hintText: 'Rechercher un pays…',
+                            enabled: true,
+                            onSelected: (c) {
+                              setState(() => _selectedCountry = c);
+                              if (c == null) return;
+                              _countryController.text = _countryLabel(c);
+                              unawaited(_focusPreviewMapOnCountry(c));
+                            },
                           ),
                         ),
-                      ),
-                      const SizedBox(height: 8),
-                      const SizedBox(height: 12),
-                      TextField(
-                        controller: _eventController,
-                        onChanged: (_) => setState(() {}),
-                        decoration: InputDecoration(
-                          labelText: 'Événement',
-                          hintText: 'Ex: Carnaval, Festival…',
-                          filled: true,
-                          fillColor: Colors.grey.shade100,
-                          border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                        ),
-                      ),
-                      const SizedBox(height: 12),
-                      TextField(
-                        controller: _nameController,
-                        onChanged: (_) => setState(() {}),
-                        decoration: InputDecoration(
-                          labelText: 'Nom du circuit',
-                          hintText: 'Ex: Défilé Centre-ville…',
-                          filled: true,
-                          fillColor: Colors.grey.shade100,
-                          border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                        ),
-                      ),
-                      const SizedBox(height: 12),
-                      Row(
-                        children: [
-                          Expanded(
-                            child: ChoiceChip(
-                              label: const Text('Date'),
-                              selected: !_usePeriod,
-                              onSelected: (v) {
-                                if (!v) return;
-                                setState(() {
-                                  _usePeriod = false;
-                                  _endDate = _startDate;
-                                });
-                              },
-                            ),
-                          ),
-                          const SizedBox(width: 8),
-                          Expanded(
-                            child: ChoiceChip(
-                              label: const Text('Période'),
-                              selected: _usePeriod,
-                              onSelected: (v) {
-                                if (!v) return;
-                                setState(() {
-                                  _usePeriod = true;
-                                  if (_endDate.isBefore(_startDate)) {
-                                    _endDate = _startDate;
-                                  }
-                                });
-                              },
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 8),
-                      Row(
-                        children: [
-                          Expanded(
+                        const SizedBox(height: 8),
+                        ClipRRect(
+                          borderRadius: BorderRadius.circular(12),
+                          child: SizedBox(
+                            height: 140,
+                            width: double.infinity,
                             child: Container(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 12,
-                                vertical: 14,
-                              ),
                               decoration: BoxDecoration(
-                                color: Colors.grey.shade100,
-                                borderRadius: BorderRadius.circular(12),
                                 border: Border.all(color: Colors.grey.shade300),
                               ),
-                              child: Text(
-                                _usePeriod
-                                    ? 'Période : ${_formatRange(_startDate, _endDate)}'
-                                    : 'Date : ${_formatDate(_startDate)}',
+                              clipBehavior: Clip.hardEdge,
+                              child: MasLiveMap(
+                                controller: _previewMapController,
+                                initialLng: cam.lng,
+                                initialLat: cam.lat,
+                                initialZoom: cam.zoom,
+                                styleUrl: null,
+                                onTap: null,
+                                onMapReady: (c) async {
+                                  _previewMapReady = true;
+                                  // recentrer après ready pour refléter le pays sélectionné
+                                  await c.moveTo(
+                                    lng: cam.lng,
+                                    lat: cam.lat,
+                                    zoom: cam.zoom,
+                                    animate: false,
+                                  );
+                                },
                               ),
                             ),
                           ),
-                          const SizedBox(width: 8),
-                          ElevatedButton.icon(
-                            onPressed: _usePeriod ? _pickPeriod : _pickDate,
-                            icon: const Icon(Icons.calendar_month),
-                            label: const Text('Choisir'),
+                        ),
+                        const SizedBox(height: 8),
+                        const SizedBox(height: 12),
+                        TextField(
+                          controller: _eventController,
+                          onChanged: (_) => setState(() {}),
+                          decoration: InputDecoration(
+                            labelText: 'Événement',
+                            hintText: 'Ex: Carnaval, Festival…',
+                            filled: true,
+                            fillColor: Colors.grey.shade100,
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
                           ),
-                        ],
-                      ),
-                      const SizedBox(height: 16),
-                      MasliveButton(
-                        label: 'Continuer',
-                        onPressed: !_isValid
-                            ? null
-                            : () {
-                                final country = resolvedCountryInput;
-                                if (country == null) return;
-
-                                Navigator.pop(
-                                  context,
-                                  _NewCircuitInput(
-                                    countryId: country.id,
-                                    countryName: country.name,
-                                    countryIso2: country.iso2,
-                                    eventId: _resolvedEvent().id,
-                                    eventName: _resolvedEvent().name,
-                                    name: _nameController.text.trim(),
-                                    startDate: _startDate,
-                                    endDate: _endDate,
+                        ),
+                        const SizedBox(height: 12),
+                        TextField(
+                          controller: _nameController,
+                          onChanged: (_) => setState(() {}),
+                          decoration: InputDecoration(
+                            labelText: 'Nom du circuit',
+                            hintText: 'Ex: Défilé Centre-ville…',
+                            filled: true,
+                            fillColor: Colors.grey.shade100,
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 12),
+                        Row(
+                          children: [
+                            Expanded(
+                              child: ChoiceChip(
+                                label: const Text('Date'),
+                                selected: !_usePeriod,
+                                onSelected: (v) {
+                                  if (!v) return;
+                                  setState(() {
+                                    _usePeriod = false;
+                                    _endDate = _startDate;
+                                  });
+                                },
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: ChoiceChip(
+                                label: const Text('Période'),
+                                selected: _usePeriod,
+                                onSelected: (v) {
+                                  if (!v) return;
+                                  setState(() {
+                                    _usePeriod = true;
+                                    if (_endDate.isBefore(_startDate)) {
+                                      _endDate = _startDate;
+                                    }
+                                  });
+                                },
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 8),
+                        Row(
+                          children: [
+                            Expanded(
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 12,
+                                  vertical: 14,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: Colors.grey.shade100,
+                                  borderRadius: BorderRadius.circular(12),
+                                  border: Border.all(
+                                    color: Colors.grey.shade300,
                                   ),
-                                );
-                              },
-                      ),
-                    ],
-                  ),
-                );
-              },
+                                ),
+                                child: Text(
+                                  _usePeriod
+                                      ? 'Période : ${_formatRange(_startDate, _endDate)}'
+                                      : 'Date : ${_formatDate(_startDate)}',
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            ElevatedButton.icon(
+                              onPressed: _usePeriod ? _pickPeriod : _pickDate,
+                              icon: const Icon(Icons.calendar_month),
+                              label: const Text('Choisir'),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 16),
+                        MasliveButton(
+                          label: 'Continuer',
+                          onPressed: !_isValid
+                              ? null
+                              : () {
+                                  final country = resolvedCountryInput;
+                                  if (country == null) return;
+
+                                  Navigator.pop(
+                                    context,
+                                    _NewCircuitInput(
+                                      countryId: country.id,
+                                      countryName: country.name,
+                                      countryIso2: country.iso2,
+                                      eventId: _resolvedEvent().id,
+                                      eventName: _resolvedEvent().name,
+                                      name: _nameController.text.trim(),
+                                      startDate: _startDate,
+                                      endDate: _endDate,
+                                    ),
+                                  );
+                                },
+                        ),
+                      ],
+                    ),
+                  );
+                },
+              ),
             ),
           ),
         ),

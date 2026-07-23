@@ -244,6 +244,7 @@ class _CircuitMapEditorState extends State<CircuitMapEditor> {
   final List<List<LngLat>> _history = [];
   int _historyIndex = -1;
   final bool _isEditingEnabled = true;
+  bool _interactionOverlayOpen = false;
   int? _selectedPointIndex;
   final double _simplificationThreshold = 0.0001;
   final bool _showToolbar = true;
@@ -642,6 +643,7 @@ class _CircuitMapEditorState extends State<CircuitMapEditor> {
   // ============ Édition points ============
 
   void _addPoint(LngLat point) {
+    if (_interactionOverlayOpen || !widget.editingEnabled) return;
     setState(() {
       _points.add(point);
       _selectedPointIndex = _points.length - 1;
@@ -733,6 +735,19 @@ class _CircuitMapEditorState extends State<CircuitMapEditor> {
 
   double _toRad(double deg) => deg * math.pi / 180;
 
+  Future<T> _withInteractionLock<T>(Future<T> Function() action) async {
+    if (mounted && !_interactionOverlayOpen) {
+      setState(() => _interactionOverlayOpen = true);
+    }
+    try {
+      return await action();
+    } finally {
+      if (mounted) {
+        setState(() => _interactionOverlayOpen = false);
+      }
+    }
+  }
+
   void _reversePath() {
     setState(() => _points = _points.reversed.toList());
     _saveToHistory();
@@ -777,23 +792,27 @@ class _CircuitMapEditorState extends State<CircuitMapEditor> {
     if (_points.length < 2) return;
     if (_isClosedLoop) return;
 
-    final confirm = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Boucler le circuit ?'),
-        content: const Text(
-          'Voulez-vous fermer le tracé en plaçant le dernier point sur la même position que le 1er point (Départ) ?',
+    final confirm = await _withInteractionLock<bool?>(
+      () => showDialog<bool>(
+        context: context,
+        builder: (ctx) => PointerInterceptor(
+          child: AlertDialog(
+            title: const Text('Boucler le circuit ?'),
+            content: const Text(
+              'Voulez-vous fermer le tracé en plaçant le dernier point sur la même position que le 1er point (Départ) ?',
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(ctx, false),
+                child: const Text('Non'),
+              ),
+              TextButton(
+                onPressed: () => Navigator.pop(ctx, true),
+                child: const Text('Oui, boucler'),
+              ),
+            ],
+          ),
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('Non'),
-          ),
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, true),
-            child: const Text('Oui, boucler'),
-          ),
-        ],
       ),
     );
 
@@ -840,28 +859,37 @@ class _CircuitMapEditorState extends State<CircuitMapEditor> {
   }
 
   void _clearAll() {
-    showDialog(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Effacer tous les points ?'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: const Text('Annuler'),
+    unawaited(
+      _withInteractionLock<void>(() async {
+        await showDialog(
+          context: context,
+          builder: (ctx) => PointerInterceptor(
+            child: AlertDialog(
+              title: const Text('Effacer tous les points ?'),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(ctx),
+                  child: const Text('Annuler'),
+                ),
+                TextButton(
+                  onPressed: () {
+                    Navigator.pop(ctx);
+                    setState(() => _points.clear());
+                    _saveToHistory();
+                    widget.onPointsChanged(_points);
+                    _syncController();
+                    _renderOnMap();
+                  },
+                  child: const Text(
+                    'Effacer',
+                    style: TextStyle(color: Colors.red),
+                  ),
+                ),
+              ],
+            ),
           ),
-          TextButton(
-            onPressed: () {
-              Navigator.pop(ctx);
-              setState(() => _points.clear());
-              _saveToHistory();
-              widget.onPointsChanged(_points);
-              _syncController();
-              _renderOnMap();
-            },
-            child: const Text('Effacer', style: TextStyle(color: Colors.red)),
-          ),
-        ],
-      ),
+        );
+      }),
     );
   }
 
