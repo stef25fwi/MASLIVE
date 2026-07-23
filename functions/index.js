@@ -17,6 +17,7 @@ const {
 } = require("firebase-functions/v2/firestore");
 const { onObjectFinalized } = require("firebase-functions/v2/storage");
 const { onCall, onRequest, HttpsError } = require("firebase-functions/v2/https");
+const { onSchedule } = require("firebase-functions/v2/scheduler");
 const createMediaMarketplaceStripe = require("./src/media-marketplace-stripe");
 const createMediaMarketplaceMedia = require("./src/media-marketplace-media");
 const createPoiImageWebpHandlers = require("./src/poi-image-webp");
@@ -808,6 +809,7 @@ const bloomArtHandlers = createBloomArtHandlers({
   admin,
   db,
   onCall,
+  onSchedule,
   HttpsError,
   STRIPE_SECRET_KEY,
   getStripe,
@@ -852,6 +854,7 @@ exports.createBloomArtConnectOnboardingLink =
 exports.refreshBloomArtConnectStatus =
   bloomArtHandlers.refreshBloomArtConnectStatus;
 exports.verifyBloomArtSiret = bloomArtHandlers.verifyBloomArtSiret;
+exports.expireBloomArtOffers = bloomArtHandlers.expireBloomArtOffers;
 
 function assertNumber(n, name) {
   if (typeof n !== "number" || Number.isNaN(n) || !Number.isFinite(n)) {

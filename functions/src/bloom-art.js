@@ -5,6 +5,7 @@ module.exports = function createBloomArtHandlers(deps) {
     admin,
     db,
     onCall,
+    onSchedule,
     HttpsError,
     STRIPE_SECRET_KEY,
     getStripe,
@@ -438,6 +439,49 @@ module.exports = function createBloomArtHandlers(deps) {
     return handleBloomArtCheckoutCompleted({ id: paymentIntent.id, payment_status: "paid", payment_intent: paymentIntent.id, metadata: paymentIntent.metadata || {} });
   }
 
+  // Une offre acceptée/auto-acceptée réserve l'objet pendant PAYMENT_WINDOW_HOURS.
+  // Sans ce cron, un acheteur qui ne paie jamais bloquait l'objet en "reserved"
+  // indéfiniment (releaseReservation n'était sinon appelé que sur échec du
+  // Checkout). On scanne périodiquement les offres dont l'échéance est dépassée
+  // et on relibère la réservation.
+  const expireBloomArtOffers = onSchedule(
+    { region: REGION, schedule: "every 15 minutes", timeoutSeconds: 120, memory: "256MiB" },
+    async () => {
+      const nowTs = admin.firestore.Timestamp.now();
+      const expiredSnap = await db
+        .collection(C.offers)
+        .where("status", "in", [OFFER.accepted, OFFER.autoAccepted])
+        .where("paymentDeadlineAt", "<=", nowTs)
+        .limit(200)
+        .get();
+
+      for (const doc of expiredSnap.docs) {
+        const offer = doc.data() || {};
+        await releaseReservation({
+          offerId: doc.id,
+          reason: "expired",
+          expectedStatuses: [OFFER.accepted, OFFER.autoAccepted],
+        });
+        await Promise.all([
+          notify(offer.buyerId, {
+            type: "bloom_art_offer",
+            title: "Offre expirée",
+            body: "Le délai de paiement est dépassé, l'œuvre a été remise en vente.",
+            itemId: offer.itemId,
+            offerId: doc.id,
+          }),
+          notify(offer.sellerId, {
+            type: "bloom_art_offer",
+            title: "Réservation expirée",
+            body: "L'acheteur n'a pas payé à temps, votre œuvre est de nouveau disponible.",
+            itemId: offer.itemId,
+            offerId: doc.id,
+          }),
+        ]);
+      }
+    }
+  );
+
   return {
     createBloomArtItem,
     submitBloomArtOffer,
@@ -449,5 +493,6 @@ module.exports = function createBloomArtHandlers(deps) {
     verifyBloomArtSiret,
     handleBloomArtCheckoutCompleted,
     handleBloomArtPaymentIntentSucceeded,
+    expireBloomArtOffers,
   };
 };
