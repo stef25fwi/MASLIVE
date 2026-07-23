@@ -1,6 +1,14 @@
 {
   "indexes": [
     {
+      "collectionGroup": "bloom_art_offers",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {"fieldPath": "status", "order": "ASCENDING"},
+        {"fieldPath": "paymentDeadlineAt", "order": "ASCENDING"}
+      ]
+    },
+    {
       "collectionGroup": "commerce_submissions",
       "queryScope": "COLLECTION",
       "fields": [
