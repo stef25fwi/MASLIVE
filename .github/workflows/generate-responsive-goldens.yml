@@ -45,16 +45,15 @@ jobs:
           flutter test test/ui_kit/responsive/responsive_golden_test.dart --update-goldens \
             2>&1 | tee test/ui_kit/responsive/golden_generation.txt
 
-      - name: Commit golden diagnostic when generation fails
+      - name: Upload golden generation diagnostic
         if: steps.goldens.outcome == 'failure'
-        run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add app/test/ui_kit/responsive/golden_generation.txt
-          git commit -m "test(responsive): capture golden generation diagnostic"
-          git push origin HEAD:test/responsive-final-matrix
+        uses: actions/upload-artifact@v4
+        with:
+          name: responsive-golden-diagnostic-${{ github.run_id }}
+          path: app/test/ui_kit/responsive/golden_generation.txt
+          if-no-files-found: error
 
-      - name: Stop after publishing golden diagnostic
+      - name: Stop after golden generation failure
         if: steps.goldens.outcome == 'failure'
         run: exit 1
 
@@ -73,16 +72,15 @@ jobs:
             test/responsive/full_responsive_page_contract_test.dart \
             2>&1 | tee test/ui_kit/responsive/responsive_validation.txt
 
-      - name: Commit responsive validation diagnostic when matrix fails
+      - name: Upload responsive matrix diagnostic
         if: steps.matrix.outcome == 'failure'
-        run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add app/test/ui_kit/responsive/responsive_validation.txt
-          git commit -m "test(responsive): capture matrix validation diagnostic"
-          git push origin HEAD:test/responsive-final-matrix
+        uses: actions/upload-artifact@v4
+        with:
+          name: responsive-matrix-diagnostic-${{ github.run_id }}
+          path: app/test/ui_kit/responsive/responsive_validation.txt
+          if-no-files-found: error
 
-      - name: Stop after publishing matrix diagnostic
+      - name: Stop after responsive matrix failure
         if: steps.matrix.outcome == 'failure'
         run: exit 1
 
@@ -104,4 +102,5 @@ jobs:
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add app/test/ui_kit/responsive/goldens
           git commit -m "test(responsive): add multi-screen golden references"
+          git pull --rebase origin test/responsive-final-matrix
           git push origin HEAD:test/responsive-final-matrix
