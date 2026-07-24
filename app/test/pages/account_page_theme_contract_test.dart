@@ -30,4 +30,39 @@ void main() {
     // redéfinir ni introduire de couleurs locales hors design system.
     expect(source, isNot(contains('Color(0x')));
   });
+
+  test('les accès du profil sont regroupés en thèmes stables', () {
+    final source = File('lib/pages/account_page.dart').readAsStringSync();
+
+    const themes = <String>[
+      'Administration MASLIVE',
+      'Compte & préférences',
+      'Groupes & communauté',
+      'Création & activité',
+      'Achats & médias',
+    ];
+    for (final theme in themes) {
+      expect(source, contains(theme), reason: 'Thème manquant : $theme');
+    }
+
+    const criticalRoutes = <String>[
+      "route: '/account-admin'",
+      "route: '/account'",
+      "route: '/group-admin'",
+      "route: '/media-marketplace/photographer'",
+      "route: '/bloom-art/dashboard'",
+      "route: '/purchase-history'",
+    ];
+    for (final route in criticalRoutes) {
+      expect(source, contains(route), reason: 'Route manquante : $route');
+    }
+
+    expect(source, contains('maintainState: true'));
+    expect(source, contains("PageStorageKey<String>('account-theme-"));
+    expect(
+      source.indexOf('_AccountTileTheme.administration'),
+      lessThan(source.indexOf('_AccountTileTheme.account')),
+      reason: 'L’administration doit rester le premier thème administrateur.',
+    );
+  });
 }
