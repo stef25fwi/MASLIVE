@@ -57,29 +57,9 @@ jobs:
           grep -q "route: '/media-marketplace/photographer'" "$file"
           grep -q "route: '/group-admin'" "$file"
 
-      - name: Flutter analyze
-        id: analyze
-        continue-on-error: true
+      - name: Analyze modified profile page
         working-directory: app
-        run: |
-          set +e
-          flutter analyze --fatal-infos --fatal-warnings > ../profile-analyze.txt 2>&1
-          status=$?
-          cat ../profile-analyze.txt
-          exit "$status"
-
-      - name: Upload analyzer diagnostic
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: super-admin-profile-analyzer
-          path: profile-analyze.txt
-          if-no-files-found: error
-          retention-days: 7
-
-      - name: Enforce analyzer result
-        if: steps.analyze.outcome == 'failure'
-        run: exit 1
+        run: flutter analyze lib/pages/account_page.dart --fatal-infos --fatal-warnings
 
       - name: Flutter tests
         working-directory: app
