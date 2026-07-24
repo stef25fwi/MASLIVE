@@ -1467,6 +1467,29 @@ class _LayerPoisPageState extends State<_LayerPoisPage> {
     // Firestore stream auto-refreshes the list.
   }
 
+  Future<void> _editParkingZone(
+    QueryDocumentSnapshot<Map<String, dynamic>> doc,
+  ) async {
+    final circuit = widget.circuit;
+    final existingPoi = MarketMapPOI.fromFirestore(doc);
+
+    await Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (_) => ParkingZoneDrawerPage(
+          countryId: widget.countryId,
+          eventId: widget.eventId,
+          circuitId: widget.circuitId,
+          initialLat: existingPoi.lat,
+          initialLng: existingPoi.lng,
+          initialZoom: 16.0,
+          styleUrl: circuit.styleUrl,
+          existingPoi: existingPoi,
+        ),
+      ),
+    );
+    // Firestore stream auto-refreshes the list.
+  }
+
   Future<void> _deletePoi(String poiId) async {
     final ok = await showDialog<bool>(
       context: context,
@@ -1649,10 +1672,12 @@ class _LayerPoisPageState extends State<_LayerPoisPage> {
                               ),
                               IconButton(
                                 tooltip: 'Modifier',
-                                onPressed: () => _createOrEditPoi(
-                                  poiId: doc.id,
-                                  existing: data,
-                                ),
+                                onPressed: widget.layer.type == 'parking'
+                                    ? () => _editParkingZone(doc)
+                                    : () => _createOrEditPoi(
+                                        poiId: doc.id,
+                                        existing: data,
+                                      ),
                                 icon: const Icon(Icons.edit_rounded),
                               ),
                               IconButton(

@@ -24,6 +24,20 @@ const _kLabelPresetWideBlue = 'wide_blue_badge_white_outline';
 const _kStyleKey = 'perimeterStyle';
 const _kVehiclesKey = 'vehicleTypes';
 
+const _kColorPalette = <String>[
+  '#0A84FF',
+  '#34C759',
+  '#FF9500',
+  '#FF3B30',
+  '#AF52DE',
+  '#FFD60A',
+  '#5AC8FA',
+  '#FF2D55',
+  '#8E8E93',
+  '#FFFFFF',
+  '#000000',
+];
+
 // ─── Page ─────────────────────────────────────────────────────────────────
 
 /// Standalone page for drawing a parking-zone polygon on a map.
@@ -43,6 +57,7 @@ class ParkingZoneDrawerPage extends StatefulWidget {
     this.initialLng = -61.5340,
     this.initialZoom = 15.0,
     this.styleUrl,
+    this.existingPoi,
   });
 
   final String countryId;
@@ -52,6 +67,11 @@ class ParkingZoneDrawerPage extends StatefulWidget {
   final double initialLng;
   final double initialZoom;
   final String? styleUrl;
+
+  /// Zone parking existante à modifier. Si non nul, le tracé/le style et le
+  /// nom sont préchargés depuis `metadata.perimeter` / `metadata.perimeterStyle`,
+  /// et l'enregistrement met à jour ce POI au lieu d'en créer un nouveau.
+  final MarketMapPOI? existingPoi;
 
   @override
   State<ParkingZoneDrawerPage> createState() => _ParkingZoneDrawerPageState();
@@ -82,6 +102,63 @@ class _ParkingZoneDrawerPageState extends State<ParkingZoneDrawerPage> {
   String? _error;
   bool _saving = false;
   bool _styleSheetOpen = false;
+
+  bool get _isEditing => widget.existingPoi != null;
+
+  @override
+  void initState() {
+    super.initState();
+    _hydrateFromExistingPoi();
+  }
+
+  void _hydrateFromExistingPoi() {
+    final existing = widget.existingPoi;
+    if (existing == null) return;
+
+    _nameCtrl.text = existing.name.trim().isEmpty
+        ? 'Zone parking'
+        : existing.name.trim();
+
+    final rawPerimeter = existing.metadata?['perimeter'];
+    if (rawPerimeter is List) {
+      final pts = <_LngLat>[];
+      for (final p in rawPerimeter) {
+        if (p is! Map) continue;
+        final lng = (p['lng'] as num?)?.toDouble();
+        final lat = (p['lat'] as num?)?.toDouble();
+        if (lng == null || lat == null) continue;
+        pts.add((lng: lng, lat: lat));
+      }
+      _points = pts;
+    }
+
+    final rawStyle = existing.metadata?[_kStyleKey];
+    if (rawStyle is Map) {
+      final style = Map<String, dynamic>.from(rawStyle);
+      String? asStr(dynamic v) => v is String ? v : null;
+      double? asNum(dynamic v) => v is num ? v.toDouble() : null;
+      bool? asBool(dynamic v) => v is bool ? v : null;
+
+      _fillColorHex = _normalizeHex(asStr(style['fillColor'])) ?? _fillColorHex;
+      _fillColorCtrl.text = _fillColorHex;
+      _colorSaturation = asNum(style['colorSaturation']) ?? _colorSaturation;
+      _fillOpacity = asNum(style['fillOpacity']) ?? _fillOpacity;
+      _strokeFollowsFill =
+          asBool(style['strokeFollowsFill']) ?? _strokeFollowsFill;
+      _strokeColorCtrl.text =
+          _normalizeHex(asStr(style['strokeColor'])) ?? _fillColorHex;
+      _strokeWidth = asNum(style['strokeWidth']) ?? _strokeWidth;
+      _strokeDash = asStr(style['strokeDash']) ?? _strokeDash;
+      _pattern = asStr(style['pattern']) ?? _pattern;
+      _patternOpacity = asNum(style['patternOpacity']) ?? _patternOpacity;
+    }
+
+    final rawVehicles = existing.metadata?[_kVehiclesKey];
+    if (rawVehicles is List) {
+      final vehicles = rawVehicles.map((v) => v.toString()).toSet();
+      if (vehicles.isNotEmpty) _vehicleTypes = vehicles;
+    }
+  }
 
   @override
   void dispose() {
@@ -372,7 +449,8 @@ class _ParkingZoneDrawerPageState extends State<ParkingZoneDrawerPage> {
         : (_normalizeHex(_strokeColorCtrl.text) ?? fillHex);
 
     final centroid = _centroid(_points);
-    final id = DateTime.now().millisecondsSinceEpoch.toString();
+    final id = widget.existingPoi?.id ??
+        DateTime.now().millisecondsSinceEpoch.toString();
     final name = _nameCtrl.text.trim().isEmpty
         ? 'Zone parking'
         : _nameCtrl.text.trim();
@@ -384,7 +462,7 @@ class _ParkingZoneDrawerPageState extends State<ParkingZoneDrawerPage> {
       layerId: 'parking',
       lng: centroid.lng,
       lat: centroid.lat,
-      isVisible: true,
+      isVisible: widget.existingPoi?.isVisible ?? true,
       metadata: {
         _kVehiclesKey: _vehicleTypes.toList()..sort(),
         'perimeter': [
@@ -416,9 +494,9 @@ class _ParkingZoneDrawerPageState extends State<ParkingZoneDrawerPage> {
         'layerType': 'parking',
         'layerId': 'parking',
         'type': 'parking',
-        'createdAt': now,
         'updatedAt': now,
-        if (user != null) 'createdByUid': user.uid,
+        if (!_isEditing) 'createdAt': now,
+        if (!_isEditing && user != null) 'createdByUid': user.uid,
       };
 
       await db
@@ -430,7 +508,7 @@ class _ParkingZoneDrawerPageState extends State<ParkingZoneDrawerPage> {
           .doc(widget.circuitId)
           .collection('pois')
           .doc(id)
-          .set(data);
+          .set(data, SetOptions(merge: true));
 
       if (mounted) Navigator.of(context).pop(poi);
     } catch (e) {
@@ -498,6 +576,7 @@ class _ParkingZoneDrawerPageState extends State<ParkingZoneDrawerPage> {
                 pattern: _pattern,
                 patternOpacity: _patternOpacity,
                 pointCount: _points.length,
+                isEditing: _isEditing,
                 error: _error,
                 saving: _saving,
                 onStyleChanged: _onStyleChanged,
@@ -521,7 +600,9 @@ class _ParkingZoneDrawerPageState extends State<ParkingZoneDrawerPage> {
     final canFinish = _points.length >= 3;
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Dessiner une zone parking'),
+        title: Text(
+          _isEditing ? 'Modifier la zone parking' : 'Dessiner une zone parking',
+        ),
         actions: [
           if (_points.isNotEmpty)
             TextButton.icon(
@@ -560,7 +641,7 @@ class _ParkingZoneDrawerPageState extends State<ParkingZoneDrawerPage> {
                       ? 'Appuyez sur la carte pour placer les premiers points de la zone.'
                       : _points.length < 3
                       ? 'Ajoutez encore ${3 - _points.length} point(s) pour former un polygone.'
-                      : '${_points.length} points • Appuyez sur "Styliser & Créer" pour finaliser.',
+                      : '${_points.length} points • Appuyez sur "${_isEditing ? 'Styliser & Modifier' : 'Styliser & Créer'}" pour finaliser.',
                   style: const TextStyle(color: Colors.white, fontSize: 13),
                   textAlign: TextAlign.center,
                 ),
@@ -609,7 +690,11 @@ class _ParkingZoneDrawerPageState extends State<ParkingZoneDrawerPage> {
                         FilledButton.icon(
                           onPressed: canFinish ? _openStyleSheet : null,
                           icon: const Icon(Icons.tune_rounded, size: 18),
-                          label: const Text('Styliser & Créer'),
+                          label: Text(
+                            _isEditing
+                                ? 'Styliser & Modifier'
+                                : 'Styliser & Créer',
+                          ),
                         ),
                       ],
                     ),
@@ -658,6 +743,7 @@ class _StyleSheet extends StatefulWidget {
     required this.pattern,
     required this.patternOpacity,
     required this.pointCount,
+    required this.isEditing,
     required this.error,
     required this.saving,
     required this.onStyleChanged,
@@ -676,6 +762,7 @@ class _StyleSheet extends StatefulWidget {
   final String pattern;
   final double patternOpacity;
   final int pointCount;
+  final bool isEditing;
   final String? error;
   final bool saving;
   final _StyleChangedCallback onStyleChanged;
@@ -743,6 +830,25 @@ class _StyleSheetState extends State<_StyleSheet> {
     }
     setState(() => _vehicleTypes = next);
     widget.onStyleChanged(vehicleTypes: next);
+  }
+
+  Widget _colorPalette({
+    required String selectedHex,
+    required ValueChanged<String> onSelected,
+  }) {
+    final normalizedSelected = selectedHex.trim().toUpperCase();
+    return Wrap(
+      spacing: 8,
+      runSpacing: 8,
+      children: [
+        for (final hex in _kColorPalette)
+          _ColorSwatch(
+            hex: hex,
+            selected: hex.toUpperCase() == normalizedSelected,
+            onTap: () => onSelected(hex),
+          ),
+      ],
+    );
   }
 
   Widget _slider({
@@ -813,7 +919,7 @@ class _StyleSheetState extends State<_StyleSheet> {
               ),
 
               Text(
-                'Nouvelle zone parking • ${widget.pointCount} points',
+                '${widget.isEditing ? 'Modifier la zone parking' : 'Nouvelle zone parking'} • ${widget.pointCount} points',
                 style: Theme.of(
                   context,
                 ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w800),
@@ -894,9 +1000,32 @@ class _StyleSheetState extends State<_StyleSheet> {
               ),
               const SizedBox(height: 12),
 
+              Text(
+                'Couleur du fond',
+                style: Theme.of(
+                  context,
+                ).textTheme.bodySmall?.copyWith(fontWeight: FontWeight.w800),
+              ),
+              const SizedBox(height: 8),
+              _colorPalette(
+                selectedHex: widget.fillColorCtrl.text,
+                onSelected: (hex) {
+                  setState(() {
+                    widget.fillColorCtrl.text = hex;
+                  });
+                  widget.onStyleChanged(fillColorHex: hex);
+                  if (_strokeFollowsFill) {
+                    widget.strokeColorCtrl.text = hex;
+                    widget.onStyleChanged(strokeColorHex: hex);
+                  }
+                },
+              ),
+              const SizedBox(height: 8),
+
               TextField(
                 controller: widget.fillColorCtrl,
                 onChanged: (v) {
+                  setState(() {});
                   widget.onStyleChanged(fillColorHex: v);
                   if (_strokeFollowsFill) {
                     widget.strokeColorCtrl.text = v;
@@ -932,10 +1061,38 @@ class _StyleSheetState extends State<_StyleSheet> {
               ),
               const SizedBox(height: 8),
 
+              Text(
+                'Couleur du contour',
+                style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                  fontWeight: FontWeight.w800,
+                  color: _strokeFollowsFill ? Colors.grey : null,
+                ),
+              ),
+              const SizedBox(height: 8),
+              Opacity(
+                opacity: _strokeFollowsFill ? 0.4 : 1,
+                child: IgnorePointer(
+                  ignoring: _strokeFollowsFill,
+                  child: _colorPalette(
+                    selectedHex: widget.strokeColorCtrl.text,
+                    onSelected: (hex) {
+                      setState(() {
+                        widget.strokeColorCtrl.text = hex;
+                      });
+                      widget.onStyleChanged(strokeColorHex: hex);
+                    },
+                  ),
+                ),
+              ),
+              const SizedBox(height: 8),
+
               TextField(
                 controller: widget.strokeColorCtrl,
                 enabled: !_strokeFollowsFill,
-                onChanged: (v) => widget.onStyleChanged(strokeColorHex: v),
+                onChanged: (v) {
+                  setState(() {});
+                  widget.onStyleChanged(strokeColorHex: v);
+                },
                 decoration: InputDecoration(
                   labelText: 'Couleur contour (hex, ex: #FFFFFF)',
                   border: const OutlineInputBorder(),
@@ -1092,7 +1249,11 @@ class _StyleSheetState extends State<_StyleSheet> {
                               height: 18,
                               child: CircularProgressIndicator(strokeWidth: 2),
                             )
-                          : const Text('Créer la zone'),
+                          : Text(
+                              widget.isEditing
+                                  ? 'Enregistrer les modifications'
+                                  : 'Créer la zone',
+                            ),
                     ),
                   ),
                 ],
@@ -1100,6 +1261,56 @@ class _StyleSheetState extends State<_StyleSheet> {
             ],
           ),
         ),
+      ),
+    );
+  }
+}
+
+// ─── Color swatch ─────────────────────────────────────────────────────────
+
+class _ColorSwatch extends StatelessWidget {
+  const _ColorSwatch({
+    required this.hex,
+    required this.selected,
+    required this.onTap,
+  });
+
+  final String hex;
+  final bool selected;
+  final VoidCallback onTap;
+
+  Color get _color {
+    final m = RegExp(r'^#?([0-9a-fA-F]{6})$').firstMatch(hex.trim());
+    if (m == null) return Colors.black;
+    return Color(0xFF000000 | int.parse(m.group(1)!, radix: 16));
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final color = _color;
+    return InkWell(
+      borderRadius: BorderRadius.circular(18),
+      onTap: onTap,
+      child: Container(
+        width: 32,
+        height: 32,
+        decoration: BoxDecoration(
+          color: color,
+          shape: BoxShape.circle,
+          border: Border.all(
+            color: selected ? MasliveTokens.primary : Colors.black26,
+            width: selected ? 3 : 1,
+          ),
+        ),
+        child: selected
+            ? Icon(
+                Icons.check_rounded,
+                size: 16,
+                color: color.computeLuminance() > 0.5
+                    ? Colors.black
+                    : Colors.white,
+              )
+            : null,
       ),
     );
   }
