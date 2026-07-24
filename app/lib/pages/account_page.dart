@@ -70,6 +70,9 @@ class _AccountUiPageState extends State<AccountUiPage> {
         final tiles = profile == null
             ? const <_AccountTileData>[]
             : _buildTiles(profile, l10n);
+        final sections = profile == null
+            ? const <_AccountTileSectionData>[]
+            : _buildTileSections(tiles, profile);
 
         return Scaffold(
           bottomNavigationBar: widget.showBottomBar
@@ -187,54 +190,33 @@ class _AccountUiPageState extends State<AccountUiPage> {
                           10,
                           20,
                           10,
-                          18,
+                          8,
                         ),
                         mediumPadding: const EdgeInsets.fromLTRB(
                           24,
                           24,
                           24,
-                          20,
+                          10,
                         ),
                         expandedPadding: const EdgeInsets.fromLTRB(
                           40,
                           28,
                           40,
-                          22,
+                          12,
                         ),
-                        widePadding: const EdgeInsets.fromLTRB(56, 32, 56, 24),
-                        child: GridView.builder(
-                          shrinkWrap: true,
-                          physics: const NeverScrollableScrollPhysics(),
-                          gridDelegate: ResponsiveGridDelegate(
-                            context: context,
-                            compactCount: 1,
-                            mediumCount: 2,
-                            expandedCount: 3,
-                            wideCount: 3,
-                            compactMainAxisSpacing: 0,
-                            compactCrossAxisSpacing: 0,
-                            mediumMainAxisSpacing: 4,
-                            mediumCrossAxisSpacing: 12,
-                            expandedMainAxisSpacing: 6,
-                            expandedCrossAxisSpacing: 14,
-                            wideMainAxisSpacing: 8,
-                            wideCrossAxisSpacing: 16,
-                            mainAxisExtent: responsiveValue<double>(
-                              context,
-                              compact: 94,
-                              medium: 106,
-                              expanded: 106,
-                              wide: 106,
-                            ),
-                          ),
-                          itemCount: tiles.length,
-                          itemBuilder: (context, index) {
-                            final tile = tiles[index];
-                            return _AccountTile(
-                              tile: tile,
-                              onTap: () => _navigateTo(tile),
-                            );
-                          },
+                        widePadding: const EdgeInsets.fromLTRB(56, 32, 56, 14),
+                        child: Column(
+                          children: sections
+                              .map(
+                                (section) => Padding(
+                                  padding: const EdgeInsets.only(bottom: 12),
+                                  child: _AccountThemeSection(
+                                    section: section,
+                                    onTileTap: _navigateTo,
+                                  ),
+                                ),
+                              )
+                              .toList(growable: false),
                         ),
                       ),
                     ),
@@ -544,6 +526,264 @@ class _AccountUiPageState extends State<AccountUiPage> {
     }
 
     return tiles;
+  }
+
+  List<_AccountTileSectionData> _buildTileSections(
+    List<_AccountTileData> tiles,
+    ProfileCapabilities profile,
+  ) {
+    final grouped = <_AccountTileTheme, List<_AccountTileData>>{
+      for (final theme in _AccountTileTheme.values) theme: <_AccountTileData>[],
+    };
+    for (final tile in tiles) {
+      grouped[_themeForRoute(tile.route)]!.add(tile);
+    }
+
+    final isAdminProfile = profile.can(Capability.accessAdminPanel);
+    final order = isAdminProfile
+        ? const <_AccountTileTheme>[
+            _AccountTileTheme.administration,
+            _AccountTileTheme.account,
+            _AccountTileTheme.community,
+            _AccountTileTheme.creation,
+            _AccountTileTheme.purchases,
+          ]
+        : const <_AccountTileTheme>[
+            _AccountTileTheme.account,
+            _AccountTileTheme.community,
+            _AccountTileTheme.purchases,
+            _AccountTileTheme.creation,
+            _AccountTileTheme.administration,
+          ];
+
+    return order
+        .where((theme) => grouped[theme]!.isNotEmpty)
+        .map(
+          (theme) => _AccountTileSectionData.fromTheme(
+            theme,
+            grouped[theme]!,
+            initiallyExpanded: isAdminProfile
+                ? theme == _AccountTileTheme.administration
+                : theme == _AccountTileTheme.account,
+          ),
+        )
+        .toList(growable: false);
+  }
+
+  _AccountTileTheme _themeForRoute(String route) {
+    switch (route) {
+      case '/account-admin':
+        return _AccountTileTheme.administration;
+      case '/account':
+      case '/alerts':
+      case '/settings':
+      case '/help':
+        return _AccountTileTheme.account;
+      case '/favorites':
+      case '/group-admin':
+      case '/group-tracker':
+        return _AccountTileTheme.community;
+      case '/purchase-history':
+      case '/cart':
+      case '/media-marketplace':
+      case '/media-marketplace/downloads':
+        return _AccountTileTheme.purchases;
+      case '/commerce/create-product':
+      case '/shop':
+      case '/media-marketplace/photographer':
+      case '/media-marketplace/subscription':
+      case '/commerce/create-media':
+      case '/bloom-art/dashboard':
+      case '/bloom-art/create':
+      case '/seller-inbox':
+        return _AccountTileTheme.creation;
+      default:
+        return _AccountTileTheme.account;
+    }
+  }
+}
+
+enum _AccountTileTheme {
+  administration,
+  account,
+  community,
+  creation,
+  purchases,
+}
+
+class _AccountTileSectionData {
+  const _AccountTileSectionData({
+    required this.theme,
+    required this.icon,
+    required this.title,
+    required this.subtitle,
+    required this.tiles,
+    required this.initiallyExpanded,
+  });
+
+  factory _AccountTileSectionData.fromTheme(
+    _AccountTileTheme theme,
+    List<_AccountTileData> tiles, {
+    required bool initiallyExpanded,
+  }) {
+    switch (theme) {
+      case _AccountTileTheme.administration:
+        return _AccountTileSectionData(
+          theme: theme,
+          icon: Icons.admin_panel_settings_rounded,
+          title: 'Administration MASLIVE',
+          subtitle: 'Pilotage, modération et gestion globale',
+          tiles: tiles,
+          initiallyExpanded: initiallyExpanded,
+        );
+      case _AccountTileTheme.account:
+        return _AccountTileSectionData(
+          theme: theme,
+          icon: Icons.manage_accounts_outlined,
+          title: 'Compte & préférences',
+          subtitle: 'Profil, sécurité, alertes et assistance',
+          tiles: tiles,
+          initiallyExpanded: initiallyExpanded,
+        );
+      case _AccountTileTheme.community:
+        return _AccountTileSectionData(
+          theme: theme,
+          icon: Icons.groups_2_outlined,
+          title: 'Groupes & communauté',
+          subtitle: 'Favoris, communautés et suivi GPS',
+          tiles: tiles,
+          initiallyExpanded: initiallyExpanded,
+        );
+      case _AccountTileTheme.creation:
+        return _AccountTileSectionData(
+          theme: theme,
+          icon: Icons.auto_awesome_mosaic_outlined,
+          title: 'Création & activité',
+          subtitle: 'Produits, médias, galeries, œuvres et ventes',
+          tiles: tiles,
+          initiallyExpanded: initiallyExpanded,
+        );
+      case _AccountTileTheme.purchases:
+        return _AccountTileSectionData(
+          theme: theme,
+          icon: Icons.shopping_bag_outlined,
+          title: 'Achats & médias',
+          subtitle: 'Panier, commandes, galeries et téléchargements',
+          tiles: tiles,
+          initiallyExpanded: initiallyExpanded,
+        );
+    }
+  }
+
+  final _AccountTileTheme theme;
+  final IconData icon;
+  final String title;
+  final String subtitle;
+  final List<_AccountTileData> tiles;
+  final bool initiallyExpanded;
+}
+
+class _AccountThemeSection extends StatelessWidget {
+  const _AccountThemeSection({required this.section, required this.onTileTap});
+
+  final _AccountTileSectionData section;
+  final ValueChanged<_AccountTileData> onTileTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return MasliveCard(
+      radius: 22,
+      padding: EdgeInsets.zero,
+      child: Theme(
+        data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
+        child: ExpansionTile(
+          key: PageStorageKey<String>('account-theme-${section.theme.name}'),
+          initiallyExpanded: section.initiallyExpanded,
+          maintainState: true,
+          tilePadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 5),
+          childrenPadding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
+          leading: Container(
+            width: 46,
+            height: 46,
+            decoration: BoxDecoration(
+              color: MasliveTheme.surfaceAlt,
+              borderRadius: BorderRadius.circular(15),
+              border: Border.all(color: MasliveTheme.divider),
+            ),
+            child: Icon(section.icon, color: MasliveTokens.primary),
+          ),
+          title: Row(
+            children: <Widget>[
+              Expanded(
+                child: Text(
+                  section.title,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                    fontWeight: FontWeight.w900,
+                    color: MasliveTheme.textPrimary,
+                  ),
+                ),
+              ),
+              const SizedBox(width: 8),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
+                decoration: BoxDecoration(
+                  color: MasliveTheme.surfaceAlt,
+                  borderRadius: BorderRadius.circular(999),
+                  border: Border.all(color: MasliveTheme.divider),
+                ),
+                child: Text(
+                  '${section.tiles.length}',
+                  style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                    fontWeight: FontWeight.w900,
+                    color: MasliveTheme.textPrimary,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          subtitle: Text(
+            section.subtitle,
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+          ),
+          children: <Widget>[
+            GridView.builder(
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              gridDelegate: ResponsiveGridDelegate(
+                context: context,
+                compactCount: 1,
+                mediumCount: 2,
+                expandedCount: 3,
+                wideCount: 3,
+                compactMainAxisSpacing: 0,
+                compactCrossAxisSpacing: 0,
+                mediumMainAxisSpacing: 4,
+                mediumCrossAxisSpacing: 12,
+                expandedMainAxisSpacing: 6,
+                expandedCrossAxisSpacing: 14,
+                wideMainAxisSpacing: 8,
+                wideCrossAxisSpacing: 16,
+                mainAxisExtent: responsiveValue<double>(
+                  context,
+                  compact: 94,
+                  medium: 106,
+                  expanded: 106,
+                  wide: 106,
+                ),
+              ),
+              itemCount: section.tiles.length,
+              itemBuilder: (context, index) {
+                final tile = section.tiles[index];
+                return _AccountTile(tile: tile, onTap: () => onTileTap(tile));
+              },
+            ),
+          ],
+        ),
+      ),
+    );
   }
 }
 
