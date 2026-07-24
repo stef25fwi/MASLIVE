@@ -1469,6 +1469,12 @@ class _MasLiveMapNativeState extends State<MasLiveMapNative> {
             'point',
           ],
         ],
+        // Un POI avec un picto choisi dans le catalogue (kPoiPictoIconIdProperty)
+        // doit afficher UNIQUEMENT ce picto, jamais le cercle par défaut en dessous.
+        [
+          '!',
+          ['has', kPoiPictoIconIdProperty],
+        ],
       ]);
     } catch (_) {
       // ignore
