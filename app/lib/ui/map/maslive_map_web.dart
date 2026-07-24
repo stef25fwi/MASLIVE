@@ -1166,6 +1166,12 @@ class _MasLiveMapWebState extends State<MasLiveMapWeb> {
                   ],
                 ],
               ],
+              // Un POI avec un picto choisi dans le catalogue (kPoiPictoIconIdProperty)
+              // doit afficher UNIQUEMENT ce picto, jamais le cercle par défaut en dessous.
+              [
+                '!',
+                ['has', kPoiPictoIconIdProperty],
+              ],
             ],
             'paint': {
               'circle-radius': _poiStyle.circleRadius,
@@ -1267,6 +1273,12 @@ class _MasLiveMapWebState extends State<MasLiveMapWeb> {
                 'point',
               ],
             ],
+          ],
+          // Même correction que addLayer : un POI avec un picto du catalogue
+          // n'affiche jamais le cercle par défaut, seulement son picto.
+          [
+            '!',
+            ['has', kPoiPictoIconIdProperty],
           ],
         ]),
       ]);
